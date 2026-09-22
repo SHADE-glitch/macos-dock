@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.macosdock"
+          path="/org/gnome/shell/extensions/macosdock/">
+    <key name="icon-size" type="i">
+      <default>48</default>
+      <summary>Icon size</summary>
+      <description>Size of dock icons in pixels (16-96)</description>
+    </key>
+    <key name="magnification-enabled" type="b">
+      <default>true</default>
+      <summary>Enable magnification</summary>
+      <description>Whether icons grow when the pointer hovers near the dock</description>
+    </key>
+    <key name="magnification-scale" type="d">
+      <default>1.4</default>
+      <summary>Magnification max scale</summary>
+      <description>Maximum scale applied to the icon directly under the cursor (1.0 = no magnification)</description>
+    </key>
+    <key name="magnification-falloff" type="i">
+      <default>100</default>
+      <summary>Magnification falloff distance</summary>
+      <description>How far (in pixels) the magnification wave reaches from the cursor</description>
+    </key>
+    <key name="running-indicators" type="b">
+      <default>true</default>
+      <summary>Show running indicators</summary>
+      <description>Show a small dot under icons of running apps</description>
+    </key>
+    <key name="running-indicator-style" type="i">
+      <default>0</default>
+      <summary>Running indicator style</summary>
+      <description>0 = dots per window (macOS style), 1 = horizontal bar</description>
+    </key>
+    <key name="bounce-on-launch" type="b">
+      <default>true</default>
+      <summary>Bounce on launch</summary>
+      <description>Play a bounce animation on the dock icon when a new app is launched</description>
+    </key>
+    <key name="animation-duration" type="i">
+      <default>200</default>
+      <summary>Animation duration</summary>
+      <description>Duration of the show/hide animation in milliseconds (0 = instant, max 1000)</description>
+    </key>
+    <key name="magnification-framerate" type="i">
+      <default>60</default>
+      <summary>Magnification framerate</summary>
+      <description>Target framerate for magnification animation in Hz (30, 60, or 120)</description>
+    </key>
+    <key name="icon-quality" type="i">
+      <default>2</default>
+      <summary>Icon quality multiplier</summary>
+      <description>Render icons at N times native resolution to prevent blur when magnified (1, 2, or 4)</description>
+    </key>
+    <key name="show-threshold" type="i">
+      <default>25</default>
+      <summary>Show threshold</summary>
+      <description>Distance in pixels from screen edge to trigger dock show</description>
+    </key>
+    <key name="dock-opacity" type="i">
+      <default>60</default>
+      <summary>Dock opacity</summary>
+      <description>Dock background opacity percentage (0-100)</description>
+    </key>
+    <key name="dock-background-color" type="s">
+      <default>'#1e1e1e'</default>
+      <summary>Dock background color</summary>
+      <description>Hex color for dock background (e.g. #1e1e1e)</description>
+    </key>
+    <key name="dock-border-radius" type="i">
+      <default>16</default>
+      <summary>Dock border radius</summary>
+      <description>Corner radius of the dock in pixels</description>
+    </key>
+    <key name="dock-blur-enabled" type="b">
+      <default>false</default>
+      <summary>Enable dock blur</summary>
+      <description>Apply blur effect behind the dock for a frosted glass look</description>
+    </key>
+    <key name="dock-position" type="i">
+      <default>0</default>
+      <summary>Dock position</summary>
+      <description>Position of the dock on screen (0=bottom, 1=left, 2=right, 3=top)</description>
+    </key>
+    <key name="show-applications-button" type="b">
+      <default>true</default>
+      <summary>Show applications button</summary>
+      <description>Show a button to access all installed applications</description>
+    </key>
+    <key name="window-previews" type="b">
+      <default>true</default>
+      <summary>Window previews</summary>
+      <description>Show live thumbnail previews of app windows on hover</description>
+    </key>
+    <key name="preview-scale" type="i">
+      <default>200</default>
+      <summary>Preview thumbnail width</summary>
+      <description>Width of each preview thumbnail in pixels (100-400)</description>
+    </key>
+    <key name="show-running-apps" type="b">
+      <default>true</default>
+      <summary>Show running applications</summary>
+      <description>Show non-favorite running applications in the dock</description>
+    </key>
+    <key name="dock-workspace-mode" type="i">
+      <default>0</default>
+      <summary>Dock workspace mode</summary>
+      <description>Which workspaces show running apps (0=all, 1=current only)</description>
+    </key>
+    <key name="media-controls" type="b">
+      <default>false</default>
+      <summary>Enable media controls</summary>
+      <description>Show play/pause controls in the dock context menu when media is playing</description>
+    </key>
+    <key name="media-indicator" type="b">
+      <default>true</default>
+      <summary>Media indicator</summary>
+      <description>Show a music note indicator on the icon of the currently playing media app</description>
+    </key>
+    <key name="icons-fix-enabled" type="b">
+      <default>true</default>
+      <summary>Keep running-app icons</summary>
+      <description>Keep non-favorite running apps in the dock across minimize and workspace switches</description>
+    </key>
+    <key name="dodge-enabled" type="b">
+      <default>true</default>
+      <summary>Enable dodge</summary>
+      <description>Keep the dock visible unless the focused window overlaps it</description>
+    </key>
+    <key name="dodge-only-focused" type="b">
+      <default>true</default>
+      <summary>Only focused window dodges</summary>
+      <description>Hide only when the currently focused window overlaps the dock; otherwise any overlapping window hides it</description>
+    </key>
+    <key name="peek-edge-px" type="i">
+      <default>5</default>
+      <summary>Peek deep zone (px)</summary>
+      <description>Pointer must be within this many pixels of the screen edge to peek the hidden dock</description>
+    </key>
+    <key name="peek-hold-ms" type="i">
+      <default>80</default>
+      <summary>Peek hold time (ms)</summary>
+      <description>Pointer must stay inside the deep zone this long before the hidden dock peeks out</description>
+    </key>
+    <key name="hide-in-fullscreen" type="b">
+      <default>true</default>
+      <summary>Hide in fullscreen</summary>
+      <description>Force-hide the dock and disable peeking while a true fullscreen window is on the active workspace</description>
+    </key>
+    <key name="keynav-enabled" type="b">
+      <default>true</default>
+      <summary>Enable Super+number hotkeys</summary>
+      <description>Super+1..9 / Super+0 cycles the nth app in the dock: launch if not running, raise if running but unfocused, minimize if focused</description>
+    </key>
+    <key name="keynav-app-1" type="as">
+      <default>['&lt;Super&gt;1']</default>
+      <summary>App 1 shortcut</summary>
+      <description>Activate the first app in the dock</description>
+    </key>
+    <key name="keynav-app-2" type="as">
+      <default>['&lt;Super&gt;2']</default>
+      <summary>App 2 shortcut</summary>
+      <description>Activate the second app in the dock</description>
+    </key>
+    <key name="keynav-app-3" type="as">
+      <default>['&lt;Super&gt;3']</default>
+      <summary>App 3 shortcut</summary>
+      <description>Activate the third app in the dock</description>
+    </key>
+    <key name="keynav-app-4" type="as">
+      <default>['&lt;Super&gt;4']</default>
+      <summary>App 4 shortcut</summary>
+      <description>Activate the fourth app in the dock</description>
+    </key>
+    <key name="keynav-app-5" type="as">
+      <default>['&lt;Super&gt;5']</default>
+      <summary>App 5 shortcut</summary>
+      <description>Activate the fifth app in the dock</description>
+    </key>
+    <key name="keynav-app-6" type="as">
+      <default>['&lt;Super&gt;6']</default>
+      <summary>App 6 shortcut</summary>
+      <description>Activate the sixth app in the dock</description>
+    </key>
+    <key name="keynav-app-7" type="as">
+      <default>['&lt;Super&gt;7']</default>
+      <summary>App 7 shortcut</summary>
+      <description>Activate the seventh app in the dock</description>
+    </key>
+    <key name="keynav-app-8" type="as">
+      <default>['&lt;Super&gt;8']</default>
+      <summary>App 8 shortcut</summary>
+      <description>Activate the eighth app in the dock</description>
+    </key>
+    <key name="keynav-app-9" type="as">
+      <default>['&lt;Super&gt;9']</default>
+      <summary>App 9 shortcut</summary>
+      <description>Activate the ninth app in the dock</description>
+    </key>
+    <key name="keynav-app-10" type="as">
+      <default>['&lt;Super&gt;0']</default>
+      <summary>App 10 shortcut</summary>
+      <description>Activate the tenth app in the dock</description>
+    </key>
+  </schema>
+</schemalist>
