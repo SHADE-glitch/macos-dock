@@ -414,7 +414,7 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         // Super+number hotkeys
         const keynavGroup = new Adw.PreferencesGroup({
             title: "Super+number hotkeys",
-            description: "Super+1..9 / Super+0 cycles the nth app in the dock: launch, raise, or minimize. While enabled the matching system switch-to-application shortcuts are cleared (restored on disable).",
+            description: "Super+1..9 / Super+0 cycles the nth app in the dock: launch, raise, or minimize. While enabled the matching system switch-to-application shortcuts are cleared (restored on disable, self-healed on next enable after a crash).",
         });
         page.add(keynavGroup);
         const keynavOnRow = new Adw.SwitchRow({

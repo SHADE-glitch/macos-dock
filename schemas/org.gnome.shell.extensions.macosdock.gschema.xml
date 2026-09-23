@@ -202,5 +202,15 @@
       <summary>App 10 shortcut</summary>
       <description>Activate the tenth app in the dock</description>
     </key>
+    <key name="keynav-stock-backup" type="as">
+      <default>[]</default>
+      <summary>Internal: stock keybinding backup</summary>
+      <description>Internal crash-recovery backup of org.gnome.shell.keybindings switch-to-application-1..9, one newline-joined entry per slot, taken when the dock grabs them. Not user-facing; never shown in preferences.</description>
+    </key>
+    <key name="keynav-stock-dirty" type="b">
+      <default>false</default>
+      <summary>Internal: stock keybinding grab dirty flag</summary>
+      <description>True while the dock holds cleared stock keybindings. Lets the next enable() self-heal after a crash between grab and restore. Not user-facing; never shown in preferences.</description>
+    </key>
   </schema>
 </schemalist>
