@@ -7,6 +7,7 @@ A macOS-style dock for GNOME Shell with magnification, animations, dodge and key
 ![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-48--50-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![Based on: MacOSDock](https://img.shields.io/badge/based%20on-MacOSDock-orange)
+[![Repository](https://img.shields.io/badge/repository-GitHub-black?logo=github)](https://github.com/SHADE-glitch/macos-dock)
 
 ## About
 
@@ -35,13 +36,20 @@ It is **not** affiliated with or endorsed by the upstream author. The fork keeps
 ## Installation
 
 ```bash
-git clone <your-fork-url> ~/.local/share/gnome-shell/extensions/macos-dock@local
+git clone https://github.com/SHADE-glitch/macos-dock.git ~/.local/share/gnome-shell/extensions/macos-dock@local
 cd ~/.local/share/gnome-shell/extensions/macos-dock@local
 glib-compile-schemas schemas/
 gnome-extensions enable macos-dock@local
 ```
 
 On Wayland you must log out and back in for GNOME Shell to load the extension.
+
+### Uninstall
+
+```bash
+gnome-extensions disable macos-dock@local
+rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
+```
 
 ## Usage
 
@@ -80,4 +88,4 @@ This extension is a **maintenance fork** of **MacOSDock** by **vinnytherobot**. 
 
 Licensed under the **MIT License** — see [LICENSE](LICENSE).
 
-© vinnytherobot and contributors.
+© vinnytherobot and contributors; fork modifications © SHADE-glitch.

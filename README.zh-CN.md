@@ -7,6 +7,7 @@
 ![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-48--50-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 ![Based on: MacOSDock](https://img.shields.io/badge/based%20on-MacOSDock-orange)
+[![Repository](https://img.shields.io/badge/repository-GitHub-black?logo=github)](https://github.com/SHADE-glitch/macos-dock)
 
 ## 项目说明
 
@@ -35,13 +36,20 @@
 ## 安装
 
 ```bash
-git clone <你的仓库地址> ~/.local/share/gnome-shell/extensions/macos-dock@local
+git clone https://github.com/SHADE-glitch/macos-dock.git ~/.local/share/gnome-shell/extensions/macos-dock@local
 cd ~/.local/share/gnome-shell/extensions/macos-dock@local
 glib-compile-schemas schemas/
 gnome-extensions enable macos-dock@local
 ```
 
 在 Wayland 下需注销后重新登录，GNOME Shell 才会加载扩展。
+
+### 卸载
+
+```bash
+gnome-extensions disable macos-dock@local
+rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
+```
 
 ## 使用
 
@@ -80,4 +88,4 @@ gnome-extensions enable macos-dock@local
 
 本项目采用 **MIT 许可证** —— 见 [LICENSE](LICENSE)。
 
-© vinnytherobot 及贡献者。
+© vinnytherobot 及贡献者；分支修改 © SHADE-glitch。
