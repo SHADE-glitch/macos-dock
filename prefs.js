@@ -514,7 +514,7 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             "Tail fade", "Fade the last sliver as it sinks in"));
         const genieMeshRow = new Adw.SpinRow({
             title: "Mesh resolution",
-            subtitle: "Strips along the funnel (higher = smoother)",
+            subtitle: "Maximum strips along the funnel; the actual count adapts to the window size (higher = smoother)",
             adjustment: new Gtk.Adjustment({
                 lower: 16,
                 upper: 192,

@@ -277,9 +277,9 @@
     </key>
     <key name="genie-mesh-resolution" type="i">
       <range min="16" max="192"/>
-      <default>128</default>
-      <summary>Mesh resolution</summary>
-      <description>Strips along the funnel (higher = smoother curves)</description>
+      <default>64</default>
+      <summary>Maximum mesh resolution</summary>
+      <description>Upper bound on the number of strips along the funnel; the actual count adapts to the window size (higher = smoother curves)</description>
     </key>
   </schema>
 </schemalist>
