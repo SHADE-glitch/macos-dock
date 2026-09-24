@@ -231,7 +231,12 @@
     <key name="genie-peek-hidden-dock" type="b">
       <default>true</default>
       <summary>Peek the hidden dock during the animation</summary>
-      <description>When the dock is hidden by dodge, briefly show it during a minimize/restore so the window can be seen flying to its icon. When off, the animation flies to the screen's bottom edge instead</description>
+      <description>When the dock is hidden by dodge, briefly show it during a minimize/restore so the window can be seen flying to its icon. When off, the animation flies to the dock's screen edge instead</description>
+    </key>
+    <key name="genie-icon-reaction" type="b">
+      <default>true</default>
+      <summary>React on the target icon</summary>
+      <description>Give the target dock icon a small press-and-rebound as the window lands in it (minimize) or leaves it (restore)</description>
     </key>
     <key name="genie-minimize-duration" type="i">
       <range min="100" max="3000"/>

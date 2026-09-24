@@ -478,6 +478,12 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         });
         settings.bind("genie-peek-hidden-dock", geniePeekRow, "active", BIND_FLAGS);
         genieGroup.add(geniePeekRow);
+        const genieIconRow = new Adw.SwitchRow({
+            title: "React on the target icon",
+            subtitle: "Press and rebound the icon as the window lands in it or leaves it",
+        });
+        settings.bind("genie-icon-reaction", genieIconRow, "active", BIND_FLAGS);
+        genieGroup.add(genieIconRow);
         const genieMinRow = new Adw.SpinRow({
             title: "Minimize duration (ms)",
             subtitle: "How long the window takes to pour into its icon",
