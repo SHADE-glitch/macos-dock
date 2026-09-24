@@ -21,7 +21,7 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 - **Magnification** — LERP-smoothed scaling with a pointer dead-zone and a configurable falloff.
 - **Window previews** on hover, with configurable scale.
 - **Dodge / auto-hide** — hide-only-when-focused, a peek edge, a peek hold delay and hide-in-fullscreen.
-- **Keyboard navigation** — `Super` + `1` … `0` to launch or focus the first ten apps.
+- **Keyboard navigation** — `Super` + `1` … `0` to launch, focus, switch or minimize the first ten apps, briefly popping the dock up so you can see it.
 - **Running indicators**, launch bounce, animation duration and a show threshold.
 - **Media controls** via MPRIS, with an optional indicator.
 - **Separators** that divide favorites from running non-favorites.
@@ -54,15 +54,15 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 
 ## Usage
 
-Once enabled, the dock appears at the configured screen edge. Hover to magnify and reveal previews; click an icon to launch or focus its app; right-click for the app menu. Use `Super` + digit to launch by position.
+Once enabled, the dock appears at the configured screen edge. Hover to magnify and reveal previews; click an icon to launch or focus its app; right-click for the app menu. Use `Super` + digit to launch by position — the dock pops up briefly each time.
 
 ## Preferences
 
-Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure appearance and position, magnification, previews, dodge/auto-hide, keyboard navigation, media controls, running indicators, separators, animation timing and the genie minimize/restore animation.
+Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure appearance and position, magnification, previews, dodge/auto-hide, keyboard navigation (including the dock pop-up), media controls, running indicators, separators, animation timing and the genie minimize/restore animation.
 
 ## Genie animation
 
-Minimizing or restoring a window plays the macOS genie animation: the window is sliced into strips that pour into — and stream back out of — its **real dock icon** through a curved funnel. The animation targets the pure icon square (excluding the running-indicator strip), snapshots the icon's live magnified position when it starts, and follows a fallback chain when an app has no visible icon (live rect → last cached rect → dock centre → primary screen bottom-centre).
+Minimizing or restoring a window plays the macOS genie animation: the window is sliced into strips that pour into — and stream back out of — its **real dock icon** through a curved funnel. The animation targets the pure icon square (excluding the running-indicator strip), snapshots the icon's live magnified position when it starts, and follows a fallback chain when an app has no visible icon (live rect → last cached rect → dock centre → primary screen bottom-centre). The funnel keeps its full-bodied belly even when a window sits right on top of its icon, and the window sinks deep into the icon before dissolving smoothly.
 
 When the dock is hidden by dodge, it briefly **peeks** for the duration of the animation so you can see where the window went; this can be turned off, in which case the window flies to the primary screen's bottom edge while keeping the icon's horizontal position. Tool and background windows keep the system's native animation. The genie is only active while the dock is enabled, validates the private Shell APIs it needs at startup, and degrades to the native animation (with a loud log warning) if they are missing.
 
@@ -80,6 +80,8 @@ This fork adds maintenance commits on top of the upstream v9 baseline (`a2140d0`
 - **Separators:** fixed `_enforceOrder` false positives by excluding separators/buttons from the index comparison (zero moves at steady state); added separator add/remove instrumentation; aligned separator removal with icon fade-out; conditional early grace end (floor 400 ms + quiet 500 ms, cap 1200 ms).
 - **Correctness:** the window-type check now uses `Meta.WindowType` symbols.
 - **Genie merge:** merged the macOS Genie minimize/restore animation (`lib/genieGeometry.js`, `lib/genieEngine.js`, `lib/genieController.js`) — animates to the real dock icon, snapshots the live magnified position, follows a cached-rect fallback chain, optionally peeks a dodge-hidden dock, validates the private Shell APIs at startup (degrading to the native animation), and guarantees an exactly-once completion callback.
+- **Hotkey dock pop-up:** `Super` + number now briefly reveals a hidden dock for every action (launch, focus, switch, minimize), with its own on/off switch and duration; peek requests take the longest pending duration so a hotkey peek is never cut short by a shorter one.
+- **Genie polish near the icon:** the funnel taper now spans at least the window's own height, so a window sitting close to (or over) its icon is no longer squeezed flat; the absorb target has a minimum sink depth and a deeper default, and the tail fade uses smoothstep for a gentler dissolve.
 
 ## Contributing
 
