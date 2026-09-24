@@ -442,8 +442,100 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             });
             keynavGroup.add(labelRow);
         }
+        // Genie minimize/restore
+        const genieGroup = new Adw.PreferencesGroup({
+            title: "Genie animation",
+            description: "Windows pour into, and stream out of, their real dock icon",
+        });
+        page.add(genieGroup);
+        const genieOnRow = new Adw.SwitchRow({
+            title: "Enable genie minimize/restore",
+            subtitle: "Animate minimizing/restoring windows into their dock icon",
+        });
+        settings.bind("genie-enabled", genieOnRow, "active", BIND_FLAGS);
+        genieGroup.add(genieOnRow);
+        const geniePeekRow = new Adw.SwitchRow({
+            title: "Peek the hidden dock",
+            subtitle: "Briefly show a dodge-hidden dock so you can see where the window goes",
+        });
+        settings.bind("genie-peek-hidden-dock", geniePeekRow, "active", BIND_FLAGS);
+        genieGroup.add(geniePeekRow);
+        const genieMinRow = new Adw.SpinRow({
+            title: "Minimize duration (ms)",
+            subtitle: "How long the window takes to pour into its icon",
+            adjustment: new Gtk.Adjustment({
+                lower: 100,
+                upper: 3000,
+                step_increment: 20,
+                value: settings.get_int("genie-minimize-duration"),
+            }),
+        });
+        settings.bind("genie-minimize-duration", genieMinRow, "value", BIND_FLAGS);
+        genieGroup.add(genieMinRow);
+        const genieRestoreRow = new Adw.SpinRow({
+            title: "Restore duration (ms)",
+            subtitle: "How long the window takes to stream back out",
+            adjustment: new Gtk.Adjustment({
+                lower: 100,
+                upper: 3000,
+                step_increment: 20,
+                value: settings.get_int("genie-restore-duration"),
+            }),
+        });
+        settings.bind("genie-restore-duration", genieRestoreRow, "value", BIND_FLAGS);
+        genieGroup.add(genieRestoreRow);
+        genieGroup.add(this._scaleRow(settings, "genie-curvature",
+            "Curvature", "0 = gentle macOS S-curve, 1 = tighter gather"));
+        genieGroup.add(this._scaleRow(settings, "genie-lead-fraction",
+            "Leading edge arrival", "When the near edge reaches the icon"));
+        genieGroup.add(this._scaleRow(settings, "genie-trail-fraction",
+            "Trailing edge departure", "When the far edge starts to move"));
+        genieGroup.add(this._scaleRow(settings, "genie-absorb-depth",
+            "Absorb depth", "How deep into the icon the window sinks"));
+        genieGroup.add(this._scaleRow(settings, "genie-tail-fade",
+            "Tail fade", "Fade the last sliver as it sinks in"));
+        const genieMeshRow = new Adw.SpinRow({
+            title: "Mesh resolution",
+            subtitle: "Strips along the funnel (higher = smoother)",
+            adjustment: new Gtk.Adjustment({
+                lower: 16,
+                upper: 192,
+                step_increment: 8,
+                value: settings.get_int("genie-mesh-resolution"),
+            }),
+        });
+        settings.bind("genie-mesh-resolution", genieMeshRow, "value", BIND_FLAGS);
+        genieGroup.add(genieMeshRow);
         // Disconnect all tracked signals when the window is closed.
         window.connect("close-request", () => this._disconnectAll());
+    }
+    _scaleRow(settings, key, title, subtitle) {
+        let lower = 0;
+        let upper = 1;
+        try {
+            const range = settings.get_range(key).deep_unpack()[1].deep_unpack();
+            lower = range[0];
+            upper = range[1];
+        }
+        catch (e) {}
+        const scale = new Gtk.Scale({
+            orientation: Gtk.Orientation.HORIZONTAL,
+            adjustment: new Gtk.Adjustment({
+                lower,
+                upper,
+                step_increment: 0.01,
+                value: settings.get_double(key),
+            }),
+            digits: 2,
+            draw_value: true,
+            hexpand: true,
+            valign: Gtk.Align.CENTER,
+        });
+        settings.bind(key, scale.adjustment, "value", BIND_FLAGS);
+        const row = new Adw.ActionRow({ title, subtitle });
+        row.add_suffix(scale);
+        scale.set_size_request(220, -1);
+        return row;
     }
     _trackSignal(source, signal, callback) {
         const id = source.connect(signal, callback);

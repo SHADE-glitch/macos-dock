@@ -212,5 +212,63 @@
       <summary>Internal: stock keybinding grab dirty flag</summary>
       <description>True while the dock holds cleared stock keybindings. Lets the next enable() self-heal after a crash between grab and restore. Not user-facing; never shown in preferences.</description>
     </key>
+    <key name="genie-enabled" type="b">
+      <default>true</default>
+      <summary>Enable genie minimize/restore</summary>
+      <description>Play the macOS genie animation when a window minimizes into, or restores out of, its dock icon</description>
+    </key>
+    <key name="genie-peek-hidden-dock" type="b">
+      <default>true</default>
+      <summary>Peek the hidden dock during the animation</summary>
+      <description>When the dock is hidden by dodge, briefly show it during a minimize/restore so the window can be seen flying to its icon. When off, the animation flies to the screen's bottom edge instead</description>
+    </key>
+    <key name="genie-minimize-duration" type="i">
+      <range min="100" max="3000"/>
+      <default>560</default>
+      <summary>Minimize animation duration (ms)</summary>
+      <description>How long the window takes to pour into its dock icon</description>
+    </key>
+    <key name="genie-restore-duration" type="i">
+      <range min="100" max="3000"/>
+      <default>480</default>
+      <summary>Restore animation duration (ms)</summary>
+      <description>How long the window takes to stream back out of its dock icon</description>
+    </key>
+    <key name="genie-curvature" type="d">
+      <range min="0.0" max="1.0"/>
+      <default>0.85</default>
+      <summary>Funnel curvature</summary>
+      <description>0 = gentle macOS S-curve, 1 = tighter KDE magic-lamp gather</description>
+    </key>
+    <key name="genie-lead-fraction" type="d">
+      <range min="0.2" max="1.0"/>
+      <default>0.58</default>
+      <summary>Leading edge arrival</summary>
+      <description>Fraction of the animation after which the near edge has reached the icon</description>
+    </key>
+    <key name="genie-trail-fraction" type="d">
+      <range min="0.0" max="0.8"/>
+      <default>0.38</default>
+      <summary>Trailing edge departure</summary>
+      <description>Fraction of the animation at which the far edge starts to move</description>
+    </key>
+    <key name="genie-absorb-depth" type="d">
+      <range min="0.0" max="1.0"/>
+      <default>0.6</default>
+      <summary>Absorb depth</summary>
+      <description>How deep into the icon the window sinks at the end (fraction of icon depth)</description>
+    </key>
+    <key name="genie-tail-fade" type="d">
+      <range min="0.0" max="0.3"/>
+      <default>0.08</default>
+      <summary>Tail fade</summary>
+      <description>Final fraction of the animation over which the last sliver fades out</description>
+    </key>
+    <key name="genie-mesh-resolution" type="i">
+      <range min="16" max="192"/>
+      <default>128</default>
+      <summary>Mesh resolution</summary>
+      <description>Strips along the funnel (higher = smoother curves)</description>
+    </key>
   </schema>
 </schemalist>

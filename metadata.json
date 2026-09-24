@@ -1,5 +1,5 @@
 {
-  "description": "A macOS-style dock for GNOME Shell with magnification, animations, dodge and keyboard navigation",
+  "description": "A macOS-style dock for GNOME Shell with magnification, animations, dodge, keyboard navigation and a genie minimize/restore animation",
   "name": "MacOS Dock",
   "settings-schema": "org.gnome.shell.extensions.macosdock",
   "shell-version": [
