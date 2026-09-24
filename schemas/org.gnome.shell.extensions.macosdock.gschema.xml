@@ -202,6 +202,17 @@
       <summary>App 10 shortcut</summary>
       <description>Activate the tenth app in the dock</description>
     </key>
+    <key name="keynav-peek-dock" type="b">
+      <default>true</default>
+      <summary>Pop up the dock on Super+number</summary>
+      <description>Briefly reveal a dodge-hidden dock whenever a Super+number shortcut fires, whether it launches, focuses, switches or minimizes</description>
+    </key>
+    <key name="keynav-peek-duration" type="i">
+      <range min="100" max="3000"/>
+      <default>800</default>
+      <summary>Hotkey dock peek duration (ms)</summary>
+      <description>How long the dock stays revealed after a Super+number shortcut</description>
+    </key>
     <key name="keynav-stock-backup" type="as">
       <default>[]</default>
       <summary>Internal: stock keybinding backup</summary>
@@ -254,7 +265,7 @@
     </key>
     <key name="genie-absorb-depth" type="d">
       <range min="0.0" max="1.0"/>
-      <default>0.6</default>
+      <default>0.85</default>
       <summary>Absorb depth</summary>
       <description>How deep into the icon the window sinks at the end (fraction of icon depth)</description>
     </key>

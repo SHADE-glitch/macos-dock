@@ -442,6 +442,24 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             });
             keynavGroup.add(labelRow);
         }
+        const keynavPeekRow = new Adw.SwitchRow({
+            title: "Pop up the dock on shortcut",
+            subtitle: "Briefly reveal a hidden dock when a Super+number shortcut fires",
+        });
+        settings.bind("keynav-peek-dock", keynavPeekRow, "active", BIND_FLAGS);
+        keynavGroup.add(keynavPeekRow);
+        const keynavPeekDurationRow = new Adw.SpinRow({
+            title: "Shortcut dock peek duration (ms)",
+            subtitle: "How long the dock stays revealed after a shortcut",
+            adjustment: new Gtk.Adjustment({
+                lower: 100,
+                upper: 3000,
+                step_increment: 50,
+                value: settings.get_int("keynav-peek-duration"),
+            }),
+        });
+        settings.bind("keynav-peek-duration", keynavPeekDurationRow, "value", BIND_FLAGS);
+        keynavGroup.add(keynavPeekDurationRow);
         // Genie minimize/restore
         const genieGroup = new Adw.PreferencesGroup({
             title: "Genie animation",
