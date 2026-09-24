@@ -18,7 +18,7 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 ## Features
 
 - **macOS-style dock** with configurable icon size, position, opacity, border radius, blur, background color and icon quality.
-- **Magnification** — LERP-smoothed scaling with a pointer dead-zone and a configurable falloff.
+- **Magnification** — time-based exponential smoothing (frame-rate independent) with a pointer dead-zone and a configurable falloff.
 - **Window previews** on hover, with configurable scale.
 - **Dodge / auto-hide** — hide-only-when-focused, a peek edge, a peek hold delay and hide-in-fullscreen.
 - **Keyboard navigation** — `Super` + `1` … `0` to launch, focus, switch or minimize the first ten apps, briefly popping the dock up so you can see it.
@@ -26,7 +26,7 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 - **Media controls** via MPRIS, with an optional indicator.
 - **Separators** that divide favorites from running non-favorites.
 - **Applications button**, running-apps display and a workspace mode setting.
-- **Genie minimize/restore** — windows pour into, and stream back out of, their **real dock icon**, merging the macOS Genie animation.
+- **Genie minimize/restore** — windows pour into, and stream back out of, their **real dock icon** from any dock edge, merging the macOS Genie animation.
 
 ## Prerequisites
 
@@ -62,9 +62,9 @@ Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure 
 
 ## Genie animation
 
-Minimizing or restoring a window plays the macOS genie animation: the window is sliced into strips that pour into — and stream back out of — its **real dock icon** through a curved funnel. The animation targets the pure icon square (excluding the running-indicator strip), snapshots the icon's live magnified position when it starts, and follows a fallback chain when an app has no visible icon (live rect → last cached rect → dock centre → primary screen bottom-centre). The funnel keeps its full-bodied belly even when a window sits right on top of its icon, and the window sinks deep into the icon before dissolving smoothly.
+Minimizing or restoring a window plays the macOS genie animation: the window is sliced into strips that pour into — and stream back out of — its **real dock icon** through a curved funnel. The funnel axis follows the dock's screen edge, so the animation is correct on a bottom, top, left or right dock. The animation targets the pure icon square (excluding the running-indicator strip), snapshots the icon's live magnified position when it starts, and follows a fallback chain when an app has no visible icon (live rect → last cached rect → dock-edge centre → primary monitor's dock edge). **Both directions** run from a single snapshot of the window, so the live window is parked (scale ≈ 0) for the duration and no longer repaints every frame. The funnel keeps its full-bodied belly even when a window sits right on top of its icon, the trailing strips dissolve individually rather than fading the whole container, the easing starts fast and finishes with a quick suck, and the target icon gives a small press-and-rebound as the window lands (its own switch). The strip count adapts to the window's extent along the funnel axis, capped by the mesh-resolution setting (default 64), so small windows stay cheap and large ones stay smooth.
 
-When the dock is hidden by dodge, it briefly **peeks** for the duration of the animation so you can see where the window went; this can be turned off, in which case the window flies to the primary screen's bottom edge while keeping the icon's horizontal position. Tool and background windows keep the system's native animation. The genie is only active while the dock is enabled, validates the private Shell APIs it needs at startup, and degrades to the native animation (with a loud log warning) if they are missing.
+When the dock is hidden by dodge, it briefly **peeks** for the duration of the animation so you can see where the window went; this can be turned off, in which case the window flies to the dock's screen edge while keeping the icon's position along that edge. While a genie animation runs, magnification is suspended and the dock slides along its own axis (bottom/top docks move vertically, left/right docks move horizontally); the dodge poll parks itself once the pointer settles far from the dock and wakes on the next pointer or window event, so an idle dock stops polling. Tool and background windows keep the system's native animation. The genie is only active while the dock is enabled, validates the private Shell APIs it needs at startup, and degrades to the native animation (with a loud log warning) if they are missing.
 
 If you have the standalone `macos-genie@thuongvo.dev` extension installed, **disable it** — this fork now provides the same animation, and running both at once would fight over the same windows.
 
@@ -79,9 +79,14 @@ This fork adds maintenance commits on top of the upstream v9 baseline (`a2140d0`
 - **Keyboard navigation:** a **crash self-healing sentinel** for the stock shortcuts — a backup plus dirty flag stored in the extension's own schema.
 - **Separators:** fixed `_enforceOrder` false positives by excluding separators/buttons from the index comparison (zero moves at steady state); added separator add/remove instrumentation; aligned separator removal with icon fade-out; conditional early grace end (floor 400 ms + quiet 500 ms, cap 1200 ms).
 - **Correctness:** the window-type check now uses `Meta.WindowType` symbols.
-- **Genie merge:** merged the macOS Genie minimize/restore animation (`lib/genieGeometry.js`, `lib/genieEngine.js`, `lib/genieController.js`) — animates to the real dock icon, snapshots the live magnified position, follows a cached-rect fallback chain, optionally peeks a dodge-hidden dock, validates the private Shell APIs at startup (degrading to the native animation), and guarantees an exactly-once completion callback.
+- **Genie merge:** merged the macOS Genie minimize/restore animation (`lib/genieGeometry.js`, `lib/genieEngine.js`, `lib/genieController.js`) — animates to the real dock icon, snapshots the live magnified position, follows a live-rect → cached-rect → dock-edge fallback chain, optionally peeks a dodge-hidden dock, validates the private Shell APIs at startup (degrading to the native animation), and guarantees an exactly-once completion callback.
 - **Hotkey dock pop-up:** `Super` + number now briefly reveals a hidden dock for every action (launch, focus, switch, minimize), with its own on/off switch and duration; peek requests take the longest pending duration so a hotkey peek is never cut short by a shorter one.
-- **Genie polish near the icon:** the funnel taper now spans at least the window's own height, so a window sitting close to (or over) its icon is no longer squeezed flat; the absorb target has a minimum sink depth and a deeper default, and the tail fade uses smoothstep for a gentler dissolve.
+- **Genie correctness & fidelity:** the funnel axis and both no-icon fallbacks now derive from the configured `dock-position`, so a top/left/right dock funnels to the correct edge; **both** minimize and restore run from a single window snapshot (the live window is parked for the duration); the trailing strips dissolve individually instead of fading the whole container; the easing was changed to a fast start with a quick final suck; the mesh-resolution setting is now an **upper bound** (default lowered to 64) and the strip count adapts to the window's extent along the funnel axis; the absorb-depth fallback was aligned with the schema default. The funnel taper still spans at least the window's own height (a window sitting on its icon is not squeezed flat) and the absorb target keeps its minimum sink depth.
+- **Genie performance:** `layoutStrips` is allocation-free per frame (verified bit-identical to the previous matrices, ~2.5× faster); magnification is suspended while a genie animation runs, through a refcounted pause/resume that cannot leak a suspension across completion, failure or teardown.
+- **Icon reaction:** the target icon gives a subtle press-and-rebound when a window is minimized into it or restored out of it, on its own switch.
+- **Icon fade-in:** icons added by an incremental sync (window change, favorites sync) fade in over 180 ms; whole-table reloads and the startup build keep their single container-level fade instead.
+- **Magnification smoothing:** replaced the per-tick LERP factor with time-based exponential smoothing, so the settle time is the same at 60/120/144/240 Hz.
+- **Dodge idle power:** the dodge poll parks once the pointer settles far from the dock — never while the dock is hidden, since the poll is the peek healer — and wakes on the next pointer or window event.
 
 ## Contributing
 
