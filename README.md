@@ -68,6 +68,19 @@ When the dock is hidden by dodge, it briefly **peeks** for the duration of the a
 
 If you have the standalone `macos-genie@thuongvo.dev` extension installed, **disable it** — this fork now provides the same animation, and running both at once would fight over the same windows.
 
+## Testing
+
+The two modules that carry no GNOME/GI imports are covered by unit tests that run under plain Node — no `gjs`, no dependencies, no build step:
+
+```
+npm test
+```
+
+- `lib/genieGeometry.js` → `test/genieGeometry.test.js` (coordinate transforms, easing, the dock-position table, the strip-transform contract)
+- `lib/signalManager.js` → `test/signalManager.test.js` (connection bookkeeping: per-source disconnect, error tolerance, idempotent teardown)
+
+The GI-bound modules cannot be imported outside the shell, so they are verified live instead. When fixing a bug, add a regression test that fails against the pre-fix code before making it pass.
+
 ## Changes vs upstream (v9)
 
 This fork adds maintenance commits on top of the upstream v9 baseline (`a2140d0`), and merges the macOS Genie minimize/restore animation:

@@ -68,6 +68,19 @@ Dock 因避让而隐藏时，会在动画期间短暂**探头（peek）**，让�
 
 如果你安装了独立的 `macos-genie@thuongvo.dev` 扩展，请**停用它** —— 本分支已提供相同动画，两者同时启用会争抢同一批窗口。
 
+## 测试
+
+两个不依赖 GNOME/GI 导入的模块配有单元测试，用纯 Node 即可运行 —— 无需 `gjs`、无依赖、无构建步骤：
+
+```
+npm test
+```
+
+- `lib/genieGeometry.js` → `test/genieGeometry.test.js`（坐标变换、缓动、Dock 位置表、条带变换契约）
+- `lib/signalManager.js` → `test/signalManager.test.js`（连接记账：按 source 断开、容错、幂等清理）
+
+依赖 GI 的模块无法在 shell 之外导入，改为在实机验证。修 bug 时请先补一个在**修复前代码上会失败**的回归测试，再让它通过。
+
 ## 相对上游的改动（v9）
 
 本分支在上游 v9 基线（`a2140d0`）之上新增若干维护提交，并合并了 macOS Genie 最小化/还原动画：
