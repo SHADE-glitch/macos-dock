@@ -1,0 +1,10 @@
+{
+  "name": "macos-dock",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local maintenance fork of MacOSDock (v9) with the macOS Genie animation merged in.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
