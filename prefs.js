@@ -1,6 +1,6 @@
 import Adw from "gi://Adw";
-import Gdk from "gi://Gdk";
-import Gtk from "gi://Gtk";
+import Gdk from 'gi://Gdk?version=4.0';
+import Gtk from 'gi://Gtk?version=4.0';
 import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
 const BIND_FLAGS = 0 | 1 | 2 | 4; // DEFAULT | GET | SET | NO_SENSITIVITY
 export default class MacosDockPreferences extends ExtensionPreferences {
