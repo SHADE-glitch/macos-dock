@@ -1,0 +1,308 @@
+<p align="right"><a href="MAINTENANCE.md">English</a> | <a href="MAINTENANCE.zh-CN.md"><b>简体中文</b></a></p>
+
+# 维护手册
+
+本文件是跨 GNOME 版本保住这个 fork 的**流程**。[`AGENTS.md`](AGENTS.md) 写的是**规则**（什么绝
+不能做），这里写的是**怎么判断一次改动是否安全**，两者不重复。
+
+## 0. 三十秒速查
+
+| 问题 | 答案 |
+|---|---|
+| 跑完所有可无人值守的检查 | `npm run test:static`，再 `npm run test:live` |
+| 跑私有的一次性合成器 | `npm run test:headless`（约 60 秒） |
+| 跑会开真实窗口的实时 A/B | `npm run test:live-trigger`（需要空闲会话） |
+| 纯单元测试覆盖 | `npm test` —— 72 条断言 / 20 个套件，不需要桌面 |
+| 支配一切的那条事实 | `disable`+`enable` **不会**重新加载改过的 JS，只有注销再登录才会 |
+| 代码规模 | 15 个文件、约 7.6k 行，无构建步骤、无依赖 |
+
+## 1. 范围与基本前提
+
+- 这里说的"测试"只有三种含义，因为大部分代码无法在 shell 之外被导入：对仓库文本的守卫、
+  一次私有的无头合成器、以及实时会话自己打出的日志行。
+- 扩展那些**无条件**输出的日志行就是第二、三层的判据，其地位等同于函数签名：改名或加门控
+  会悄无声息地抽掉覆盖率，所以 `test/repo.test.js` 守着被读取的那几行。
+- 分不清"回归"还是"这台机器当时在忙"的断言一律报 `ENV`，绝不报 `PASS`。
+
+## 2. 三层一览
+
+| 层 | 文件 | 需要桌面 | 会改动什么 | 典型耗时 | npm script |
+|---|---|---|---|---|---|
+| 1 静态 | `test/repo.test.js`、`test/static-checks.sh` | 否 | 无 | 约 5 秒 | `test:static` |
+| 2 无头 | `test/headless-checks.sh` | 否（私有 shell） | 无（memory 后端） | 约 60 秒 | `test:headless` |
+| 3 实时 A | `test/live-checks.sh` | 是 | 无 | 约 10 秒 | `test:live` |
+| 3 实时 B | 同上，加 `--trigger` | 是 | 设置项，且必定还原并自证 | 约 120 秒 | `test:live-trigger` |
+
+`test/run-all.sh` 负责汇总；退出码 `0` 无 FAIL、`1` 有 FAIL、`77` 全是 ENV、`2` 用法或前置
+缺失。每一层也都能单独运行。
+
+## 3. 第一层：离线静态检查
+
+`test/repo.test.js`（12 条守卫，跑在 `npm test` 里）加 `test/static-checks.sh`（S1–S8）。每
+条守卫的存在理由都是"它失败时其他检查全都看不见"：
+
+| 守卫 | 守住的规则 | 失败意味着什么 |
+|---|---|---|
+| 纯净模块不得有 GI 导入 | `AGENTS.md` 硬规则 | 所有人的 `npm test` 挂掉，包括没有 GNOME 的评审者 |
+| genie 的 SPDX 与署名行；GPL 文件集合等于 `LICENSES.md` | 公开仓库的许可义务 | 是法律风险，不是格式问题 |
+| `DODGE_DEBUG` 必须是 `false` | dodge 的 `_dbg`/`hide-trigger` 会打印真实窗口标题 | journal 开始收集私人标题，日后任何一次日志粘贴都会泄露 |
+| schema 键集减去 `prefs.js` 键集等于那 12 个 `keynav-*` | 设置面完整性 | 新键没有偏好设置行是静默功能缺口；有行没键会让偏好窗口抛异常 |
+| `metadata.json` 的 uuid / schema id / 纯数字 `shell-version` | 加载期接线 | schema id 写错会让扩展在登录时进 ERROR |
+| 双语对 `##` 数量相等且首行是语言切换器 | 文档约定 | 两个文件已经漂移 |
+| markdown 里不得有任务 checkbox | 本仓四个 fork 的共同约定 | 提交进仓库的文档读起来像未完成的活 |
+| 无已解析的临时路径、wayland 槽名、主机/用户/邮箱 | 这个仓库是公开的 | 提交了只在这台机器上有意义的指纹 |
+| harness 的 grep 必须锚定 `[macos-dock-local]`，或带 `ANCHOR-EXCEPTION` | 一次宽松的 `macos-dock` 匹配曾从剪贴板管理器历史里捞出 847 行 | 某个检查其实在读别人的日志 |
+| 匹配 `*.test.js` 的文件不得导入 GI；GI 探针保持自己的文件名 | `npm test` 必须能用纯 Node 跑 | 把 `probe-window.js` 改名进 glob 会毁掉每一次运行 |
+| `package.json` 无依赖、无 `node_modules` | "无构建步骤"这条故事线 | 测试不再能离线运行 |
+
+shell 侧：工具链存在性（缺失 → ENV）、单测下限（72 断言 / 20 套件 —— 是下限，加测试永远不
+会失败）、对**全部** tracked `.js` 跑 `node --check`、对 harness 跑 `bash -n`、
+`glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟，最后断言这一
+轮没有把工作树弄脏。
+
+对所有 GI 绑定文件跑 `node --check` 是全仓性价比最高的一项：`package.json` 里是
+`type: module`，所以 `lib/dodge.js` 的语法错误只能在这里被发现 —— 否则要等到注销后看到扩展
+进 ERROR。
+
+## 4. 第二层：无头 shell
+
+`test/headless-checks.sh` 在干净房间里拉起一个私有合成器并断言 14 项。下面每一行隔离都是
+必需的，不是装饰：
+
+```
+GSETTINGS_BACKEND=memory        没有 dconf 客户端：读返回 schema 默认值，写全部被丢弃
+XDG_DATA_HOME=$T2               shell 只扫这个目录，于是符号链接进来的本 fork 是唯一被加载
+                                的扩展；否则用户的全部扩展都会在里面启动，污染每一条判据
+XDG_CONFIG_HOME/XDG_CACHE_HOME  不会有任何东西落到真实的 ~/.config 或 ~/.cache
+GSETTINGS_SCHEMA_DIR=$REPO/schemas  设置 schema 是扩展自带的
+gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-monitor=1280x800
+```
+
+- 绝不在本目录跑 `gnome-extensions install` 或 `pack`（跟随符号链接，会清空源码）。也绝不
+  在 memory 后端下跑 `gnome-extensions enable`：那是**另一个进程**，它的写入随它一起消失，
+  真 shell 永远看不到，就绪轮询会空转到超时。改为从 Eval 内部调用
+  `_callExtensionInit(uuid)` 再 `_callExtensionEnable(uuid)`，它还会跑
+  `_loadExtensionStylesheet`，因此比 `stateObj.enable()` 更接近真实登录。
+- 提供 `org.gnome.Shell.Eval` 的是 `--unsafe-mode`。这个构建里**没有** `--devkit` 选项，
+  GNOME 50 也彻底删掉了 `org.gnome.desktop.interface unsafe-mode` 这个 gsettings 键；
+  `--nested` 同样已经没了。若某个版本改了参数，harness 会连同 shell 自己的报错一起报 ENV，
+  由人工去复核 `gnome-shell --help`。
+- `--wayland-display` 必须唯一：否则 mutter 去抢 `wayland-0`、锁不上，失败会级联成
+  `AddMatch(): The connection is closed`、`StartServiceByName for
+  org.gnome.SessionManager` 和 `free(): invalid pointer`，看起来像 shell 的 bug。本轮的
+  lockfile 与 socket 由 trap 删除，`$T2` 之外不碰任何东西。
+- 送进 Eval 的代码从**文件**读，结果也写回**文件**：Eval 的返回值是 ASCII 转义过的噪声。
+  Eval 以 classic script 运行，所以 `imports.gi.*` 可用、`imports.ui.*` 不可用，
+  `ui/main.js` 必须用 `await import('resource:///…')`。这里的 Eval 里
+  `imports.gi.Config` 没有 typelib —— 所以逐个符号独立探测，别让一处抛错吞掉其余答案。
+- 就绪的判据是 `extensionManager.lookup(uuid).stateObj` 存在，不是 `gnome-extensions info`
+  报 ACTIVE。`state 6` 表示只有 metadata，extension.js 还没被导入。
+- 无头**能**证明的：跑到 ACTIVE、genie 的 `_validate()` 对**这个** shell 构建的结果、图标表
+  枚举出内容、dodge 起来了、以及没有任何错误块指向本扩展。**不能**证明的：任何
+  map/minimize/restore 动画路径 —— 把计数器挂到真实例上、即使加 `--force-animations` 也仍是
+  0。不要在这一层加动画断言。
+- 无头数字与真机**不可比**（本机实测：`enable()` 无头 25 ms vs 真机 30 ms，而隔壁 fork 同
+  一段工作是 5355 ms vs 757 ms）。所以第二层只断存在性，不断阈值。
+- 错误计数按路径限定：只有错误块栈里出现 `macos-dock@local/` 才算到本 fork 头上，因为一次
+  裸无头启动本身就会打约 90 条与 fork 无关的 shell 内部 "already disposed"。
+
+## 5. 第三层：实时会话（无指针）
+
+`test/live-checks.sh` 分被动组和触发组。
+
+**A 组**只读本次开机已经写好的 journal。任何时候都安全，不改动任何东西：会话 shell 身份、
+陈旧代码闸门、journal 可读性、开机清单（只给数值，绝不给原始行）、开机不变量、两条哨兵。
+
+- **陈旧代码闸门**比较最新 tracked `.js` 的 mtime 与正在运行的 shell 启动时间。shell 早于
+  改动时直接拒绝跑 B 组：否则每条实时断言认证的都是没被加载的代码。这是本仓最容易自欺的
+  一条。
+- **`pgrep -x gnome-shell` 不够。** 这台机器上别的 agent 会话会跑
+  `gnome-shell --headless`，选中它就等于去读一个与会话毫无关系的合成器的日志。`common.sh`
+  会剔除命令行含 `--headless` 的进程。
+- **开机不变量**是开机抽动的永久回归检查：任何 `-> hide` 的时间戳都不得早于 dodge 的
+  `grace released at`。
+- **隐私哨兵**：journal 里出现 `hide-trigger` 就说明 `DODGE_DEBUG` 被打开、真实窗口标题正在
+  被记录。
+- **锚定卫生**统计那些提到了本 fork 但**没有**标签、且带错误字样的行数 —— 那些是锚定 grep
+  看不见的、针对扩展的抱怨。只打印计数：未打标签的行里可能有标题。
+
+**B 组**是无指针 A/B：同一条窗口时间线跑两遍，唯一差别就是被测的那个开关；读数是 dodge 自己
+的 `uncovered -> show` 会不会出现：
+
+1. 对照组（`nofs`）：最大化压住 dock → dock 隐藏；一个不重叠的小窗口拿到焦点 → `uncovered
+   -> show` **必须**出现（实测 16–39 ms）。
+2. 实验组（`fullscreen`）：同上再加 `fullscreen()`。以探针自己的 `small-present` STEP 时间戳
+   为锚点的沉默窗内，show 与 peek **都不许**出现。
+3. 可逆性：全屏窗口销毁后 show **必须**回来（实测 8–20 ms）。没有这一步，沉默什么都证明不
+   了。
+4. 开关确认：把 `hide-in-fullscreen` 关掉后，*同一条*全屏时间线里 show 会回来 —— 正是这一步
+   让第 2 步的沉默归因于设置而不是归因于那一刻。
+5. genie 重新校验：把 `genie-enabled` 关一再开回，就能在不注销的情况下对实时 shell 重跑
+   `_validate()`（`dockManager` 监听 `changed::genie-enabled` → `_refreshGenie()` →
+   `_startGenie()`）。
+6. 分隔线判据（有非收藏应用在跑时才有意义）。
+
+三条是用真实失败换来的规矩：
+
+- **锚点必须是探针自己的 STEP 时间戳，不能是"现在"。** dock 可能在焦点变化落地的瞬间就迁移；
+  从"激活调用返回之后"开始测量，会把一次真实发生的 show 读成"没有 show"。这个坑在修好之前
+  造成过两次误报 FAIL。
+- **断言焦点之前先用 `xprop` 确认焦点。** 新窗口通常自己就能拿到焦点，但也常常不能；
+  `xdotool windowactivate --sync` 加上读取 `_NET_WM_STATE_FOCUSED`，能把"没有 show"从一个
+  错误结论变成一次诚实的 ENV。
+- **样本窗内出现无关的 dock 活动就作废重采，不算失败。** dodge 让正在进行的 genie 动画优先
+  于全屏强制隐藏（`_check` 里 `_animPeek` 排在最前），所以窗内任何一次最小化都会合法地打出
+  show。B 组最多重采三次，连续三次违规才判回归。
+
+B 组的设置协议，全部在 `common.sh` 里强制执行：
+
+- 只有一个写入口 `set_key`，它拒绝任何
+  `org.gnome.shell.extensions.macosdock` 之外的名字，并额外拒绝 `keynav-*`（那些键会接管并
+  备份真实的系统快捷键）和 `dodge-enabled`（它唯一的失败模式是把用户留在一个永不避让的 dock
+  上）。
+- 跑前 `dconf dump`，跑完还原，再 dump 一次并**逐字节比对**；任何漂移都是最高级 FAIL 并列
+  出键名。原本未显式设置的键用 `dconf reset` 处理而不是写回值 —— 把它留在显式设置状态本身就
+  是污染。
+- 绝不 `dconf reset -f`：这位用户的子树里有两个来自 v9 命名的孤儿键
+  （`auto-hide`、`enable-keyboard-nav`），属于用户数据。
+- harness 绝不 `gnome-extensions disable`/`enable` —— 那会 round-trip keynav。
+- 重定向 `XDG_CONFIG_HOME` **不能**隔离写入：`gsettings`/`dconf` 是 D-Bus 客户端，由已经在
+  跑的 dconf-service 服务，用的是真实路径。所以要靠快照与还原，不是靠环境变量。
+
+## 6. 读报告：PASS / FAIL / ENV
+
+- `PASS` —— 断言在这台机器、这个时刻成立。
+- `FAIL` —— 是回归，或者是一条在这台机器上根本无法满足的断言；消息会说明是哪一种，代码注释
+  会说明这条检查的存在理由。
+- `ENV` —— 这台机器或这个会话今天答不了这个问题。**永远不是通过。** 每条 ENV 都会点名它的
+  探测原因（锁屏、鼠标在动、shell 早于改动、参数变了、工具缺失），并且都有写明的可答方式。
+- 一轮全是 ENV 的运行退出 `77`，以免被误读成干净通过。
+
+## 7. 每个 GNOME 版本的回归流程
+
+1. 升级**之前**先把新的主版本号加进 `metadata.json` 的 `shell-version`。shell 的
+   `_isOutOfDate` 是 `some(v => v.startsWith(major))`，所以未列出的主版本会让扩展变成
+   `OUT_OF_DATE` 并且根本不加载 —— 没有报错、没有日志，dock 就是不见了。别用 `"5"` 这种通配
+   来"修"：`startsWith` 会连 52–59 一起声称支持。
+2. `npm test` 与 `npm run test:static`。
+3. `npm run test:headless`。`genie-apis` 就是发布日对 genie 的判决：私有符号若变了，它会
+   点名是哪一个。降级路径本来就是设计的一部分 —— `_validate()` 失败会打一条很响的警告并让
+   原生动画接管，所以那类回归是外观问题，从不阻塞发布。
+4. 注销再登录，然后 `npm run test:live`。A 组读开机数据：宽限毫秒数每个版本都会漂，所以只断
+   区间不断具体值（同一份代码实测过的放行时刻：3673 ms、6106 ms、2450 ms 静默路径）。
+5. 在**空闲**会话上跑一次 `npm run test:live-trigger`，覆盖全屏分支。
+6. 想不注销再查一次 genie，用 `genie-enabled` 开关（B 组第 5 步），不要重启。
+7. 若 `genie-apis` 点名了某个符号，该看的地方是 `genieController._validate()` 与
+   `genieEngine.validateRuntime()`。
+
+## 8. 真正的破坏面
+
+GNOME 更新能拿走的东西，全在这里：
+
+- `Main.wm._minimizing`、`Main.wm._unminimizing` —— 本 fork 唯一两个真正私有的符号。
+- `global.window_manager.connect`、`completed_minimize`、`completed_unminimize` —— 公开，但
+  历史上被重塑过。
+- `genieEngine.validateRuntime()`：`global.window_group.add_child`、`Clutter.Timeline`、
+  `Clutter.Clone`、`Graphene.Matrix`。
+- 公开但会变的形状：`Main.layoutManager.monitors`（以及 `monitor.inFullscreen`）、
+  `global.get_window_actors()`、`Meta.Window.is_fullscreen` / `get_frame_rect()`、
+  `Shell.BlurEffect`，以及 dodge 在 `start()` 里接的那一组 `global.display` 信号。
+- 不构成风险：其余所有下划线名字（`actor._genieSquash`、`actor._dockRemovalPending`、
+  `wrapper._dockFixDestroyId`）都是我们挂在别人对象上的自家记账字段，升级不会让它们失效。
+
+## 9. 日志行与它证明的事实
+
+| 日志行（`文件:行`） | 证明 | 不证明 | 层 |
+|---|---|---|---|
+| `[macos-dock-local] enable() total Xms`（`dockManager.js:226`） | 整条 enable 链跑完了 | 任何可比的速度 | 2、3A |
+| `[icons] reload: N icons in Xms (reason=startup)`（`iconManager.js:560`） | 收藏与运行中应用被枚举出来，`N>0` | 视觉是否正确 | 2、3A |
+| `[icons] startup grace ended early at Xms` / `reason=startup-grace-end`（`iconManager.js:221`） | 图标宽限已结束、更新已恢复 | 走早退还是走上限不重要 | 2、3A |
+| `[dodge] started (onlyFocused=…, watching N windows)`（`dodge.js:595`） | dodge 接好了线并建了轮询 | 它之后能否判对 | 2、3A |
+| `[dodge] grace released at Xms (window quiet Yms)`（`dodge.js:1000`） | 第一次允许隐藏的时刻；`quiet 0ms` 表示走的是上限 | 之后是否真的隐藏 | 3A |
+| `[dodge] {overlap,uncovered,overview,fullscreen} -> {hide,show}`（`dodge.js:1197,1243`） | 每一次真实迁移，reason 点名分支 | dock 的位置或 opacity | 2、3A、3B |
+| `[dodge] peek show (edge=N)` | 指针揭示路径可用（只有真指针能触发） | 全屏相关的事，除非与 B 组配对 | 3A |
+| `[icons] +separator at=N (…)` / `-separator (…)`（`iconManager.js:1358,694,737`） | 分隔线状态变化及原因 | 有没有抖动（需要看这一对） | 3A、3B |
+| `[genie] enabled`（`genieController.js:62`） | `_validate()` 接受了这个 shell 构建 | 动画好不好看 | 2、3A、3B |
+| `[genie] disabled — missing/changed private APIs: …`（`genieController.js:43`） | 某个符号变了；行里会点名 | 崩溃 —— 降级是有效的 | 2、3A、3B |
+| `[genie] effect ended without completing mutter:`（`genieController.js:393`） | 恰好一次的完成闩锁被绕过 | —— 它就是为这件事存在 | 永久警告 |
+| `_dbg` 输出、`hide-trigger` | 什么都不是：受 `DODGE_DEBUG=false` 门控、只在隐藏态打、每秒限一条，而且**打印窗口标题** | —— | 永不作为判据 |
+
+## 10. 本机无法自动化的事情与原因
+
+以下每一条都被直接试验过并且不可行，不要再花时间重试。
+
+- **截图 / 视觉验证。** `org.gnome.Shell.Screenshot.Screenshot` 与 `.ScreenshotArea` 都回
+  `AccessDenied: Screenshot is not allowed`；`gnome-screenshot`、`grim` 未安装。genie 漏斗
+  好不好看就是人眼的事，没有例外。
+- **指针输入。** `xdotool mousemove` 只移动 XWayland 内部的指针，mutter 不认（在 dock 底边
+  按住 14 个位置得到 0 次 `peek show`，而同几分钟内用户的真鼠标得到 6 次）。`/dev/uinput`
+  是 `0600 root:root`，也没有 EI/Ember 注入 portal（只有 `InputCapture`）。任何依赖指针位置
+  的东西（peek、悬停放大、tooltip）都无法从会话内部触发。键盘侧的 `windowactivate` 走
+  client message 是**有效**的，B 组用的就是它。
+- **用窗口状态量动画时长。** `_NET_WM_STATE_HIDDEN` 在 `minimize()` 后 10–40 ms 就翻转，
+  `_NET_WM_STATE_FULLSCREEN` 约 91 ms，因为 mutter 在请求时刻就发布状态，而 560 ms 的 actor
+  动画还在跑。轮询窗口状态只能证明状态机，永远证明不了动画长度。
+- **无头动画。** mutter 在那里根本不跑 map/minimize 路径。
+- **实时会话的 `org.gnome.Shell.Eval`。** 需要 unsafe 模式，而它已经无法开启（对应 gsettings
+  键已删除）。实时内省永远只能靠一条临时日志加一次注销。
+- **实时会话里 dock actor 的几何/opacity** —— 没有 Eval 就观测不到，日志行是唯一通道。
+- **把 `disable`+`enable` 当重载。** 它会重跑 `stop()` 和 `enable()`，所以是做开销对比的好
+  办法，但 ES module 缓存意味着改过的代码永远不会加载。
+
+## 11. 已有定论（需要新数据才能重开）
+
+- 启动避让宽限是**可重新武装的闸门**，不是一次性计时器：下限 2000 ms、窗口事件静默 500 ms
+  放行、硬上限 6000 ms（`dodge.js:65-67`）。把它锁成一次性会在稀疏事件开机上失败（仿真：1
+  次隐藏 vs 0 次）。两条出口都有真实开机证据。
+- `_noteWindowEvent()` 里那句条件 `_wake()` 是承重的。少了它，轮询会在下限处停表，闸门重新
+  武装后没人再评估，dock 会**永远**不再避让。
+- 打戳发生在 `doTick()` **之前**，所以"本该触发这次隐藏的那个事件"会先把闸门关上。这个顺序
+  就是修复本身，不是细节。
+- genie：`_steal()` 必须先于 `finishFor()`，且 `record.finish()` 只恢复它自己停放过的 actor
+  —— 否则 Clutter 移除隐式过渡时会发 `stopped`，把 shell 的 `completed_minimize` 触发第二次。
+- `AXIAL_BUNCH` 是漏斗唯一的手感旋钮。觉得不对就调这个常数；不要重构，也不要动
+  `leadFrac`/`trailFrac` 的默认值（那两个是量过的）。
+- 分隔线可见性由**settled** 图标集推导（跳过 `_dockRemovalPending`），因为淡出中的图标在
+  `onComplete` 之前仍留在 `_icons`，否则会在 dock 收缩前 200 ms 先撑起一条分隔线。
+- SPDX 定为 `GPL-2.0-or-later`：genie 上游自己的 `README.md` 就是这么写的，那是作者的授权
+  选择。不要收紧。
+- 已撤回、不要再以"省开销"为由重开：dodge 隐藏态心跳（实测 556 → 524 → 518 ticks，低于噪声），
+  以及 genie 尾缘加 ease-in（实测约 3 帧内就有可见速度）。
+- 密集开机时 dock 会故意最多约 6 秒不避让。那是选定的上限，不是 bug。要调只调
+  `STARTUP_GRACE_CAP_MS`。
+
+## 12. Schema、设置与编译产物
+
+- 55 个键；`prefs.js` 绑定其中一部分，12 个归 keynav。第一层精确断言这个集合差，所以新键
+  不可能悄悄绕过偏好窗口。
+- `schemas/gschemas.compiled` 是**被跟踪的二进制**。改过 XML 之后必须
+  `glib-compile-schemas schemas/` 重新生成 —— shell 是从编译产物读默认值的，产物过期就意味
+  着运行时默认值和 XML 写的不一样。`static-checks.sh` 的 S6 会重编译到临时目录比对：可复现
+  时逐字节一致（本机就是这样），否则退回比较两边暴露出的键集合。
+- 启动时序常数是**代码常量而不是设置**（`dodge.js:65-67`、`iconManager.js:28,32,33`）。要改
+  就得改代码并注销重登。
+- 不带 `GSETTINGS_SCHEMA_DIR=<repo>/schemas` 时，`gsettings` CLI 连这个 schema 都看不见。
+
+## 13. 公开仓库的隐私规则
+
+- 提交正文可以引用**标签与数字**，绝不引用原始 journal 行，绝不引用窗口标题。先例：
+  `f93ef54` 为一次开机验证打开 `DODGE_DEBUG`，`5c84880` 回退 —— 这两条正文里都引了真实标题，
+  而它们现在已经公开了。请改写成"某个邮件客户端窗口""一个自启项"。
+- `hide-trigger` 与任何 `DODGE_DEBUG = true` 都不得进提交。第一层守卫 4 和 A 组的哨兵就是为
+  了把这件事变成机械检查。
+- tracked 文件里不得有已解析的临时路径、wayland 槽名、主机名、用户名或邮箱。守卫 9 专查这一点，
+  并且不会把查到的内容打印出来。
+- 报告输出只有值：计数、抽出来的数字，绝不打印消息正文。
+- 证据目录留在 `$TMPDIR` 下、mode 700、结束时删除；`--keep` 是给人本地看的，不是用来提交的。
+
+## 14. 已知不修 / 待确认
+
+- B 组的释放确认依赖合成器是否让探针窗口持有焦点；拿不到时该检查报 ENV。在空闲会话上跑就能
+  得到答案。
+- genie 的**视觉**正确性在这台机器上不可验证（无截图、无注入），只有结构性覆盖：无头与实时
+  各跑一次 `_validate()`，加上真实的两次最小化与两次还原期间八条失败日志和那条永久的
+  `end-without-complete` 闩锁全程静默。
+- `_onPointer` 里指针触发的 peek 抑制只是"由构造证明"（同一个谓词，且在 hold 能触发之前求值），
+  从未被观测到，因为指针输入不可用。
+- `gschemas.compiled` 的字节可复现性只在这台机器、这个 glib 版本上确认过。
+- 第一层的用例数是下限，所以"改个套件名"也能让覆盖率倒退。
