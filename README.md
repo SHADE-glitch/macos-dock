@@ -85,7 +85,18 @@ npm test
 - `lib/genieGeometry.js` → `test/genieGeometry.test.js` (coordinate transforms, easing, the dock-position table, the strip-transform contract)
 - `lib/signalManager.js` → `test/signalManager.test.js` (connection bookkeeping: per-source disconnect, error tolerance, idempotent teardown)
 
-The GI-bound modules cannot be imported outside the shell, so they are verified live instead. When fixing a bug, add a regression test that fails against the pre-fix code before making it pass.
+Checks run in three tiers, because most of this extension cannot be imported outside the shell:
+
+| Tier | Command | Needs a desktop | Changes anything |
+|---|---|---|---|
+| 1 · static | `npm run test:static` | no | no |
+| 2 · headless | `npm run test:headless` | no (private compositor) | no |
+| 3 · live | `npm run test:live` | yes | no — reads this boot's journal |
+| 3 · live A/B | `npm run test:live-trigger` | yes | settings, restored and proven |
+
+Tier 1 also guards repository invariants that nothing else can see — the genie licence headers, the pure modules staying `gi://`-free, the privacy scan for a public repo, and the schema/prefs key coverage. The tiers, the measured numbers behind them and the per-GNOME-release playbook are documented in [`MAINTENANCE.md`](MAINTENANCE.md).
+
+When fixing a bug, add a regression test that fails against the pre-fix code before making it pass.
 
 ## Changes vs upstream (v9)
 

@@ -18,8 +18,12 @@ fork of MacOSDock (v9) with the macOS Genie animation merged in.
   - `lib/signalManager.js` → `test/signalManager.test.js`
 - GI-bound modules (`dockManager`, `dodge`, `genieController`, `genieEngine`, `hotkeyNav`, `iconFix`, `iconManager`, `magnification`, `mediaManager`, `overviewApps`, `windowPreview`) cannot be imported by Node; verify them live in the shell instead.
 - When fixing a bug, add a regression test that **fails against the pre-fix code** before making it pass.
+- Three tiers of checks exist because the GI-bound modules cannot be imported: `npm run test:static` (offline, also guards licence headers, the `gi://`-free pure modules, repo privacy and schema/prefs key coverage), `test:headless` (private throwaway compositor), `test:live` (reads this boot's journal). `test:live-trigger` runs the pointer-free A/B but **opens probe windows on the user's desktop** — only on an idle session and with approval.
+- A live assertion is worthless if the running shell predates the edit: `test/live-checks.sh` gates on that, and so must you.
 
 ## Docs & Commits
+- **[`MAINTENANCE.md`](MAINTENANCE.md) is the procedure file** (how to verify a change, the per-release playbook, what can never be automated here and why). This file is rules; do not restate procedures here.
+- `MAINTENANCE.md` / `MAINTENANCE.zh-CN.md` are a bilingual pair like the READMEs — keep their `##` sections in lockstep (`test/repo.test.js` enforces it).
 - `README.md` and `README.zh-CN.md` are a **two-file bilingual pair** — edit both together, keeping section order aligned.
 - **Do not touch the `Credits & Attribution` / `Changes vs upstream (v9)` sections** unless the change actually affects attribution or the upstream diff.
 - Commit code first, docs in a separate commit.

@@ -85,7 +85,18 @@ npm test
 - `lib/genieGeometry.js` → `test/genieGeometry.test.js`（坐标变换、缓动、Dock 位置表、条带变换契约）
 - `lib/signalManager.js` → `test/signalManager.test.js`（连接记账：按 source 断开、容错、幂等清理）
 
-依赖 GI 的模块无法在 shell 之外导入，改为在实机验证。修 bug 时请先补一个在**修复前代码上会失败**的回归测试，再让它通过。
+检查分三层运行，因为这个扩展的大部分代码无法在 shell 之外被导入：
+
+| 层 | 命令 | 需要桌面 | 会改动什么 |
+|---|---|---|---|
+| 1 · 静态 | `npm run test:static` | 否 | 无 |
+| 2 · 无头 | `npm run test:headless` | 否（私有合成器） | 无 |
+| 3 · 实时 | `npm run test:live` | 是 | 无 —— 只读本次开机的 journal |
+| 3 · 实时 A/B | `npm run test:live-trigger` | 是 | 设置项，且必定还原并自证 |
+
+第一层还守着一些别处看不见的仓库不变量：genie 的许可头、两个纯净模块必须不含 `gi://`、面向公开仓库的隐私扫描，以及 schema 与偏好设置的键覆盖。三层检查、支撑它的实测数字，以及每个 GNOME 版本的回归流程，都写在 [`MAINTENANCE.zh-CN.md`](MAINTENANCE.zh-CN.md)。
+
+修 bug 时请先补一个在**修复前代码上会失败**的回归测试，再让它通过。
 
 ## 相对上游的改动（v9）
 
