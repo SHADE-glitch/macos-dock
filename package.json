@@ -5,6 +5,11 @@
   "type": "module",
   "description": "Local maintenance fork of MacOSDock (v9) with the macOS Genie animation merged in.",
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "test:static": "bash test/run-all.sh --tier 1",
+    "test:headless": "bash test/run-all.sh --tier 2",
+    "test:live": "bash test/run-all.sh --tier 3",
+    "test:live-trigger": "bash test/run-all.sh --tier 3 --trigger",
+    "test:all": "bash test/run-all.sh --tier 1,2,3"
   }
 }
