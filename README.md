@@ -9,13 +9,13 @@ A macOS-style dock for GNOME Shell with magnification, animations, dodge, keyboa
 ![Based on: MacOSDock + macos-genie](https://img.shields.io/badge/based%20on-MacOSDock%20%2B%20macos--genie-orange)
 [![Repository](https://img.shields.io/badge/repository-GitHub-black?logo=github)](https://github.com/SHADE-glitch/macos-dock)
 
-## About
+## 📖 About
 
 This repository is a **personal maintenance fork** of [**MacOSDock**](https://github.com/vinnytherobot/MacOSDock) by **vinnytherobot** (also on [extensions.gnome.org](https://extensions.gnome.org/extension/10719/macos-dock/) as #10719), frozen at upstream **v9** and maintained locally under the UUID `macos-dock@local`. It also merges the **macOS Genie** minimize/restore animation by **Thuong Vo (SekiroKenjii)**.
 
 It is **not** affiliated with or endorsed by the upstream authors. The fork keeps the upstream feature set and targets **startup flicker, resource leaks, idle power draw and the separator/visibility logic**, with a conservative, rollback-friendly maintenance style.
 
-## Features
+## ✨ Features
 
 - **macOS-style dock** with configurable icon size, position, opacity, border radius, blur, background color and icon quality.
 - **Magnification** — time-based exponential smoothing (frame-rate independent) with a pointer dead-zone and a configurable falloff.
@@ -28,7 +28,7 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 - **Applications button**, running-apps display and a workspace mode setting.
 - **Genie minimize/restore** — windows pour into, and stream back out of, their **real dock icon** from any dock edge, merging the macOS Genie animation.
 
-## Prerequisites
+## 🧰 Prerequisites
 
 | Requirement | Details |
 |---|---|
@@ -36,7 +36,7 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 | GNOME Shell | 48 – 50 |
 | Build tools | `glib-compile-schemas` |
 
-## Installation
+## 📥 Installation
 
 ```bash
 sudo apt install libglib2.0-bin   # glib-compile-schemas
@@ -56,15 +56,15 @@ gnome-extensions disable macos-dock@local
 rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 ```
 
-## Usage
+## 🖱️ Usage
 
 Once enabled, the dock appears at the configured screen edge. Hover to magnify and reveal previews; click an icon to launch or focus its app; right-click for the app menu. Use `Super` + digit to launch by position — the dock pops up briefly each time.
 
-## Preferences
+## ⚙️ Preferences
 
 Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure appearance and position, magnification, previews, dodge/auto-hide, keyboard navigation (including the dock pop-up), media controls, running indicators, separators, animation timing and the genie minimize/restore animation.
 
-## Genie animation
+## 🧞 Genie animation
 
 Minimizing or restoring a window plays the macOS genie animation: the window is sliced into strips that pour into — and stream back out of — its **real dock icon** through a curved funnel. The funnel axis follows the dock's screen edge, so a bottom, top, left or right dock all funnel correctly. Both directions run from a single window snapshot, so the live window is parked (scale ≈ 0) for the duration and does not repaint every frame.
 
@@ -74,7 +74,7 @@ When the dock is hidden by dodge it briefly **peeks** for the duration of the an
 
 If you have the standalone `macos-genie@thuongvo.dev` extension installed, **disable it** — this fork provides the same animation, and running both at once would fight over the same windows.
 
-## Testing
+## 🧪 Testing
 
 The two modules that carry no GNOME/GI imports are covered by unit tests that run under plain Node — no `gjs`, no dependencies, no build step:
 
@@ -98,7 +98,7 @@ Tier 1 also guards repository invariants that nothing else can see — the genie
 
 When fixing a bug, add a regression test that fails against the pre-fix code before making it pass.
 
-## Changes vs upstream (v9)
+## 🆚 Changes vs upstream (v9)
 
 This fork adds maintenance commits on top of the upstream v9 baseline (`a2140d0`) and merges the macOS Genie minimize/restore animation. The commit-by-commit history is in the git log; this is the summary.
 
@@ -117,11 +117,11 @@ This fork adds maintenance commits on top of the upstream v9 baseline (`a2140d0`
 - **Icon fade-in:** icons added by an incremental sync fade in over 180 ms; whole-table reloads keep a single container-level fade.
 - **Indicator refresh:** one window-actor walk per pass instead of one per icon (17 → 1 on a 17-icon dock).
 
-## Contributing
+## 🤝 Contributing
 
 Issues and pull requests are welcome. Please keep changes scoped and test them against the GNOME Shell versions listed above.
 
-## Credits & Attribution
+## 🙏 Credits & Attribution
 
 This extension is a **maintenance fork** of **MacOSDock** by **vinnytherobot**, and **merges** the macOS Genie animation by **Thuong Vo (SekiroKenjii)**. All original design and features are their work.
 
@@ -133,7 +133,7 @@ This extension is a **maintenance fork** of **MacOSDock** by **vinnytherobot**, 
 - **Genie author:** Thuong Vo (SekiroKenjii)
 - **Merge & maintenance:** SHADE-glitch
 
-## License
+## ⚖️ License
 
 The dock code is licensed under the **MIT License**; the genie-derived code is licensed under **GPL-2.0-or-later**, and the combined work is distributed under **GPL-2.0-or-later**. See [LICENSE](LICENSE), [LICENSE.GPL-2.0](LICENSE.GPL-2.0) and [LICENSES.md](LICENSES.md).
 

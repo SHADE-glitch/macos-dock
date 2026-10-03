@@ -9,13 +9,13 @@
 ![Based on: MacOSDock + macos-genie](https://img.shields.io/badge/based%20on-MacOSDock%20%2B%20macos--genie-orange)
 [![Repository](https://img.shields.io/badge/repository-GitHub-black?logo=github)](https://github.com/SHADE-glitch/macos-dock)
 
-## 项目说明
+## 📖 项目说明
 
 本仓库是 **vinnytherobot** 的 [**MacOSDock**](https://github.com/vinnytherobot/MacOSDock)（也在 [extensions.gnome.org](https://extensions.gnome.org/extension/10719/macos-dock/)，编号 #10719）的**个人维护分支**，冻结在上游 **v9**，以 UUID `macos-dock@local` 在本地维护。同时合并了 **Thuong Vo（SekiroKenjii）** 的 **macOS Genie** 最小化/还原动画。
 
 本分支**不隶属于**上游作者，也未获其背书。它保留上游功能集，聚焦**启动闪烁、资源泄漏、空闲功耗以及分隔线/显隐逻辑**，维护风格保守、可回滚。
 
-## 功能特性
+## ✨ 功能特性
 
 - **macOS 风格 Dock** —— 图标尺寸、位置、不透明度、圆角、模糊、背景色与图标质量均可配置。
 - **放大效果** —— 基于时间的指数平滑（与帧率无关），带指针死区与可调衰减。
@@ -28,7 +28,7 @@
 - **应用按钮**、运行中应用显示与工作区模式设置。
 - **Genie 最小化/还原** —— 窗口从任意 Dock 边缘流进/流出其**真实 Dock 图标**，即合并进来的 macOS Genie 动画。
 
-## 前置依赖
+## 🧰 前置依赖
 
 | 依赖 | 说明 |
 |---|---|
@@ -36,7 +36,7 @@
 | GNOME Shell | 48 – 50 |
 | 构建工具 | `glib-compile-schemas` |
 
-## 安装
+## 📥 安装
 
 ```bash
 sudo apt install libglib2.0-bin   # glib-compile-schemas
@@ -56,15 +56,15 @@ gnome-extensions disable macos-dock@local
 rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 ```
 
-## 使用
+## 🖱️ 使用
 
 启用后，Dock 会出现在配置的屏幕边缘。悬停可放大并显示预览；点击图标启动或聚焦对应应用；右键打开应用菜单。使用 `Super` + 数字键按位置启动应用，每次都会短暂弹出 Dock。
 
-## 偏好设置
+## ⚙️ 偏好设置
 
 打开 **GNOME 设置 → 扩展 → MacOS Dock → 设置**，可配置外观与位置、放大效果、预览、避让/自动隐藏、键盘导航（含弹出 Dock）、媒体控制、运行指示器、分隔线、动画时长与 Genie 最小化/还原动画。
 
-## Genie 动画
+## 🧞 Genie 动画
 
 最小化或还原窗口时播放 macOS Genie 动画：窗口被切成条带，经由弯曲的漏斗流进/流出其**真实 Dock 图标**。漏斗轴向跟随 Dock 所在的屏幕边缘，因此上、下、左、右四种 Dock 位置都能正确收束。两个方向都基于窗口的同一份快照运行，实时窗口在动画期间被停放（缩放 ≈ 0），不再逐帧重绘。
 
@@ -74,7 +74,7 @@ Dock 因避让而隐藏时，会在动画期间短暂**探头（peek）**，让�
 
 如果你安装了独立的 `macos-genie@thuongvo.dev` 扩展，请**停用它** —— 本分支已提供相同动画，两者同时启用会争抢同一批窗口。
 
-## 测试
+## 🧪 测试
 
 两个不依赖 GNOME/GI 导入的模块配有单元测试，用纯 Node 即可运行 —— 无需 `gjs`、无依赖、无构建步骤：
 
@@ -98,7 +98,7 @@ npm test
 
 修 bug 时请先补一个在**修复前代码上会失败**的回归测试，再让它通过。
 
-## 相对上游的改动（v9）
+## 🆚 相对上游的改动（v9）
 
 本分支在上游 v9 基线（`a2140d0`）之上新增维护提交，并合并了 macOS Genie 最小化/还原动画。逐条提交记录见 git log，这里只做摘要。
 
@@ -117,11 +117,11 @@ npm test
 - **图标淡入：** 增量同步新增的图标在 180ms 内淡入；整表 reload 仍保留单次容器级淡入。
 - **指示点刷新：** 每轮刷新只做一次窗口 actor 走查，而非每个图标一次（17 图标的 Dock 即 17 → 1）。
 
-## 参与贡献
+## 🤝 参与贡献
 
 欢迎提交 Issue 与 Pull Request。请保持改动范围聚焦，并针对上述 GNOME Shell 版本进行测试。
 
-## 致谢与来源说明
+## 🙏 致谢与来源说明
 
 本扩展是 **vinnytherobot** 的 **MacOSDock** 的**维护分支**，并**合并**了 **Thuong Vo（SekiroKenjii）** 的 macOS Genie 动画。原始设计与功能均出自其手。
 
@@ -133,7 +133,7 @@ npm test
 - **Genie 作者：** Thuong Vo（SekiroKenjii）
 - **合并与维护：** SHADE-glitch
 
-## 许可证
+## ⚖️ 许可证
 
 Dock 代码采用 **MIT 许可证**；Genie 派生代码采用 **GPL-2.0-or-later**，合并后的整体以 **GPL-2.0-or-later** 分发。见 [LICENSE](LICENSE)、[LICENSE.GPL-2.0](LICENSE.GPL-2.0) 与 [LICENSES.md](LICENSES.md)。
 
