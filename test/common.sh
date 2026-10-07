@@ -205,7 +205,24 @@ jfield() { # jfield <ERE to select> <sed -nE script that prints ONLY the capture
     awk -F '\t' -v re="$re" '$2 ~ re {print $2; exit}' "$JOURNAL_CACHE" | sed -nE "$sedx"
 }
 
-# Untagged mentions of the fork's name. Two numbers, never content: an untagged
+# Signature of the overview-exit flicker: dodge hides the dock, then a tick
+# inside the overview's ~200 ms exit animation re-reads the shell's transition
+# state, flips `_overviewVisible` back and prints `overview -> show` — the dock
+# pops out and has to hide again. Only ever counted, never printed: the lines it
+# scans are our own, but the helper must stay shape-compatible with the redacted
+# cache. Patterns are hardcoded rather than taken from the caller's regexes so
+# the signature cannot drift when someone edits a report.
+jflicker_count() { # jflicker_count [window_ms=300] -> number of hide->overview-show pairs inside the window
+    [ -s "$JOURNAL_CACHE" ] || { echo 0; return; }
+    awk -F '\t' -v win="${1:-300}" '
+        $2 ~ /\[dodge\] [a-z]+ -> hide/ { h = $1 + 0; next }
+        $2 ~ /\[dodge\] overview -> show/ {
+            if (h && ($1 + 0) - h >= 0 && ($1 + 0) - h <= win) { c++; h = 0 }
+        }
+        END { print c + 0 }' "$JOURNAL_CACHE"
+}
+
+# A6 of the live tier: untagged mentions of the fork's name. Two numbers, never content: an untagged
 # journal line can carry a window title, and reading it here would be exactly the
 # leak this harness is supposed to prevent.
 #   junanchored        — how many lines say `macos-dock` without the tag. Most are

@@ -102,6 +102,20 @@ if [ -n "$grace_ms" ]; then
     fi
 fi
 
+# A4b: the overview-exit flicker. `overview -> show` arriving within a few hundred ms
+# of a hide means dodge re-read the shell's transition state mid exit-animation and
+# popped the dock back out — the bug the visibleTarget fix removed. Attributed to the
+# code that actually ran: this boot's journal predates a fix that has not been loaded
+# yet (only a logout loads it), so counting it while the shell is stale must be ENV.
+flick=$(jflicker_count 300)
+if [ "${flick:-0}" = 0 ]; then
+    report $T overview-flicker PASS "no overview re-show within 300ms of a hide this boot"
+elif [ "$STALE" = yes ]; then
+    report $T overview-flicker ENV "$flick flicker signature(s) this boot, produced by code predating the fix — log out, reproduce the Super in/out, then re-run"
+else
+    report $T overview-flicker FAIL "$flick overview re-show(s) within 300ms of a hide — dodge is racing the overview exit animation again"
+fi
+
 # A5: privacy tripwire. `hide-trigger` prints real window titles; if it appears,
 # someone left DODGE_DEBUG on and the journal now holds the user's window titles.
 leak=$(jcount 'hide-trigger')
