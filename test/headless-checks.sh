@@ -330,5 +330,66 @@ else
     report $T facts ENV "facts probe wrote nothing — reply: $(head -c 140 "$T2/e3.reply" 2>/dev/null) (H6 stands on its own)"
 fi
 
+# H13 ------------------------------------------------------------------------
+# Edge geometry under a *fabricated* two-monitor layout. On a single-panel
+# machine the class of bug this guards is invisible no matter what the user does,
+# so the only honest check is to make the headless shell believe there are two
+# vertically stacked monitors with primary on the far one, then ask dodge where
+# its own edges are. The layout is restored in the same probe.
+cat > "$T2/e4.js" <<'JS'
+(async () => {
+    const GLib = imports.gi.GLib;
+    const Main = await import('resource:///org/gnome/shell/ui/main.js');
+    const out = { ok: false };
+    const dodge = Main.extensionManager.lookup('macos-dock@local')?.stateObj
+        ?._dockManager?._dodge;
+    if (!dodge) {
+        out.error = 'no dodge instance';
+        GLib.file_set_contents('%T2%/geom.json', JSON.stringify(out));
+        return;
+    }
+    out.hasDockMonitor = typeof dodge._dockMonitor === 'function';
+    const lm = Main.layoutManager;
+    const savedMonitors = lm.monitors;
+    const savedPrimary = lm.primaryMonitor;
+    try {
+        const stack = [
+            { x: 0, y: 0, width: 1728, height: 1080 },
+            { x: 0, y: 1080, width: 1728, height: 1080 },
+        ];
+        lm.monitors = stack;
+        lm.primaryMonitor = stack[1];
+        const got = dodge._dockMonitor();
+        out.pickedDockMonitor = got === stack[0];
+        out.pickedPrimaryInstead = got === stack[1];
+        // A pointer pressed against the bottom edge of the dock's own monitor.
+        out.deepOnDockMonitor = dodge._inDeepZone(200, 1079, stack[0], 0);
+        // Same pointer measured against primary — must be false, which is what
+        // the old primaryMonitor-based code would have used for every decision.
+        out.deepOnPrimary = dodge._inDeepZone(200, 1079, stack[1], 0);
+        // And the park test must agree that this pointer is at the dock's edge.
+        out.farFromEdgeAtDockEdge = dodge._pointerFarFromEdge(200, 1079);
+        out.ok = out.pickedDockMonitor === true && out.deepOnDockMonitor === true
+            && out.deepOnPrimary === false && out.farFromEdgeAtDockEdge === false;
+    } catch (e) {
+        out.error = e.message;
+    } finally {
+        lm.monitors = savedMonitors;
+        lm.primaryMonitor = savedPrimary;
+    }
+    GLib.file_set_contents('%T2%/geom.json', JSON.stringify(out));
+})();
+JS
+sed -i "s|%T2%|$T2|g" "$T2/e4.js"
+EV_FILE "$T2/e4.js" > "$T2/e4.reply" 2>&1
+for _ in $(seq 1 10); do [ -s "$T2/geom.json" ] && break; sleep 1; done
+if [ ! -s "$T2/geom.json" ]; then
+    report $T dock-monitor-geometry ENV "geometry probe wrote nothing — reply: $(head -c 120 "$T2/e4.reply" 2>/dev/null)"
+elif [ "$(jq -r '.ok' "$T2/geom.json")" = true ]; then
+    report $T dock-monitor-geometry PASS "edge tests follow the dock's monitor, not primary (stacked 2-monitor layout)"
+else
+    report $T dock-monitor-geometry FAIL "geometry: $(jq -c 'del(.ok)' "$T2/geom.json") — expected pickedDockMonitor=true deepOnDockMonitor=true deepOnPrimary=false far=false"
+fi
+
 report $T teardown PASS "sandbox and its lockfile removed"
 exit_code_from_results
