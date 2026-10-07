@@ -35,11 +35,14 @@ RESULTS_FILE="${TEST_RESULTS_FILE:-}"
 # path across runs would let yesterday's FAIL decide today's exit code. Under
 # run-all.sh the variable is already exported and shared.
 init_results() {
+    # Only a tier running standalone owns (and therefore may truncate) the file.
+    # Truncating a shared one wiped the earlier tiers' rows, which silently made
+    # run-all's summary and exit code blind to their failures.
     if [ -z "$RESULTS_FILE" ]; then
         RESULTS_FILE=$(mktemp "${TMPDIR:-/tmp}/macosdock-tier-results-XXXXXX")
         export TEST_RESULTS_FILE="$RESULTS_FILE"
+        : > "$RESULTS_FILE"
     fi
-    : > "$RESULTS_FILE"
     export RESULTS_FILE
 }
 
