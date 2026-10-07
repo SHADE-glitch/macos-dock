@@ -70,7 +70,7 @@ and nowhere else until you log out and find the extension in ERROR.
 
 ## 4. Tier 2 — headless shell
 
-`test/headless-checks.sh` boots a private compositor in a clean room and asserts 14 things.
+`test/headless-checks.sh` boots a private compositor in a clean room and asserts 15 things.
 The isolation is not optional and every line of it is load-bearing:
 
 ```
@@ -118,6 +118,13 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
 - Error counting is path-scoped: `JS ERROR` and friends are only blamed on this fork when
   the stack names `macos-dock@local/`, because a bare headless boot already emits ~90
   shell-internal "already disposed" lines that have nothing to do with us.
+- The last check (`dock-monitor-geometry`) covers a class that is **invisible on a
+  single-panel machine**: it fabricates two vertically stacked monitors inside the running
+  shell with `primaryMonitor` pointing at the far one, then asserts dodge's edge maths
+  follows the dock's own monitor. Verified red-then-green: with the old
+  `primaryMonitor`-based code it reports `pickedPrimaryInstead=true` and
+  `farFromEdgeAtDockEdge=true` (the pointer at the dock's edge reads as "far away", so the
+  poll would park and the peek zone would sit on the other screen).
 
 ## 5. Tier 3 — live session, pointer-free
 
@@ -284,6 +291,11 @@ Each of these was tested directly and failed. Do not spend time retrying them.
 
 ## 11. Settled decisions (need new data to reopen)
 
+- dodge's edge tests use **the monitor the dock is on** (`_dockMonitor()`, resolved from
+  the dock's own rect, falling back to primary), never `Main.layoutManager.primaryMonitor`.
+  The peek trigger zone, the far-from-edge/un-peek test and the fast-vs-slow poll decision
+  all consult it; with a single panel primary *is* that monitor, which is exactly why the
+  bug stays hidden until a second display is made primary.
 - dodge's overview state is reconciled from `Main.overview.visibleTarget`, **never
   `visible`**: the shell's own comment defines `visible` as "animating to overview, in
   overview, animating out", so reading it contradicts the `hiding` signal, which fires on

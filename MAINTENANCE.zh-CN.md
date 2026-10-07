@@ -66,7 +66,7 @@ shell 侧：工具链存在性（缺失 → ENV）、单测下限（72 断言 / 
 
 ## 4. 第二层：无头 shell
 
-`test/headless-checks.sh` 在干净房间里拉起一个私有合成器并断言 14 项。下面每一行隔离都是
+`test/headless-checks.sh` 在干净房间里拉起一个私有合成器并断言 15 项。下面每一行隔离都是
 必需的，不是装饰：
 
 ```
@@ -105,6 +105,12 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   一段工作是 5355 ms vs 757 ms）。所以第二层只断存在性，不断阈值。
 - 错误计数按路径限定：只有错误块栈里出现 `macos-dock@local/` 才算到本 fork 头上，因为一次
   裸无头启动本身就会打约 90 条与 fork 无关的 shell 内部 "already disposed"。
+- 最后一项（`dock-monitor-geometry`）覆盖的是**单屏机器上永远看不见**的一类问题：它在运行
+  中的 shell 里伪造出上下堆叠的两块显示器、并把 `primaryMonitor` 指向远处那块，然后断言
+  dodge 的边缘几何跟的是 dock 自己所在的屏。已做过先红后绿：换回旧的
+  `primaryMonitor` 写法时它报 `pickedPrimaryInstead=true`、`farFromEdgeAtDockEdge=true`
+  —— 也就是贴在 dock 边缘的指针被判成"离得远"，于是轮询会错误停表、peek 触发区跑到另一块
+  屏上。
 
 ## 5. 第三层：实时会话（无指针）
 
@@ -252,6 +258,10 @@ GNOME 更新能拿走的东西，全在这里：
 
 ## 11. 已有定论（需要新数据才能重开）
 
+- dodge 的边缘判据一律用 **dock 自己所在的显示器**（`_dockMonitor()`，由 dock 矩形解析，
+  解析不到才退回 primary），不是 `Main.layoutManager.primaryMonitor`。peek 触发区、"离边
+  远不远"的收回判据、快/慢轮询的选择都读它。单屏时 primary 就是那块屏 —— 这正是它藏到接了
+  第二块屏并设为主屏之前都不见的原因。
 - dodge 的概览状态一律以 `Main.overview.visibleTarget` 校正，**不要读
   `visible`**：shell 自己的注释把 `visible` 定义为"正在进入、在概览里、正在退出"，所以在
   退出动画那约 200ms 里它仍是 true，会和 `hiding` 信号对着干（信号在退出的第一帧就已经把
