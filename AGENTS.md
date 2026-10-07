@@ -28,3 +28,23 @@ fork of MacOSDock (v9) with the macOS Genie animation merged in.
 - **Do not touch the `Credits & Attribution` / `Changes vs upstream (v9)` sections** unless the change actually affects attribution or the upstream diff.
 - Commit code first, docs in a separate commit.
 - Live logs: `journalctl -f -o cat /usr/bin/gnome-shell`
+
+## Recording conventions
+- Behaviour changes land in [`CHANGELOG.md`](CHANGELOG.md) as `D-###` entries — kind, evidence
+  tier and commit for each. `npm run check:log` proves the record covers every commit in the
+  declared window that touched `extension.js`, `lib/` or `stylesheet.css`.
+- **`README.md` / `README.zh-CN.md` § Changes vs upstream is not the record and stays untouched**
+  (see the rule above): this repo's protected-section rule outranks the cross-repo convention that
+  other forks got a pointer paragraph in. Division of labour: README = user-facing summary
+  (protected), CHANGELOG = machine-checked per-commit index, MAINTENANCE = how to verify.
+- Ids are monotonic and **never reused**; a gap is a failure, not a cleanup. A window with zero
+  entries is a failure too — a check over an empty set proves nothing.
+- `kind` ∈ `fix` | `perf` | `taste` | `guard` | `revert` | `chore`, cut by **who may demand a
+  revert**. Animation *feel* is `taste`: zero obligation, discardable wholesale on an upgrade.
+- An entry is an assertion **as of its commit**, not current state. Never re-verify an old entry;
+  never hand-copy an aggregate count into the file — `check:log` and the tier commands print them.
+- Known-but-not-fixed issues stay in `MAINTENANCE.md` §14; they have no commit, so no entry.
+- `Symptom` names the mechanism, never the session: no window titles, no application names from a
+  real desktop.
+- Run `npm run check:log` before committing docs; `test/repo.test.js` keeps the two MAINTENANCE
+  files and the two READMEs in section lockstep, so never add a heading to one side alone.

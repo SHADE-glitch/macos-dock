@@ -39,6 +39,11 @@ change is safe). Nothing here duplicates a rule.
 
 `test/run-all.sh` aggregates them; exit `0` no FAIL, `1` any FAIL, `77` everything ENV,
 `2` usage. Every tier also runs standalone.
+**Naming.** The tiers called `Tier 1 / Tier 2 / Tier 3` here are written
+**`L0` / `L1` / `L2`** in `CHANGELOG.md` and in the other four extension repos. The mapping is
+`Tier 1 = L0` (static, offline), `Tier 2 = L1` (throwaway headless shell), `Tier 3 = L2` (real
+session). Definitions are by *what environment a claim needs*, not by the tool that runs it.
+
 
 ## 3. Tier 1 — static and offline
 
