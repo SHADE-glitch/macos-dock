@@ -220,6 +220,7 @@ GNOME 更新能拿走的东西，全在这里：
 | `[dodge] started (onlyFocused=…, watching N windows)`（`dodge.js:595`） | dodge 接好了线并建了轮询 | 它之后能否判对 | 2、3A |
 | `[dodge] grace released at Xms (window quiet Yms)`（`dodge.js:1000`） | 第一次允许隐藏的时刻；`quiet 0ms` 表示走的是上限 | 之后是否真的隐藏 | 3A |
 | `[dodge] {overlap,uncovered,overview,fullscreen} -> {hide,show}`（`dodge.js:1197,1243`） | 每一次真实迁移，reason 点名分支 | dock 的位置或 opacity | 2、3A、3B |
+| 一次 hide 之后约 300ms 内又出现 `overview -> show` | 不是好事：那一轮 tick 抢在概览退出动画里把刚收起的 dock 又弹了出来。A 组以 `overview-flicker` 计数，健康的开机应为 0（有 bug 的那版实测 40） | —— | 3A |
 | `[dodge] peek show (edge=N)` | 指针揭示路径可用（只有真指针能触发） | 全屏相关的事，除非与 B 组配对 | 3A |
 | `[icons] +separator at=N (…)` / `-separator (…)`（`iconManager.js:1358,694,737`） | 分隔线状态变化及原因 | 有没有抖动（需要看这一对） | 3A、3B |
 | `[genie] enabled`（`genieController.js:62`） | `_validate()` 接受了这个 shell 构建 | 动画好不好看 | 2、3A、3B |
@@ -251,6 +252,15 @@ GNOME 更新能拿走的东西，全在这里：
 
 ## 11. 已有定论（需要新数据才能重开）
 
+- dodge 的概览状态一律以 `Main.overview.visibleTarget` 校正，**不要读
+  `visible`**：shell 自己的注释把 `visible` 定义为"正在进入、在概览里、正在退出"，所以在
+  退出动画那约 200ms 里它仍是 true，会和 `hiding` 信号对着干（信号在退出的第一帧就已经把
+  dock 收起）。一次开机实测到 40 组 300ms 内的 hide → `overview -> show`，就是"收起、弹
+  一下、再收起"。进入方向不受影响：`_animateVisible()` 同时置两个标志，所以没有给显示增加
+  任何延迟。
+- 带着全屏窗口退出概览时，那条隐藏的理由是 `overlap` 而不是 `fullscreen`，因为 shell 自己
+  在概览期间把 `monitor.inFullscreen` 清掉了。两条分支的结果都是隐藏，用户看不出区别；不要
+  为了这个标签去加时序猜测 —— 那正是本 fork 避开的固定延时式 hack。
 - 启动避让宽限是**可重新武装的闸门**，不是一次性计时器：下限 2000 ms、窗口事件静默 500 ms
   放行、硬上限 6000 ms（`dodge.js:65-67`）。把它锁成一次性会在稀疏事件开机上失败（仿真：1
   次隐藏 vs 0 次）。两条出口都有真实开机证据。
@@ -305,4 +315,7 @@ GNOME 更新能拿走的东西，全在这里：
 - `_onPointer` 里指针触发的 peek 抑制只是"由构造证明"（同一个谓词，且在 hold 能触发之前求值），
   从未被观测到，因为指针输入不可用。
 - `gschemas.compiled` 的字节可复现性只在这台机器、这个 glib 版本上确认过。
+- A 组的 `overview-flicker` 计数描述的是**本次开机跑的那份代码**，不是工作树上的代码：
+  它读的 journal 是注销之前的旧代码写的。修复没被加载之前，它会把旧开机的 40 次报成 `ENV`，
+  这是正确行为、不是通过 —— 真正的验证要一次注销加一次复现，然后这个数必须是 0。
 - 第一层的用例数是下限，所以"改个套件名"也能让覆盖率倒退。

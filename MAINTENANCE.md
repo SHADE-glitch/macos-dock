@@ -247,6 +247,7 @@ Everything that a GNOME update can take away:
 | `[dodge] started (onlyFocused=…, watching N windows)` (`dodge.js:595`) | dodge wired up and its poll exists | that it will decide correctly | 2, 3A |
 | `[dodge] grace released at Xms (window quiet Yms)` (`dodge.js:1000`) | first moment a hide was allowed; `quiet 0ms` means the cap path | that a hide then happened | 3A |
 | `[dodge] {overlap,uncovered,overview,fullscreen} -> {hide,show}` (`dodge.js:1197,1243`) | every real transition; the reason names the branch | dock position or opacity | 2, 3A, 3B |
+| an `overview -> show` within ~300 ms *after* a hide | nothing good: the tick raced the overview exit animation and re-showed a dock that had just been put away. Group A counts it as `overview-flicker`; a healthy boot scores 0 (a buggy one scored 40) | — | 3A |
 | `[dodge] peek show (edge=N)` | the pointer reveal path works (only a real cursor can trigger it) | anything about fullscreen, unless paired with group B | 3A |
 | `[icons] +separator at=N (…)` / `-separator (…)` (`iconManager.js:1358,694,737`) | separator state changes and why | the absence of jitter (needs the pair) | 3A, 3B |
 | `[genie] enabled` (`genieController.js:62`) | `_validate()` accepted this shell build | that an animation looks right | 2, 3A, 3B |
@@ -283,6 +284,17 @@ Each of these was tested directly and failed. Do not spend time retrying them.
 
 ## 11. Settled decisions (need new data to reopen)
 
+- dodge's overview state is reconciled from `Main.overview.visibleTarget`, **never
+  `visible`**: the shell's own comment defines `visible` as "animating to overview, in
+  overview, animating out", so reading it contradicts the `hiding` signal, which fires on
+  the first frame of the exit animation. Measured on one boot: 40 `hide → overview -> show`
+  pairs under 300 ms, i.e. the dock collapsing, popping back out, then collapsing again.
+  Entering the overview is unaffected — `_animateVisible()` sets both flags on the same
+  frame, so nothing was added to the show latency.
+- Leaving the overview with a fullscreen window hides the dock for reason `overlap`, not
+  `fullscreen`, because the shell itself clears `monitor.inFullscreen` while the overview is
+  up. Both branches hide, so the outcome is identical; do not "fix" the label with a timing
+  guess — that is exactly the fixed-delay hack this fork avoids.
 - The startup dodge grace is a **re-armable gate**, not a one-shot timer: floor 2000 ms,
   500 ms of window quiet to release, hard cap 6000 ms (`dodge.js:65-67`). Latching it fails
   the sparse-event boot (simulated: 1 hide vs 0). Both exits have real-boot evidence.
@@ -349,5 +361,9 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   is unavailable.
 - `gschemas.compiled` byte reproducibility is only known to hold on this box, and only for
   this glib version.
+- Group A's `overview-flicker` count describes **the code that ran this boot**, not the
+  working tree: the journal it reads was written before any logout. Until a fix is loaded it
+  reports the old boot's 40 as `ENV`, which is correct behaviour and not a pass — a real
+  verification needs a logout plus a reproduction, and then the number must be 0.
 - Tier 1's counts are floors, so coverage can regress by *renaming* a suite rather than
   breaking it.
