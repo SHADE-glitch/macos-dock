@@ -1,0 +1,9 @@
+# Editor / OS cruft
+*.swp
+*~
+.DS_Store
+.idea/
+.vscode/
+
+# Tooling (the tree itself stays dependency-free)
+node_modules/
