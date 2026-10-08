@@ -26,6 +26,20 @@ fork of MacOSDock (v9) with the macOS Genie animation merged in.
 - It runs exactly two offline commands: `npm test` (the pure suites) and `npm run check:log` (recording coverage). Checkout uses `fetch-depth: 0` because `check:log` resolves the frozen-upstream anchor and walks `anchor..HEAD`, which a shallow clone lacks.
 - CI covers the offline tier only. `test:headless` and `test:live` need a private compositor / the running session, so they are never run there — a green CI run does not stand in for them.
 - Reproduce CI locally with the same two commands; a red CI run is a real regression, not an environment gap.
+- **Keep CI in step with the code.** Update `.github/workflows/ci.yml` in the *same change* that
+  makes it stale — never as a later cleanup.
+- **New or renamed tests need no CI edit** as long as CI runs the suite command (`npm test`); it
+  does, so it picks them up automatically. Only touch CI if the *command itself* changes.
+- **Environment changes** — a new dependency, a Node version bump, or a new system tool — mean
+  updating the workflow's setup/install steps.
+- **Renamed or moved code**: `check:log` watches a declared list (`CODE_PATHS` in the checker). If a
+  watched path moves, update that list; the check goes red until you do.
+- **After a refactor**, confirm CI still exercises the real code and the declared paths still cover
+  it. A green CI that no longer touches the changed code is worse than a red one.
+- **A new verification tier** (headless / live) — decide explicitly whether CI runs it; do not add it
+  silently. The tiered entries (`test:headless` / `test:live`) stay out of CI.
+- If what CI runs changes, update this section too. CI is a signal, not a gate, until branch protection
+  is enabled — read the result after every push.
 
 ## Docs & Commits
 - **[`MAINTENANCE.md`](MAINTENANCE.md) is the procedure file** (how to verify a change, the per-release playbook, what can never be automated here and why). This file is rules; do not restate procedures here.
