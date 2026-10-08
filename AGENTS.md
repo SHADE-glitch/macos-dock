@@ -21,6 +21,12 @@ fork of MacOSDock (v9) with the macOS Genie animation merged in.
 - Three tiers of checks exist because the GI-bound modules cannot be imported: `npm run test:static` (offline, also guards licence headers, the `gi://`-free pure modules, repo privacy and schema/prefs key coverage), `test:headless` (private throwaway compositor), `test:live` (reads this boot's journal). `test:live-trigger` runs the pointer-free A/B but **opens probe windows on the user's desktop** — only on an idle session and with approval.
 - A live assertion is worthless if the running shell predates the edit: `test/live-checks.sh` gates on that, and so must you.
 
+## CI
+- `.github/workflows/ci.yml` runs on every `push` and `pull_request`, and **must stay green**.
+- It runs exactly two offline commands: `npm test` (the pure suites) and `npm run check:log` (recording coverage). Checkout uses `fetch-depth: 0` because `check:log` resolves the frozen-upstream anchor and walks `anchor..HEAD`, which a shallow clone lacks.
+- CI covers the offline tier only. `test:headless` and `test:live` need a private compositor / the running session, so they are never run there — a green CI run does not stand in for them.
+- Reproduce CI locally with the same two commands; a red CI run is a real regression, not an environment gap.
+
 ## Docs & Commits
 - **[`MAINTENANCE.md`](MAINTENANCE.md) is the procedure file** (how to verify a change, the per-release playbook, what can never be automated here and why). This file is rules; do not restate procedures here.
 - `MAINTENANCE.md` / `MAINTENANCE.zh-CN.md` are a bilingual pair like the READMEs — keep their `##` sections in lockstep (`test/repo.test.js` enforces it).
@@ -28,6 +34,11 @@ fork of MacOSDock (v9) with the macOS Genie animation merged in.
 - **Do not touch the `Credits & Attribution` / `Changes vs upstream (v9)` sections** unless the change actually affects attribution or the upstream diff.
 - Commit code first, docs in a separate commit.
 - Live logs: `journalctl -f -o cat /usr/bin/gnome-shell`
+
+## Release / version
+- The release procedure is the **per-release playbook in [`MAINTENANCE.md`](MAINTENANCE.md) §7** — this file points to it and does not restate it.
+- Version facts live in `metadata.json` (`shell-version`, and the integer `version`) and `package.json` (`version`); keep them consistent when cutting a release.
+- Shipping does not replace the record: behaviour changes still carry a `CHANGELOG.md` `D-###` entry (see Recording conventions).
 
 ## Recording conventions
 - Behaviour changes land in [`CHANGELOG.md`](CHANGELOG.md) as `D-###` entries — kind, evidence

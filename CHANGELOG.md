@@ -1,6 +1,6 @@
 # CHANGELOG — macos-dock@local
 
-Personal maintenance fork of [MacOSDock](https://github.com/vinnythecooper?) by vinny, frozen at
+Personal maintenance fork of [MacOSDock](https://github.com/vinnytherobot) by vinnytherobot, frozen at
 upstream **v9** and imported at `a2140d0` (with the genie animation merged in from the Genie
 effect). This file records only deviations I introduced after that import.
 
