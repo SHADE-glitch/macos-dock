@@ -480,3 +480,10 @@ Change   第二层加 `grid-state-source`、`patch-revert-idempotent`、`tick-ge
 Evidence L1 三项各自红→绿见 D-061/D-062/D-063
 Cost     `tick-geometry-reads` 依赖遮蔽 `global.get_pointer`——一次只罩一帧、`finally` 还原；留着它会让后续探针读到假指针
 Commit   2498a28
+
+### D-066 · 2026-10-09 · guard · v1
+Symptom  57 个 schema 键里 README 只点名 2 个；往 schema 加一键不会有任何东西提示文档落后。另：阶段证据目录此前叫 `reports/`（仓库根），与同工作区其它仓的 `docs/reports/` 不一致
+Change   第一层新增 `README documents every settings key`——双语 README 各需为每个键写一行（键名以反引号形式出现），先跑红再补表；`reports/` 迁为 `docs/reports/`（忽略规则仍是不带前导斜杠的 `reports/`，任何层级生效；`listFiles()` 按 basename 跳过，一处覆盖两处）；S8 探测路径随之改到 `docs/reports/`，并把"已跟踪计数"这半**挪到**"忽略规则存在"之前——实测 `git check-ignore` 对已在 index 里的路径直接答"未被忽略"，原顺序会把"证据已被 add"误报成"规则缺失"
+Evidence L0/L1 红→绿各两次：guard 在表写出前红（`README documents no row for: icon-size, magnification-enabled, …`），写后 75 assertions / 21 suites 绿；S8 在一次性克隆里跑过四态——无规则=红(规则缺失)、有规则=绿、`git add -f docs/reports/STATE.md`=红("1 file(s) … tracked")、撤销 staging=绿
+Cost     schema 每加一键要动三处（README 双语各一行；这一半由守卫兜住，描述写没写对兜不住）。README 键表与 `prefs.js` 的 subtitle 是两处并行文案，会分叉——这一点在拍板时已知并选择
+Commit   a6a17a1

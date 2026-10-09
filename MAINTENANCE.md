@@ -56,7 +56,8 @@ is invisible to every other check:
 | pure modules carry no GI or `resource://` imports | `AGENTS.md` hard rule | `npm test` breaks for everyone, including reviewers with no GNOME |
 | genie SPDX + attribution lines; GPL set equals `LICENSES.md` | licence obligation on a public repo | legal exposure, not a style complaint |
 | `DODGE_DEBUG` is `false` | dodge's `_dbg`/`hide-trigger` log real window titles | the journal starts collecting private titles, and any future log paste leaks them |
-| schema keys minus `prefs.js` keys equals the 12 `keynav-*` | settings surface completeness | a new key with no row is a silent feature gap; a row without a key throws in the prefs window |
+| schema keys minus `prefs.js` keys equals exactly 12 pinned names (the ten `keynav-app-N` + `keynav-stock-backup`/`-dirty`) | settings surface completeness | a new key with no row is a silent feature gap; a row without a key throws in the prefs window |
+| every schema key appears in backticks in **both** READMEs | the settings reference is the only place a user can learn a key exists | a key was added to the schema and documented nowhere (it proves the row exists, not that the prose is right) |
 | `metadata.json` uuid / schema id / plain numeric `shell-version` | load-time wiring | wrong schema id puts the extension in ERROR at login |
 | bilingual pairs have equal `##` counts and the switcher line | documentation convention | the two files drifted apart |
 | no task checkboxes in markdown | house convention across all four forks | committed docs read as unfinished work |
@@ -68,7 +69,7 @@ is invisible to every other check:
 Shell side: toolchain presence (missing → ENV), unit floors (72 assertions / 20 suites —
 floors, so adding tests never fails), `node --check` over **every** tracked `.js`, `bash -n`
 over the harness, `glib-compile-schemas --strict --dry-run`, compiled-binary freshness,
-`gjs -c 'true'` smoke, that `reports/` is ignored and holds nothing tracked, and as the last
+`gjs -c 'true'` smoke, that `docs/reports/` is ignored and holds nothing tracked, and as the last
 check an assertion that the run left the working tree untouched.
 
 `node --check` on the GI-bound files is the highest value-per-second check in the repo:
@@ -451,9 +452,13 @@ Each of these was tested directly and failed. Do not spend time retrying them.
 ## 12. Schema, settings and the compiled binary
 
 - Key count: `test:static` prints it (`compiled-fresh`), because a number copied into this file
-  would only go stale — it is 57 here and grew with D-058's two toggles. `prefs.js` binds every key
-  except the 12 `keynav-*` ones, and tier 1 asserts that set difference exactly, so a new key cannot
-  silently skip the prefs window.
+  would only go stale — it is 57 here and grew with D-058's two toggles. `prefs.js` binds 45 of
+  them; the 12 it does not are pinned by name in the guard (the ten `keynav-app-N` slots the
+  keyboard code steals from the shell, plus `keynav-stock-backup` / `keynav-stock-dirty`, its
+  crash-recovery bookkeeping) — note that `keynav-enabled` and the two `keynav-peek-*` keys
+  **are** bound, so "everything except `keynav-*`" is not the rule. Tier 1 asserts that set
+  difference exactly, so a new key cannot silently skip the prefs window, and both READMEs must
+  carry a row for every key.
 - `schemas/gschemas.compiled` is a **tracked binary**. Regenerate with
   `glib-compile-schemas schemas/` after any XML edit — the shell reads defaults from the
   compiled file, so a stale one means running defaults differ from what the XML says.
@@ -477,10 +482,13 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   tracked files. Tier 1's machine-fingerprint guard checks exactly those, and prints nothing it
   finds.
 - Report output is value-only: counts, extracted numbers, and never a message body.
-- Phase evidence (`PROFILE`/`AUDIT`/`PLAN`/`VERIFY`/`STATE`) lives in `reports/`, which is
-  gitignored — tier 1 proves both halves: the rule is present and nothing under it is tracked.
-  Journal lines, window titles and resolved paths may appear **there** and nowhere else; the
-  standard for tracked files and commit bodies is the value-only rule above, not the `reports/`
+- Phase evidence (`PROFILE`/`AUDIT`/`PLAN`/`VERIFY`/`STATE`/`REVIEW-PACK`) lives in `docs/reports/`,
+  which is gitignored — tier 1 tests two halves, in this order: nothing under it is tracked, **then**
+  the ignore rule is present. The order is not cosmetic: `git check-ignore` reports a path already in
+  the index as not ignored, so leading with the rule would mis-diagnose a force-added evidence file
+  as "the rule is missing". The pattern is `reports/` with no leading slash, so it matches at any
+  depth. Journal lines, window titles and resolved paths may appear **there** and nowhere else; the
+  standard for tracked files and commit bodies is the value-only rule above, not the `docs/reports/`
   exemption.
 - Evidence directories stay under `$TMPDIR`, mode 700, deleted at the end; `--keep` is for
   humans reading them locally, not for committing them.

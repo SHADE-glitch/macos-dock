@@ -50,7 +50,8 @@
 | 纯净模块不得有 GI 或 `resource://` 导入 | `AGENTS.md` 硬规则 | 所有人的 `npm test` 挂掉，包括没有 GNOME 的评审者 |
 | genie 的 SPDX 与署名行；GPL 文件集合等于 `LICENSES.md` | 公开仓库的许可义务 | 是法律风险，不是格式问题 |
 | `DODGE_DEBUG` 必须是 `false` | dodge 的 `_dbg`/`hide-trigger` 会打印真实窗口标题 | journal 开始收集私人标题，日后任何一次日志粘贴都会泄露 |
-| schema 键集减去 `prefs.js` 键集等于那 12 个 `keynav-*` | 设置面完整性 | 新键没有偏好设置行是静默功能缺口；有行没键会让偏好窗口抛异常 |
+| schema 键集减去 `prefs.js` 键集恰好等于钉住的 12 个名字（十个 `keynav-app-N` + `keynav-stock-backup`/`-dirty`） | 设置面完整性 | 新键没有偏好设置行是静默功能缺口；有行没键会让偏好窗口抛异常 |
+| 每个 schema 键都以反引号形式出现在**两份** README 里 | 设置说明是用户唯一能知道某个键存在的地方 | 往 schema 加了键却哪儿都没写（守卫只证明有这一行，不证明描述写对了） |
 | `metadata.json` 的 uuid / schema id / 纯数字 `shell-version` | 加载期接线 | schema id 写错会让扩展在登录时进 ERROR |
 | 双语对 `##` 数量相等且首行是语言切换器 | 文档约定 | 两个文件已经漂移 |
 | markdown 里不得有任务 checkbox | 本仓四个 fork 的共同约定 | 提交进仓库的文档读起来像未完成的活 |
@@ -61,7 +62,7 @@
 
 shell 侧：工具链存在性（缺失 → ENV）、单测下限（72 断言 / 20 套件 —— 是下限，加测试永远不
 会失败）、对**全部** tracked `.js` 跑 `node --check`、对 harness 跑 `bash -n`、
-`glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟、`reports/`
+`glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟、`docs/reports/`
 确被忽略且其中没有任何文件被跟踪，最后断言这一轮没有把工作树弄脏。
 
 对所有 GI 绑定文件跑 `node --check` 是全仓性价比最高的一项：`package.json` 里是
@@ -384,8 +385,11 @@ GNOME 更新能拿走的东西，全在这里：
 ## 12. Schema、设置与编译产物
 
 - 键的数量由第一层 `compiled-fresh` 打印（它比对 编译产物 == XML == shell 实际读到的），抄进
-  这里只会过期 —— 本机当前是 57 个，是随 D-058 的两个开关长出来的。`prefs.js` 绑定除那 12 个
-  `keynav-*` 之外的全部键，第一层精确断言这个集合差，所以新键不可能悄悄绕过偏好窗口。
+  这里只会过期 —— 本机当前是 57 个，是随 D-058 的两个开关长出来的。`prefs.js` 绑定其中 45 个；
+  没绑的 12 个在守卫里是按名字钉住的（键盘代码从 shell 抢来的十个 `keynav-app-N`，加上它自己的
+  崩溃恢复记账 `keynav-stock-backup` / `keynav-stock-dirty`）—— 注意 `keynav-enabled` 和两个
+  `keynav-peek-*` **是**绑定的，所以"除 `keynav-*` 之外的全部键"并不是这条规则。第一层精确断言
+  这个集合差，所以新键不可能悄悄绕过偏好窗口；两份 README 也必须逐键各有一行。
 - `schemas/gschemas.compiled` 是**被跟踪的二进制**。改过 XML 之后必须
   `glib-compile-schemas schemas/` 重新生成 —— shell 是从编译产物读默认值的，产物过期就意味
   着运行时默认值和 XML 写的不一样。`static-checks.sh` 的 S6 会重编译到临时目录比对：可复现
@@ -404,10 +408,12 @@ GNOME 更新能拿走的东西，全在这里：
 - tracked 文件里不得有已解析的临时路径、wayland 槽名、主机名、用户名或邮箱。第一层的机器
   指纹守卫专查这一点，并且不会把查到的内容打印出来。
 - 报告输出只有值：计数、抽出来的数字，绝不打印消息正文。
-- 阶段证据（`PROFILE`/`AUDIT`/`PLAN`/`VERIFY`/`STATE`）放在 `reports/`，它被 git 忽略 —— 第一层
-  同时证明两半：忽略规则存在，且其中没有任何文件被跟踪。journal 原文、窗口标题、已解析路径
-  **只能出现在那里**；tracked 文件和 commit 正文照上面那条"只有值"的标准，不享受 `reports/` 的
-  豁免。
+- 阶段证据（`PROFILE`/`AUDIT`/`PLAN`/`VERIFY`/`STATE`/`REVIEW-PACK`）放在 `docs/reports/`，它被 git
+  忽略 —— 第一层按这个顺序测两半：先数其中有没有被跟踪的文件，**再**验忽略规则存在。顺序不是随便
+  排的：`git check-ignore` 对已经进 index 的路径会回答"未被忽略"，先测规则就会把一份被 `add -f` 的
+  证据误判成"规则缺失"。规则写的是不带前导斜杠的 `reports/`，所以它在任何层级都生效。journal
+  原文、窗口标题、已解析路径**只能出现在那里**；tracked 文件和
+  commit 正文照上面那条"只有值"的标准，不享受 `docs/reports/` 的豁免。
 - 证据目录留在 `$TMPDIR` 下、mode 700、结束时删除；`--keep` 是给人本地看的，不是用来提交的。
 
 ## 14. 已知不修 / 待确认

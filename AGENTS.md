@@ -129,20 +129,25 @@ exact command and wait — never substitute a workaround that touches the sessio
   verification, waiting between them → **D** run verification and write the maintenance assets.
 - **Stop at the end of every phase and report.** Wait for the user's confirmation before starting the
   next one.
-- Phase output goes in `reports/` — `PROFILE.md`, `AUDIT.md`, `PLAN.md`, `VERIFY.md`,
-  `REVIEW-PACK.md` — plus `reports/STATE.md`, which a new session reads **first** and a session
-  updates **before it ends** (decisions taken, invariants, open items, what the next step is).
-  `reports/` is gitignored and tier 1 S8 proves it stays untracked, because the repository is public
-  while phase evidence quotes raw log lines.
-- **What may be written where**: `reports/` may quote journal lines, window titles and resolved
-  paths. Tracked files carry counts and extracted numbers only — never a journal line, a real
+- Phase output goes in `docs/reports/` — `PROFILE.md`, `AUDIT.md`, `PLAN.md`, `VERIFY.md`,
+  `REVIEW-PACK.md` — plus `docs/reports/STATE.md`, which a new session reads **first** and a
+  session updates **before it ends** (decisions taken, invariants, open items, what the next step
+  is). The ignore pattern is `reports/` with no leading slash, so it also covers `docs/reports/`,
+  and tier 1 S8 proves nothing under it is tracked — the repository is public while phase evidence
+  quotes raw log lines.
+- **What may be written where**: `docs/reports/` may quote journal lines, window titles and
+  resolved paths. Tracked files carry counts and extracted numbers only — never a journal line, a real
   application or window name, a host name, a user name or an absolute path. Commit bodies obey the
-  same rule as tracked files, not the same rule as `reports/`.
+  same rule as tracked files, not the same rule as `docs/reports/`.
 - The review pack is one page: what changed, files touched, invariants, self-check conclusions. It is
   written for an independent reviewer model, and anything it concedes as unfixed goes into
-  `MAINTENANCE.md` §14 rather than staying only in `reports/`.
+  `MAINTENANCE.md` §14 rather than staying only in `docs/reports/`.
 
 ## Docs & Commits
+- **[`INVARIANTS.md`](INVARIANTS.md) is a pointer list** of fixes that must not be reverted, and
+  it restates nothing: the mechanism lives in `CHANGELOG.md`, the reasoning in
+  `MAINTENANCE.md` §11. When the three disagree, those two win and INVARIANTS is stale — so add
+  its row in the same change that adds the entry, and never copy prose into it.
 - **[`MAINTENANCE.md`](MAINTENANCE.md) is the procedure file** (how to verify a change, the per-release playbook, what can never be automated here and why). This file is rules; do not restate procedures here.
 - `MAINTENANCE.md` / `MAINTENANCE.zh-CN.md` are a bilingual pair like the READMEs — keep their `##` sections in lockstep (`test/repo.test.js` enforces it).
 - `README.md` and `README.zh-CN.md` are a **two-file bilingual pair** — edit both together, keeping section order aligned.
