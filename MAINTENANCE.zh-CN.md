@@ -297,6 +297,7 @@ GNOME 更新能拿走的东西，全在这里：
 | `[genie] enabled`（`genieController.js:62`） | `_validate()` 接受了这个 shell 构建 | 动画好不好看 | 2、3A、3B |
 | `[genie] disabled — missing/changed private APIs: …`（`genieController.js:43`） | 某个符号变了；行里会点名 | 崩溃 —— 降级是有效的 | 2、3A、3B |
 | `[genie] effect ended without completing mutter:`（`genieController.js:393`） | 恰好一次的完成闩锁被绕过 | —— 它就是为这件事存在 | 永久警告 |
+| `[appsbtn] applied (icon=…, label=none, grid=<n>)` (`overviewApps.js:257`) | 网格判断在**这台 shell 上**解析到的 `ControlsState` 值 —— 第二层把 `<n>` 与 shell 自己报出的数字比对 | 点击是否落到正确状态（要真实指针，只能第三层） | 2 |
 | `_dbg` 输出、`hide-trigger` | 什么都不是：受 `DODGE_DEBUG=false` 门控、只在隐藏态打、每秒限一条，而且**打印窗口标题** | —— | 永不作为判据 |
 
 ## 10. 本机无法自动化的事情与原因
@@ -372,6 +373,11 @@ GNOME 更新能拿走的东西，全在这里：
   选择。不要收紧。
 - 已撤回、不要再以"省开销"为由重开：dodge 隐藏态心跳（实测 556 → 524 → 518 ticks，低于噪声），
   以及 genie 尾缘加 ease-in（实测约 3 帧内就有可见速度）。
+- `dockManager.js` 里的 `dash._dashSpacer` 在 50.1 上是**惰性的，但仍然保留**（D-064）：本机 shell
+  源码里搜不到这个字段，可 48/49 既已声明又跑不了，删掉等于对一个声称支持的版本做未验证的行为改动。
+  只有在 48/49 上确认它真的不存在之后才可以删 —— **不要**把"在 50 上是死代码"当成许可。
+- 放大 tick 的单趟读取是被**测出来**的，不是口味：D-063 之前 6 个图标每帧 12 次 position 读取，
+  之后 6 次（`tick-geometry-reads`）。谁再把那个循环拆成两趟，就是在重新引入被计数的那件事。
 - 密集开机时 dock 会故意最多约 6 秒不避让。那是选定的上限，不是 bug。要调只调
   `STARTUP_GRACE_CAP_MS`。
 
@@ -406,6 +412,10 @@ GNOME 更新能拿走的东西，全在这里：
 
 ## 14. 已知不修 / 待确认
 
+- `metadata.json` 声明支持 48 和 49，而**这两版本机从没跑过**。关于 48/49 的一切说法都是从 50.1
+  推断来的（见 §15）。要关掉这条得有一台 48/49 的机器或镜像，再多读代码读不出来。
+- §16 的空闲基线还不存在：目前唯一取到的样本是在机器正忙时取的（60 秒 27.5 秒 CPU，量的其实是
+  别的活）。真正的基线要在空闲会话上跑 A/B 两条臂，那件事归用户。
 - B 组的释放确认依赖合成器是否让探针窗口持有焦点；拿不到时该检查报 ENV。在空闲会话上跑就能
   得到答案。
 - genie 的**视觉**正确性在这台机器上不可验证（无截图、无注入），只有结构性覆盖：无头与实时
@@ -418,3 +428,70 @@ GNOME 更新能拿走的东西，全在这里：
   它读的 journal 是注销之前的旧代码写的。修复没被加载之前，它会把旧开机的 40 次报成 `ENV`，
   这是正确行为、不是通过 —— 真正的验证要一次注销加一次复现，然后这个数必须是 0。
 - 第一层的用例数是下限，所以"改个套件名"也能让覆盖率倒退。
+
+
+## 15. GNOME 兼容矩阵
+
+有两列，而且它们不是一回事：`metadata.json` **声明**了什么，以及这台机器上**实测**过什么。
+把两者写成一列，就是一个 fork 开始发行"从没测过的支持"的方式。
+
+| Shell | 已声明 | 本机实测 | 该版本上本 fork 依赖的事实 |
+|---|---|---|---|
+| 45–47 | 否 | 否 | 不支持。ES 模块改写、`Meta.get_window_actors()` 形状、`St`/`Clutter` 版本都在 48 之前动过，这里没有任何东西面向它们。 |
+| 48、49 | **是** | **否** | 未测。已知的一处差异是 `dash._dashSpacer`：50.1 里不存在（所以 `dockManager.js` 那个分支在本机是惰性的），而 48/49 上有没有该字段**无法验证** —— 这正是 D-064 保留分支而不是删掉它的原因。除这条之外，关于 48/49 的一切说法都只是从 50.1 出发的推断。 |
+| 50.1（mutter-18、gjs 1.88） | 是 | **是，出货目标** | `Main.overview.visibleTarget` 存在（dodge 的概览校正读它，并留 `visible` 兜底）。`ControlsState = {HIDDEN:0, WINDOW_PICKER:1, APP_GRID:2}`，且 fork 现在从模块解析它而不再硬编码 `2`（D-061）。`dash._dashSpacer` 不存在。`Layout._trackActor()` 在 `destroy` 时自动摘除登记（`layout.js:962-965`），见 §8。概览把 dash 夹在 `box.height * DASH_MAX_HEIGHT_RATIO` = 0.16 内（`overviewControls.js:23,174-178`）。`Main.uiGroup` 是官方写明向后兼容的别名。shell 的 JS 以 GResource 存在 `/usr/lib/gnome-shell/libshell-18.so` 里（111 个 `ui/*.js`），**不在** `/usr/share/gnome-shell`。 |
+| 51 及以后 | — | — | 见下面的流程。预期库名会变（`libshell-19.so`），那会让本文件里所有查源码的命令失效。 |
+
+**新 major 出现时**（完整流程在 §7，这里是与版本相关的部分）：
+
+1. **升级之前**先把新 major 加进 `metadata.json`。`extensionSystem.js` 用 `v.startsWith(major)`
+   判定 `_isOutOfDate`，没列出的 major 意味着扩展静默根本不加载 —— 那你调试的就是一个从没跑起来
+   的东西。
+2. 找到 shell 源码：`ls /usr/lib/gnome-shell/libshell-*.so`，然后
+   `gresource list <那个文件> | grep '/ui/'`。不要沿用上一行的数字。
+3. 对着抽出来的文件逐个复核 §8，按这个顺序（它们每一个在本 fork 历史上都至少动过一次）：
+   `Main.wm._minimizing`/`_unminimizing`、`WorkspaceLayout.prototype._getWindowSlots`、
+   `Main.overview.dash.get_preferred_height`、`ControlsState`、`Layout._trackActor` 的 destroy 连接。
+4. 在**新 shell 上**先跑第一层再跑第二层 —— `test:headless` 是唯一真正探测私有符号的地方，
+   而且它不需要注销。
+5. 第三层仍然是"用户实际感觉到什么"的裁判，而它是三层里唯一会读你正在使用的会话的那一层，
+   不能无人值守地动。
+
+## 16. 固定度量方法：空闲 CPU、内存与泄漏
+
+之所以把 witness（见证）步骤写进流程，是因为"机器正忙时取一个样本"毫无价值：写这一节期间取的
+一次 60 秒读数显示会话 shell **60 秒内吃了 27.5 秒 CPU（单核的 45.8%）** —— 那是机器上的其它
+工作，与 dock 无关。合格的问题从来不是"多少毫秒"，而是"开着它比关掉多消耗多少"。
+
+**两条臂。** 同一时间轴上做 A/B，只有一个变量：扩展开 / 关。`disable`+`enable` 确实会在缓存的
+类上重跑 `stop()`/`enable()`，所以即使它永远加载不到改过的代码，作为"切换臂"的手段是有效的。
+每条臂期间会话必须别无所动：不键入、不播视频、没有 agent 在跑构建，每臂至少 60 秒，重复两轮。
+
+```sh
+# 取 pid：绝不能盲目 pgrep -x gnome-shell —— 别的 agent 会跑 --headless 的 shell
+pid=$(bash -c 'source test/common.sh; shell_pid'); HZ=$(getconf CLK_TCK)
+cpu(){ awk -v h="$HZ" '{print ($14+$15)/h}' "/proc/$pid/stat"; }   # CPU 秒
+rss(){ awk '/VmRSS/{print $2}' /proc/$pid/status; }                # kB
+fds(){ ls "/proc/$pid/fd" | wc -l; }
+t0=$(cpu); r0=$(rss); f0=$(fds); sleep 60; t1=$(cpu); r1=$(rss); f1=$(fds)
+python3 -c "print('每分钟 CPU 毫秒=%.0f RSS 变化 kB=%s fd 变化=%s' % (($t1-$t0)*1000, $r1-$r0, $f1-$f0))"
+```
+
+**内存采样点。** 固定三个，顺序永远是：登录后 settle 之后、N 次 `enable`/`disable` 循环之后、
+N 次最小化/还原之后，全部对第一个点取差值。**基线出来之前不要凭空写阈值**：合格区间来自第一次
+实测，而不是来自文档 —— 没被某次运行打印出来的 `MAINTENANCE` 数字就是猜测。
+
+**见证步骤（最常被跳过的那一步）。** 如果这期间什么都没发生过，一条平的 RSS 曲线证明不了任何事。
+每一轮都必须记下"工作确实做了"的证据：`[dodge] … -> …` 转换行数、`enable() total` 行数、
+最小化/还原的配对数。见证计数为 0 的样本要**丢弃**，而不是报成"干净" —— 与 §1 那条同一个规矩：
+分不清"回归"和"机器当时在忙"的断言一律是 `ENV`。
+
+**actor / source 泄漏。** RSS 之外还要数"本该被释放的东西"：`global.get_window_actors().length`，
+以及只在私有 shell 里数的 `Main.layoutManager._trackedActors.length`（一次 enable/disable 循环前后各
+一次；第二层的 `chrome-untracked` 就是这件事的正式断言）。fd 计数能抓到 RSS 掩盖掉的 D-Bus 与
+文件描述符泄漏。
+
+**这里量不到的东西。** hover 手感、genie 的视觉质量，以及任何需要真实指针的事情：指针注入不可用
+（`/dev/uinput` 是 `0600 root:root`，XTEST 的 warp 到不了合成器的光标，没有 EI/Ember portal），
+截图是 `AccessDenied`。对这些，诚实的替代指标是**每帧计数** —— `tick-geometry-reads` 能证明每帧的
+工作量确实变小了 —— 而"看起来对不对"这个问题仍然归用户（§10）。

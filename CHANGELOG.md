@@ -445,3 +445,38 @@ Change   `test/headless-checks.sh` 加两项：`motion-monitor-resolve`（直接
 Evidence L1 chrome-untracked
 Cost     审计里那条"禁用后泄漏 chrome 注册"的 P1 结论**撤回**：实测无残留，原因在 shell 一侧（`Layout._trackActor()` 把 actor 的 `destroy` 连到 `_untrackActor`，已登记 MAINTENANCE §8）。`chrome-untracked` 留作哨兵——哪天 shell 去掉那条自动连接，`dockManager.js:287` 拿 `_container` 是否存活来决定要不要 `removeChrome` 就重新变成真泄漏
 Commit   75f034c
+
+### D-061 · 2026-10-09 · fix · v1
+Symptom  Show Apps 按钮判断"我在不在应用网格里"用的是裸数字 `v === 2`（shell 的 `ControlsState.APP_GRID`）。改名会降级，**重排**则让它自信地答错且不打一行日志；而它的兜底 `showAppsButton.checked` 正是同文件注释里写明"不再信任"的过期来源
+Change   模块加载时从 `ui/overviewControls.js` 解析一次 `ControlsState.APP_GRID`；解析不到就 warn-once 并显式走兜底。`applied` 日志加 `grid=<n>`，把"用的哪个值"变成可读的判据
+Evidence L1 grid-state-source（对修复前红：那行日志没有 `grid=`；修复后绿，且与同一轮 shell 自己报出的枚举值相等）
+Cost     新增一条对 shell 模块的 import（`overviewControls.js`），属公开导出而非私有字段。日志行格式变了——第三层若有按 `applied (` 取的断言要一起看
+Commit   18c4d8b
+
+### D-062 · 2026-10-09 · fix · v1
+Symptom  两处概览补丁在检测到自己标志位已置时返回 **noop revert**。该分支只在"上一次 revert 抛错被调用方吞掉"时到达，一旦走到，遮蔽的 `get_preferred_height` 与原型上的 `_getWindowSlots` 包装在剩余会话里再也撤不掉——禁用扩展也不撤
+Change   把 revert 提到早退之前构造并两个分支共用（它无状态：删自有属性即还原原型方法）；`overviewLayout` 把原始方法存到原型 `_dockOverviewLayoutOrig`，免得已应用时把自家包装当"原始"存回去。另补一条 warn-once：`WorkspaceLayout._container` 被改名时 `_previewArea()` 只返回 null 静静退回原生布局，而模块头写着"任何缺失都 warn-once"——兑现自己许下的承诺
+Evidence L1 patch-revert-idempotent（修复前红：`shadowStillInstalled=true`、`insetStillApplied=true`；修复后绿，且探针收尾重新 apply 成功）
+Cost     正常开关路径本来到不了这条分支（`dockManager._startOverviewPatches` 持有 revert 就早退），所以这是**纵深防御**而非当前缺陷；`noop` 变量在两条路径里仍有别的用途
+Commit   0380cf9
+
+### D-063 · 2026-10-09 · perf · v1
+Symptom  hover tick 每个图标每帧读两遍几何：算 minDist 一趟 `get_position()+get_size()`，缩放又一趟；pivot 校正里 `get_pivot_point()` 为取 [0] 和 [1] 各调一次；`smooth` 闭包每帧新建。实测一帧 6 个图标 = **12 次** position 读取，每次都是一个新 GI 数组
+Change   单趟几何 pass 把圆心写进复用的 `_centers` 配对数组，其后两趟只读普通数字；`smooth` 提到模块作用域。pivot 仍在本帧设置、far-away 早退的判据与阈值一字未动
+Evidence L1 tick-geometry-reads（修复前红 12/6，修复后绿 6/6）。仪器说明：本机 `global.set_pointer` 不存在，改成遮蔽 `global.get_pointer()` 恰好一帧，并在 `finally` 里还原
+Cost   只覆盖"图标数变化时数组残留旧尾巴"这一处语义差异——多出来的数字不会被读到（循环按 children.length bound）。人眼感受仍属 §10 无法自动化的部分
+Commit   259fe4f
+
+### D-064 · 2026-10-09 · chore · v1
+Symptom  审计把 `dash._dashSpacer` 分支列为"死代码，删"
+Change   删前先核：本机 shell 的 `ui/*.js` 里搜不到这个名字（50.1 确实没有），但 `metadata.json` 还声明 48/49，这两个 major 在本机无法运行、无法验证字段是否存在。于是**保留分支**并把事实边界写在代码里：此处惰性，删除需要真机验证过再动
+Evidence L0（grep 本机 shell 源）；48/49 一侧为"需人工确认"
+Cost     反过来也成立：直接删等于对未验证的 major 做行为改动，违反"稳定性优先"。这条记录的作用是阻止下一轮把同一个"死代码"再删一次
+Commit   e067e5c
+
+### D-065 · 2026-10-09 · guard · v1
+Symptom  D-061/D-062/D-063 三件事在修之前都没有任何检查能发现
+Change   第二层加 `grid-state-source`、`patch-revert-idempotent`、`tick-geometry-reads` 三项；顺带把该层全部 `H` 序号按文件出现顺序重排（此前 H18 排在 H17 前面，且新插入的块撞过号）
+Evidence L1 三项各自红→绿见 D-061/D-062/D-063
+Cost     `tick-geometry-reads` 依赖遮蔽 `global.get_pointer`——一次只罩一帧、`finally` 还原；留着它会让后续探针读到假指针
+Commit   2498a28

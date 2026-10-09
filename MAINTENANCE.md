@@ -342,6 +342,7 @@ Everything that a GNOME update can take away:
 | `[genie] enabled` (`genieController.js:62`) | `_validate()` accepted this shell build | that an animation looks right | 2, 3A, 3B |
 | `[genie] disabled — missing/changed private APIs: …` (`genieController.js:43`) | a symbol moved; the line names it | a crash — the fallback works | 2, 3A, 3B |
 | `[genie] effect ended without completing mutter:` (`genieController.js:393`) | the exactly-once completion latch was bypassed | — this is the point of it | permanent warning |
+| `[appsbtn] applied (icon=…, label=none, grid=<n>)` (`overviewApps.js:257`) | which `ControlsState` value the grid test resolved **in this shell** — tier 2 compares `<n>` against the number the shell itself reports | that a click lands in the right state (needs a real cursor, tier 3 only) | 2 |
 | `_dbg` output, `hide-trigger` | nothing: gated by `DODGE_DEBUG=false`, only while hidden, rate-limited to one line per second, and **prints window titles** | — | never an oracle |
 
 ## 10. What cannot be automated here, and why
@@ -436,6 +437,14 @@ Each of these was tested directly and failed. Do not spend time retrying them.
 - Withdrawn, do not re-propose on a saving argument: dodge's hidden-state heartbeat as a CPU
   cost (measured enabled 556 → disabled 524 → enabled 518 ticks, i.e. under noise), and an
   ease-in on the genie trailing edge (measured visible motion within ~3 frames).
+- `dash._dashSpacer` in `dockManager.js` is **inert on 50.1 and stays anyway** (D-064): the field
+  exists nowhere in this shell's sources, but 48/49 are declared and cannot be run here, so
+  deleting it would be an untested behaviour change on a version the fork claims to support.
+  Remove it only after checking it is really gone on 48/49 — do not treat "dead on 50" as
+  licence.
+- The magnification tick is single-pass by measurement, not by taste: 12 position reads per frame
+  for 6 icons before D-063, 6 after (`tick-geometry-reads`). Anyone re-splitting that loop is
+  re-introducing the thing the check counts.
 - On a dense boot the dock deliberately does **not** dodge for up to ~6 s. That is the chosen
   cap, not a bug. The knob is `STARTUP_GRACE_CAP_MS` alone.
 
@@ -478,6 +487,12 @@ Each of these was tested directly and failed. Do not spend time retrying them.
 
 ## 14. Known issues (recorded, not fixed)
 
+- `metadata.json` declares 48 and 49, and **neither has ever been run here**. Everything the fork
+  claims about those majors is inference from 50.1 (see §15). Closing this needs a machine or an
+  image with 48/49, not more reading.
+- The idle-cost baseline in §16 does not exist yet: the only sample taken so far was on a busy
+  machine (27.5 s CPU per 60 s, which measures other work). A real baseline needs the A/B arms on a
+  quiet session, which is the user's to run.
 - Group B's release confirmation depends on the compositor letting the probe window hold
   focus. When it cannot, the check reports ENV. Running it on an idle session answers it.
 - Genie's *visual* correctness is unverifiable here (no screenshots, no injection) and is
@@ -495,3 +510,78 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   verification needs a logout plus a reproduction, and then the number must be 0.
 - Tier 1's counts are floors, so coverage can regress by *renaming* a suite rather than
   breaking it.
+
+
+## 15. GNOME compatibility matrix
+
+Two columns matter and they are not the same thing: what `metadata.json` **claims** and what has
+been **measured on this machine**. Keeping them in one column is how a fork ends up shipping
+support it never tested.
+
+| Shell | Declared | Measured here | Facts this fork depends on, per that build |
+|---|---|---|---|
+| 45–47 | no | no | Not supported. The ES-module rewrite, `Meta.get_window_actors()` shapes and `St`/`Clutter` versioning all moved before 48; nothing here is aimed at them. |
+| 48, 49 | **yes** | **no** | Untested. The one known divergence is `dash._dashSpacer`: absent in 50.1 (so the branch in `dockManager.js` is inert here) and unverified on 48/49, which is why D-064 kept the branch instead of deleting it. Anything else claimed for 48/49 is inference from 50.1, nothing more. |
+| 50.1 (mutter-18, gjs 1.88) | yes | **yes — the shipping target** | `Main.overview.visibleTarget` exists (dodge's overview reconcile reads it, with a `visible` fallback). `ControlsState = {HIDDEN:0, WINDOW_PICKER:1, APP_GRID:2}` and the fork now resolves it from the module instead of hardcoding `2` (D-061). `dash._dashSpacer` does not exist. `Layout._trackActor()` auto-untracks on `destroy` (`layout.js:962-965`) — see §8. The overview clamps the dash to `box.height * DASH_MAX_HEIGHT_RATIO` = 0.16 (`overviewControls.js:23,174-178`). `Main.uiGroup` is a documented back-compat alias. Shell JS lives in `/usr/lib/gnome-shell/libshell-18.so` as a GResource (111 `ui/*.js`), **not** in `/usr/share/gnome-shell`. |
+| 51 and later | — | — | See the procedure below. Expect the library name to change (`libshell-19.so`), which breaks every source-lookup command in this file. |
+
+**When a new major appears** (the full playbook is §7; this is the version-specific part):
+
+1. Add the new major to `metadata.json` **before** upgrading. `extensionSystem.js` decides
+   `_isOutOfDate` with `v.startsWith(major)`, so an unlisted major means the extension silently
+   never loads — you would be debugging an extension that was never running.
+2. Find the shell sources: `ls /usr/lib/gnome-shell/libshell-*.so`, then
+   `gresource list <that file> | grep '/ui/'`. Do not assume the number from the last row.
+3. Re-check §8 symbol by symbol against the extracted files, in this order (each one has already
+   moved at least once in this fork's history): `Main.wm._minimizing`/`_unminimizing`,
+   `WorkspaceLayout.prototype._getWindowSlots`, `Main.overview.dash.get_preferred_height`,
+   `ControlsState`, `Layout._trackActor`'s destroy connect.
+4. Run tier 1 then tier 2 **on the new shell** — `test:headless` is the only place the private
+   symbols get probed for real, and it needs no logout.
+5. Tier 3 stays the arbiter of what users actually feel, and it is the one tier that reads a
+   session you must not mutate unattended.
+
+## 16. Fixed method: idle CPU, memory and leaks
+
+Written as a procedure with a *witness* step because a single sample of a busy machine is
+worthless: one 60 s read taken while writing this section reported **27.5 s of CPU in 60 s
+(45.8% of one core)** for the session shell — that was other work on the box, not the dock. The
+pass/fail question is never "how many ms" but "how much more with the extension on than off".
+
+**Arms.** A/B on the same timeline, one variable: extension enabled vs disabled. `disable`+`enable`
+does re-run `stop()`/`enable()` on the cached classes, so it is a valid arm switch even though it
+never loads edited code. Every arm needs the session otherwise untouched: no typing, no video, no
+agent running a build, at least 60 s per arm, two repeats.
+
+```sh
+# identity: never pgrep -x gnome-shell blind — other agents run --headless shells
+pid=$(bash -c 'source test/common.sh; shell_pid'); HZ=$(getconf CLK_TCK)
+cpu(){ awk -v h="$HZ" '{print ($14+$15)/h}' "/proc/$pid/stat"; }   # seconds of CPU
+rss(){ awk '/VmRSS/{print $2}' /proc/$pid/status; }                # kB
+fds(){ ls "/proc/$pid/fd" | wc -l; }
+t0=$(cpu); r0=$(rss); f0=$(fds); sleep 60; t1=$(cpu); r1=$(rss); f1=$(fds)
+python3 -c "print('cpu_ms_per_min=%.0f rss_delta_kb=%s fd_delta=%s' % (($t1-$t0)*1000, $r1-$r0, $f1-$f0))"
+```
+
+**Memory points.** Sample at three fixed points, always in this order: after login + settle, after
+N `enable`/`disable` cycles, after N minimize/restore cycles. Report the deltas against the first
+point. Do not invent a threshold before a baseline exists: the band comes from the first measured
+run, and a `MAINTENANCE` number that was not printed by a run is a guess.
+
+**Witness — this is the step that gets skipped.** A flat RSS curve proves nothing if nothing
+happened during it. Each round must record evidence that the work occurred: the count of
+`[dodge] … -> …` transition lines, `enable() total` lines, `minimize`/`unminimize` pairs. If the
+witness count is 0, the sample is discarded, not reported as clean — the same rule as §1's
+"an assertion that cannot distinguish regression from a busy machine is `ENV`".
+
+**Actor/source leaks.** Alongside RSS, count what should have been freed:
+`global.get_window_actors().length` and, in a private shell only,
+`Main.layoutManager._trackedActors.length` before and after an enable/disable cycle (tier 2's
+`chrome-untracked is the assertion of record there). fd counts catch D-Bus and file-descriptor
+leaks that RSS hides.
+
+**What this cannot measure here.** Hover feel, genie's visual quality and anything needing a real
+cursor: pointer injection is unavailable (`/dev/uinput` is `0600 root:root`, XTEST warps never
+reach the compositor cursor, no EI/Ember portal), and screenshots are `AccessDenied`. For those
+the tick *counts* are the honest proxy — `tick-geometry-reads` proves the per-frame work shrank —
+and the perceptual question stays with the user (§10).
