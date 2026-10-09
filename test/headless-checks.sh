@@ -43,7 +43,7 @@ done
 # had piled up before this sweep existed. Only dirs older than an hour are
 # reclaimed, so a *concurrent* run's fresh sandbox (a run here is ≤150 s) is
 # never touched. Best-effort hygiene, not an assertion, so it prints no report
-# line and the "asserts 17 things" count in MAINTENANCE stays true.
+# line and the "asserts 19 things" count in MAINTENANCE stays true.
 t2swept=0
 for d in "${TMPDIR:-/tmp}"/macosdock-t2-*; do
     [ -d "$d" ] || continue
@@ -470,6 +470,20 @@ else
     report $T overview-band FAIL "band=$(jq -r '.band' "$T2/band.json") < dock occupied=$(jq -r '.dockOccupied' "$T2/band.json") — dock would overlap the overview (dashPref=$(jq -r '.dashPref' "$T2/band.json"), spacing=$(jq -r '.spacing' "$T2/band.json"))"
 fi
 
+# H18 ------------------------------------------------------------------------
+# The overview layout patches (D-054 band + D-057 inset) moved into their own
+# concern (lib/overviewPatches.js, D-058) behind the `overview-patches-enabled`
+# toggle. Presence check: the composer logs `enabled` on a good boot; it only
+# fails to log if the toggle defaulted off or the composer was never wired.
+# `band=skipped` is legitimate (the stock dash may not be ready at enable) and is
+# not a failure — tier 2 asserts presence, never a threshold.
+ovp_ok=$(lc '\[macos-dock-local\]\[overviewpatches\] enabled')
+if [ "$ovp_ok" -ge 1 ]; then
+    report $T overview-patches PASS "composer ran (inset + band) behind overview-patches-enabled"
+else
+    report $T overview-patches FAIL "overview patches logged no 'enabled' line — composer not wired or the toggle defaulted off"
+fi
+
 # H17 ------------------------------------------------------------------------
 # The overview window previews are laid out by WorkspaceLayout._getWindowSlots,
 # which the shell feeds the whole window-picker box while the desktop background
@@ -486,6 +500,17 @@ elif [ "$ovl_bad" -ge 1 ]; then
     report $T overview-window-inset FAIL "overview inset degraded to native layout — a shell symbol moved or vanished (see facts.json)"
 else
     report $T overview-window-inset FAIL "overview layout logged neither line — enable() did not reach applyOverviewLayout()"
+fi
+
+# H19 ------------------------------------------------------------------------
+# The Show Apps button fix is now its own concern (D-058) behind
+# `apps-button-fix-enabled`, decoupled from icons-fix-enabled. Presence check:
+# lib/overviewApps.js logs `[appsbtn] applied` when it lands on the dock button.
+appsbtn_ok=$(lc '\[macos-dock-local\]\[appsbtn\] applied')
+if [ "$appsbtn_ok" -ge 1 ]; then
+    report $T apps-button PASS "Show Apps button fix applied behind apps-button-fix-enabled"
+else
+    report $T apps-button FAIL "Show Apps button fix logged no 'applied' line — not wired or the toggle defaulted off"
 fi
 
 # H15 ------------------------------------------------------------------------

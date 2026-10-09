@@ -165,6 +165,12 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         });
         settings.bind("show-applications-button", appButtonRow, "active", BIND_FLAGS);
         behaviorGroup.add(appButtonRow);
+        const appsButtonFixRow = new Adw.SwitchRow({
+            title: "Fix the Show Apps button",
+            subtitle: "Open the app grid from the overview and use the brand icon instead of hiding the overview",
+        });
+        settings.bind("apps-button-fix-enabled", appsButtonFixRow, "active", BIND_FLAGS);
+        behaviorGroup.add(appsButtonFixRow);
         const showRunningAppsRow = new Adw.SwitchRow({
             title: "Show running applications",
             subtitle: "Show non-favorite running apps in the dock",
@@ -358,6 +364,18 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         });
         settings.bind("icons-fix-enabled", iconsFixRow, "active", BIND_FLAGS);
         iconsFixGroup.add(iconsFixRow);
+        // Overview patches (D-058): shell-layout fixes, independent of the dock.
+        const overviewPatchesGroup = new Adw.PreferencesGroup({
+            title: "Overview patches",
+            description: "Shell-layout fixes applied while the dock is on. Independent of the dock; fall back to the native layout if a shell symbol moves.",
+        });
+        page.add(overviewPatchesGroup);
+        const overviewPatchesRow = new Adw.SwitchRow({
+            title: "Inset overview previews & reserve the dock band",
+            subtitle: "Pull window previews inside the desktop and stop the dock overlapping the overview",
+        });
+        settings.bind("overview-patches-enabled", overviewPatchesRow, "active", BIND_FLAGS);
+        overviewPatchesGroup.add(overviewPatchesRow);
         // Dodge
         const dodgeGroup = new Adw.PreferencesGroup({
             title: "Dodge",
