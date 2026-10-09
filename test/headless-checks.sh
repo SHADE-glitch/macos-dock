@@ -513,6 +513,133 @@ else
     report $T apps-button FAIL "Show Apps button fix logged no 'applied' line — not wired or the toggle defaulted off"
 fi
 
+# H20 ------------------------------------------------------------------------
+# One pointer event must resolve the dock's monitor once, not twice.
+# `_onPointer` takes a monitor, then calls `_pointerFarFromEdge`, which resolved
+# its own — a second `Main.layoutManager.monitors` conversion and a second scan
+# on the hottest path in the extension (motion events arrive unthrottled, and
+# this is the path that decides whether the dock feels immediate).
+#
+# Pointer injection is unavailable on this machine, so the probe calls the
+# handler directly and counts resolutions. That is the honest form of the
+# assertion: it tests the call graph, not a timing guess.
+cat > "$T2/e7.js" <<'JS'
+(async () => {
+    const GLib = imports.gi.GLib;
+    const Main = await import('resource:///org/gnome/shell/ui/main.js');
+    const out = { ok: false, precondition: false };
+    const dodge = Main.extensionManager.lookup('macos-dock@local')?.stateObj
+        ?._dockManager?._dodge;
+    if (!dodge || !dodge._container || !dodge._containerValid) {
+        out.error = dodge ? 'no live dock container' : 'no dodge instance';
+        GLib.file_set_contents('%T2%/motion.json', JSON.stringify(out));
+        return;
+    }
+    out.precondition = true;
+    const orig = dodge._dockMonitor.bind(dodge);
+    let calls = 0;
+    dodge._dockMonitor = () => { calls++; return orig(); };
+    try {
+        // A pointer well inside the monitor, away from the dock edge: the far
+        // from-edge branch must run, which is the one that used to re-resolve.
+        dodge._onPointer(40, 40);
+    } catch (e) {
+        out.error = e.message;
+    }
+    delete dodge._dockMonitor;
+    out.calls = calls;
+    out.ok = out.error === undefined && calls <= 1;
+    GLib.file_set_contents('%T2%/motion.json', JSON.stringify(out));
+})();
+JS
+sed -i "s|%T2%|$T2|g" "$T2/e7.js"
+EV_FILE "$T2/e7.js" > "$T2/e7.reply" 2>&1
+for _ in $(seq 1 10); do [ -s "$T2/motion.json" ] && break; sleep 1; done
+motion_json=$(jq -c 'del(.ok)' "$T2/motion.json" 2>/dev/null)
+if [ ! -s "$T2/motion.json" ]; then
+    report $T motion-monitor-resolve ENV "motion probe wrote nothing — reply: $(head -c 120 "$T2/e7.reply" 2>/dev/null)"
+elif [ "$(jq -r '.precondition' "$T2/motion.json")" != true ]; then
+    report $T motion-monitor-resolve ENV "dock container unavailable for the motion probe: $motion_json"
+elif [ "$(jq -r '.ok' "$T2/motion.json")" = true ]; then
+    report $T motion-monitor-resolve PASS "one pointer event resolves the dock monitor $(jq -r '.calls' "$T2/motion.json") time(s)"
+else
+    report $T motion-monitor-resolve FAIL "one pointer event resolved the dock monitor $(jq -r '.calls' "$T2/motion.json") times — expected <=1: $motion_json"
+fi
+
+# H21 ------------------------------------------------------------------------
+# Teardown of the chrome registration is an assertion, not a formality. The
+# container's own `destroy` handler nulls `_container`, and `stop()` decides
+# whether to call `removeChrome` by testing that very field — so if the shell
+# destroys the actor first (the case the handler was written for, see the journal
+# evidence quoted at dockManager.js:71-73), the untrack never happens and
+# `Main.layoutManager._trackedActors` keeps an entry pointing at a disposed
+# actor. `_findActor()` linear-scans that array on every layout query, so the
+# entry is paid for repeatedly for the rest of the session, and a disable→enable
+# cycle in one session adds another.
+#
+# The probe destroys the container deliberately, runs disable(), then asks the
+# registry whether our actor is still in it. It also records what calling
+# `removeChrome` on an already-destroyed actor does, because that is exactly what
+# the fix has to do — the answer decides whether the fix is safe, not just tidy.
+cat > "$T2/e6.js" <<'JS'
+(async () => {
+    const GLib = imports.gi.GLib;
+    const Main = await import('resource:///org/gnome/shell/ui/main.js');
+    const out = { ok: false, precondition: false };
+    try {
+        const lm = Main.layoutManager;
+        const dm = Main.extensionManager.lookup('macos-dock@local')?.stateObj
+            ?._dockManager;
+        const mine = dm?._container;
+        const registry = lm._trackedActors;
+        out.hasRegistry = Array.isArray(registry);
+        out.hasContainer = !!mine;
+        if (!out.hasRegistry || !out.hasContainer) {
+            GLib.file_set_contents('%T2%/chrome.json', JSON.stringify(out));
+            return;
+        }
+        const isMine = () => registry.some(d => d.actor === mine);
+        out.precondition = true;
+        out.wasTracked = isMine();
+        out.nBefore = registry.length;
+        // Simulate the shell destroying our actor out from under the extension.
+        mine.destroy();
+        out.destroyNulledContainer = dm._container === null;
+        // The path under test.
+        Main.extensionManager.lookup('macos-dock@local').stateObj.disable();
+        out.stillTrackedAfterDisable = isMine();
+        out.nAfter = registry.length;
+        // What the fix will have to do: untrack a disposed actor.
+        if (out.stillTrackedAfterDisable) {
+            try {
+                lm.removeChrome(mine);
+                out.manualRemoveThrew = null;
+            } catch (e) {
+                out.manualRemoveThrew = e.message;
+            }
+            out.stillTrackedAfterManual = isMine();
+        }
+        out.ok = out.wasTracked === true && out.stillTrackedAfterDisable === false;
+    } catch (e) {
+        out.error = e.message;
+    }
+    GLib.file_set_contents('%T2%/chrome.json', JSON.stringify(out));
+})();
+JS
+sed -i "s|%T2%|$T2|g" "$T2/e6.js"
+EV_FILE "$T2/e6.js" > "$T2/e6.reply" 2>&1
+for _ in $(seq 1 10); do [ -s "$T2/chrome.json" ] && break; sleep 1; done
+chrome_json=$(jq -c 'del(.ok)' "$T2/chrome.json" 2>/dev/null)
+if [ ! -s "$T2/chrome.json" ]; then
+    report $T chrome-untracked ENV "chrome probe wrote nothing — reply: $(head -c 120 "$T2/e6.reply" 2>/dev/null)"
+elif [ "$(jq -r '.precondition' "$T2/chrome.json")" != true ]; then
+    report $T chrome-untracked ENV "registry or container unavailable: $chrome_json"
+elif [ "$(jq -r '.ok' "$T2/chrome.json")" = true ]; then
+    report $T chrome-untracked PASS "destroyed container is untracked by disable() (registry $chrome_json)"
+else
+    report $T chrome-untracked FAIL "disposed actor still in _trackedActors after disable(): $chrome_json"
+fi
+
 # H15 ------------------------------------------------------------------------
 # Teardown is an assertion, not a formality. dbus-run-session's private
 # dbus-daemon and its gnome-shell both outlive a naive `kill $INNER` (reparented
