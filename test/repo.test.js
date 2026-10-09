@@ -29,7 +29,8 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
  */
 function listFiles() {
     const out = [];
-    // `reports` is skipped on purpose: it holds local-only phase evidence that is
+    // `reports` is skipped on purpose (the walk matches basenames, so docs/reports
+    // too): it holds local-only phase evidence that is
     // ALLOWED to quote journal lines and window titles precisely because it can
     // never be committed. Scanning it here would make the privacy guard fail on
     // the one directory whose whole job is to hold that data. The guarantee that
@@ -165,6 +166,30 @@ describe("settings surface is complete", () => {
             assert.match(v, /^\d+$/,
                 `shell-version entry "${v}" is not a plain major — _isOutOfDate uses startsWith(), so "5" would falsely claim 50-59`);
     });
+});
+
+describe("README documents every settings key", () => {
+    // The schema is the only complete list of what a user can turn. prefs.js shows
+    // a row per key it binds, but a row without documentation is still a feature
+    // nobody can discover — so the docs are asserted against the schema, not
+    // against the settings window. Keys are matched as `key` in backticks, which is
+    // how the reference tables write them.
+    const xml = read("schemas/org.gnome.shell.extensions.macosdock.gschema.xml");
+    const keys = [...xml.matchAll(/<key\s+name="([^"]+)"/g)].map(m => m[1]);
+
+    it("the schema list is non-empty and unique", () => {
+        assert.ok(keys.length >= 40, `only ${keys.length} keys parsed — the regex or the schema moved`);
+        assert.equal(new Set(keys).size, keys.length, "a key name appears twice in the schema");
+    });
+
+    for (const rel of ["README.md", "README.zh-CN.md"]) {
+        it(`${rel} names every schema key`, () => {
+            const body = read(rel);
+            const missing = keys.filter(k => !body.includes("`" + k + "`"));
+            assert.deepEqual(missing, [],
+                `${rel} documents no row for: ${missing.join(", ")} — a key a user cannot find is a silent feature gap`);
+        });
+    }
 });
 
 describe("documentation conventions hold", () => {

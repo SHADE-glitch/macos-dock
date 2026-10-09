@@ -106,18 +106,20 @@ else
 fi
 
 # S8 -----------------------------------------------------------------------
-# reports/ holds local-only phase evidence that may quote raw journal lines and
+# docs/reports/ holds local-only phase evidence that may quote raw journal lines and
 # window titles — the exact content this public repository must never carry. The
 # enforceable half is not "the directory exists" (it legitimately does not in a
-# CI checkout) but: the ignore rule is present, AND nothing under it is tracked.
-# A rule that exists yet was bypassed by an explicit add is the failure mode.
-tracked_reports=$( (cd "$REPO" && git ls-files -- reports/) | wc -l | tr -d ' ')
-if ! (cd "$REPO" && git check-ignore -q reports/STATE.md); then
-    report $T reports-untracked FAIL "reports/ is not ignored — an unattended git add would publish local evidence"
-elif [ "$tracked_reports" != 0 ]; then
-    report $T reports-untracked FAIL "$tracked_reports file(s) under reports/ are tracked — raw evidence in a public repo"
+# CI checkout) but: nothing under it is tracked, AND the ignore rule is present.
+# The tracked count is tested FIRST because `git check-ignore` answers "not
+# ignored" for any path already in the index — once evidence is added, that probe
+# stops reporting the rule and the two failures would collapse into one message.
+tracked_reports=$( (cd "$REPO" && git ls-files -- docs/reports/) | wc -l | tr -d ' ')
+if [ "$tracked_reports" != 0 ]; then
+    report $T reports-untracked FAIL "$tracked_reports file(s) under docs/reports/ are tracked — raw evidence in a public repo"
+elif ! (cd "$REPO" && git check-ignore -q docs/reports/STATE.md); then
+    report $T reports-untracked FAIL "docs/reports/ is not ignored — an unattended git add would publish local evidence"
 else
-    report $T reports-untracked PASS "ignore rule present, 0 tracked files under reports/"
+    report $T reports-untracked PASS "ignore rule present, 0 tracked files under docs/reports/"
 fi
 
 # S9 -----------------------------------------------------------------------
