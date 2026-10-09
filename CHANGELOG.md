@@ -494,3 +494,10 @@ Change   新增 `test/invariants.mjs`（纯 Node）承载规则 6.0–6.7：表�
 Evidence L0/L1 逐条打红：`test/invariants.test.js` 对每条规则各造一个违规表并断言报出的正是那条规则，另有一个绿色控制组（格式正确的表零报告，`visible`/`lib/dodge.js`/`test:live-trigger` 不被误认成检查名）。真表在一次性克隆里被四种破坏各打红一次——改名后的检查名(6.6)、指向不存在的条目(6.2 连带 6.3)、把 D-057 这个 taste 条目当不变量(6.4)、从 CHANGELOG 整段复制 336 字符(6.7)，每次都恢复并复验绿；`repo.test.js` 走第一层路径同样红 1 / 绿 0
 Cost     一条**真红**从这里暴露：6.6 的初版只匹配小写，`tick-geometry-reads` 半改名成 `tick-geometry-readX` 会静默通过，改成大小写与下划线都收。反过来它是有意的宽松——证据列里若把非检查名的词用反引号包住（形如 `some-phrase`），会得到一次假红，代价只是去掉那对反引号。文档里"12 个键没有偏好行"这句话现在由 `EXPECTED_UNBOUND.length === 12` 撑着
 Commit   c425a44
+
+### D-068 · 2026-10-09 · chore · v1
+Symptom  两处抄进文档的聚合数已经和真实值分叉：`test/check-log.mjs` 头部写"57 个改代码的 commit"（实际 65，且每提交一次就变），`MAINTENANCE.md` §0 写"72 assertions, 20 suites"（实际 95/24，读起来像刚测过的数）。同一类问题本轮已经第二次撞上
+Change   两处都改成命令派生：头部不再留数字，交给这次运行打印；§0 改成"`npm test` 自己打印，第一层守下限"。顺带把第一层下限从 72/20 **抬到 95/24**——下限的设计是"加测试不会红"，但长期低于实际值等于给"某个套件不再被收集"留下 23 个断言的容身空间
+Evidence L0 复现命令随文写进 §15（`git rev-list --count a2140d0..HEAD -- extension.js lib/ stylesheet.css`；`gresource list … | grep -cE '^/org/gnome/shell/ui/.*\.js$'`）。抬下限这步做了反向验证：一次性克隆里移走 `test/genieGeometry.test.js` → `FAIL coverage dropped to 52/16 (floor 95/24)`，放回来 → `ok 95 assertions in 24 suites`，克隆已删
+Cost     以后每次加用例都要在同一次改动里把下限一起抬上去，否则"加了但没抬"会让下次真的丢套件时仍然绿。这条是**约定不是守卫**——没有任何检查能发现"下限设得太低"
+Commit   edc7706 e3159da
