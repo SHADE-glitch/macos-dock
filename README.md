@@ -64,6 +64,130 @@ Once enabled, the dock appears at the configured screen edge. Hover to magnify a
 
 Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure appearance and position, magnification, previews, dodge/auto-hide, keyboard navigation (including the dock pop-up), media controls, running indicators, separators, animation timing and the genie minimize/restore animation.
 
+## 📚 Settings reference
+
+Every key the extension reads, with the default it ships with. The rows are taken from
+`schemas/org.gnome.shell.extensions.macosdock.gschema.xml`, and `test/repo.test.js` fails when a key
+is added to the schema without a row here. The settings window binds 45 of the 57 keys; the ten
+`keynav-app-N` slots are set by the keyboard code (Super+digit steals the shell's own binding), and
+`keynav-stock-backup` / `keynav-stock-dirty` are its crash-recovery bookkeeping — no row in the
+window for those twelve, by design.
+
+### Dock size, look and position
+
+| Key | Default | What it does |
+|---|---|---|
+| `icon-size` | `48` | Size of dock icons in pixels (16-96) |
+| `dock-opacity` | `60` | Dock background opacity percentage (0-100) |
+| `dock-background-color` | `'#1e1e1e'` | Hex color for dock background (e.g. #1e1e1e) |
+| `dock-border-radius` | `16` | Corner radius of the dock in pixels |
+| `dock-blur-enabled` | `false` | Apply blur effect behind the dock for a frosted glass look |
+| `dock-position` | `0` | Position of the dock on screen (0=bottom, 1=left, 2=right, 3=top) |
+| `icon-quality` | `2` | Render icons at N times native resolution to prevent blur when magnified (1, 2, or 4) |
+| `animation-duration` | `200` | Duration of the show/hide animation in milliseconds (0 = instant, max 1000) |
+| `bounce-on-launch` | `true` | Play a bounce animation on the dock icon when a new app is launched |
+
+### Magnification
+
+| Key | Default | What it does |
+|---|---|---|
+| `magnification-enabled` | `true` | Whether icons grow when the pointer hovers near the dock |
+| `magnification-scale` | `1.4` | Maximum scale applied to the icon directly under the cursor (1.0 = no magnification) |
+| `magnification-falloff` | `100` | How far (in pixels) the magnification wave reaches from the cursor |
+| `magnification-framerate` | `60` | Target framerate for magnification animation in Hz (30, 60, or 120) |
+
+### Indicators and media
+
+| Key | Default | What it does |
+|---|---|---|
+| `running-indicators` | `true` | Show a small dot under icons of running apps |
+| `running-indicator-style` | `0` | 0 = dots per window (macOS style), 1 = horizontal bar |
+| `media-indicator` | `true` | Show a music note indicator on the icon of the currently playing media app |
+| `media-controls` | `false` | Show play/pause controls in the dock context menu when media is playing |
+
+### Apps, windows and previews
+
+| Key | Default | What it does |
+|---|---|---|
+| `show-applications-button` | `true` | Show a button to access all installed applications |
+| `apps-button-fix-enabled` | `true` | Make the dock's Show Apps button open the app grid from the overview and use the brand icon instead of hiding the overview. Independent of the running-icons fix |
+| `show-running-apps` | `true` | Show non-favorite running applications in the dock |
+| `dock-workspace-mode` | `0` | Which workspaces show running apps (0=all, 1=current only) |
+| `window-previews` | `true` | Show live thumbnail previews of app windows on hover |
+| `preview-scale` | `200` | Width of each preview thumbnail in pixels (100-400) |
+| `icons-fix-enabled` | `true` | Keep non-favorite running apps in the dock across minimize and workspace switches |
+| `overview-patches-enabled` | `true` | Inset the overview window previews to the desktop background and reserve the dock's height in the overview's bottom band. Shell-layout fixes independent of the dock; degrade to the native layout if a shell symbol moves |
+
+### Dodge (auto-hide) and peek
+
+| Key | Default | What it does |
+|---|---|---|
+| `dodge-enabled` | `true` | Keep the dock visible unless the focused window overlaps it |
+| `dodge-only-focused` | `true` | Hide only when the currently focused window overlaps the dock; otherwise any overlapping window hides it |
+| `show-threshold` | `25` | Distance in pixels from screen edge to trigger dock show |
+| `peek-edge-px` | `5` | Pointer must be within this many pixels of the screen edge to peek the hidden dock |
+| `peek-hold-ms` | `80` | Pointer must stay inside the deep zone this long before the hidden dock peeks out |
+| `hide-in-fullscreen` | `true` | Force-hide the dock and disable peeking while a true fullscreen window is on the active workspace |
+
+### Super+number keyboard launch
+
+| Key | Default | What it does |
+|---|---|---|
+| `keynav-enabled` | `true` | Super+1..9 / Super+0 cycles the nth app in the dock: launch if not running, raise if running but unfocused, minimize if focused |
+| `keynav-app-1` | `['<Super>1']` | Activate the first app in the dock |
+| `keynav-app-2` | `['<Super>2']` | Activate the second app in the dock |
+| `keynav-app-3` | `['<Super>3']` | Activate the third app in the dock |
+| `keynav-app-4` | `['<Super>4']` | Activate the fourth app in the dock |
+| `keynav-app-5` | `['<Super>5']` | Activate the fifth app in the dock |
+| `keynav-app-6` | `['<Super>6']` | Activate the sixth app in the dock |
+| `keynav-app-7` | `['<Super>7']` | Activate the seventh app in the dock |
+| `keynav-app-8` | `['<Super>8']` | Activate the eighth app in the dock |
+| `keynav-app-9` | `['<Super>9']` | Activate the ninth app in the dock |
+| `keynav-app-10` | `['<Super>0']` | Activate the tenth app in the dock |
+| `keynav-peek-dock` | `true` | Briefly reveal a dodge-hidden dock whenever a Super+number shortcut fires, whether it launches, focuses, switches or minimizes |
+| `keynav-peek-duration` | `800` | How long the dock stays revealed after a Super+number shortcut |
+| `keynav-stock-backup` | `[]` | Internal crash-recovery backup of org.gnome.shell.keybindings switch-to-application-1..9, one newline-joined entry per slot, taken when the dock grabs them. Not user-facing; never shown in preferences. |
+| `keynav-stock-dirty` | `false` | True while the dock holds cleared stock keybindings. Lets the next enable() self-heal after a crash between grab and restore. Not user-facing; never shown in preferences. |
+
+### Genie animation
+
+| Key | Default | What it does |
+|---|---|---|
+| `genie-enabled` | `true` | Play the macOS genie animation when a window minimizes into, or restores out of, its dock icon |
+| `genie-peek-hidden-dock` | `true` | When the dock is hidden by dodge, briefly show it during a minimize/restore so the window can be seen flying to its icon. When off, the animation flies to the dock's screen edge instead |
+| `genie-icon-reaction` | `true` | Give the target dock icon a small press-and-rebound as the window lands in it (minimize) or leaves it (restore) |
+| `genie-minimize-duration` | `560` | How long the window takes to pour into its dock icon |
+| `genie-restore-duration` | `480` | How long the window takes to stream back out of its dock icon |
+| `genie-curvature` | `0.85` | 0 = gentle macOS S-curve, 1 = tighter KDE magic-lamp gather |
+| `genie-lead-fraction` | `0.58` | Fraction of the animation after which the near edge has reached the icon |
+| `genie-trail-fraction` | `0.38` | Fraction of the animation at which the far edge starts to move |
+| `genie-absorb-depth` | `0.85` | How deep into the icon the window sinks at the end (fraction of icon depth) |
+| `genie-tail-fade` | `0.08` | Final fraction of the animation over which the last sliver fades out |
+| `genie-mesh-resolution` | `64` | Upper bound on the number of strips along the funnel; the actual count adapts to the window size (higher = smoother curves) |
+
+## 🛠️ Troubleshooting
+
+Every command below was run on this machine before being written down. The one exception is marked:
+a command that *changes* something is left for the user, because this extension's own settings and
+the running session are not things an agent should mutate unattended (see `AGENTS.md`).
+
+| Symptom | First check | Command |
+|---|---|---|
+| The dock is not there at all | Is the extension even loaded, and on which state? | `gnome-extensions info macos-dock@local` (state `ERROR` / `OUT_OF_DATE` is printed here) |
+| Extension sits in `OUT_OF_DATE`, nothing loads | `metadata.json` lists the shell majors the fork supports; the shell compares only the **major** (`50.1` matches `"50"`). A brand-new major that is not listed means the extension never loads — this is the first row of the upgrade playbook | `grep -A4 shell-version metadata.json` and `gnome-shell --version` |
+| Edited a `lib/*.js` file and nothing changed | Expected: `disable`+`enable` re-runs `enable()` on the **cached** module. Only a logout reloads the code | run `npm run test:live` — it refuses to certify a shell older than the tree (`stale_code`) |
+| Dock appears very slowly after login, or icons flicker | Both are startup-chain questions with their own log lines: `enable() total Xms`, `reload: N icons in Xms`, `startup grace ended early at Xms`, `[dodge] grace released at Xms` | `journalctl --user -b -o cat _PID=$(bash -c 'source test/common.sh; shell_pid') \| grep -a '[macos-dock-local]'` |
+| The dock hides when it should not, or never hides | `dodge-enabled`, `dodge-only-focused`, `hide-in-fullscreen`, and whether the overview is the thing fighting it (the `overview -> show` within 300 ms signature is the known one) | `npm run test:live` reports `overview-flicker` as a count; a healthy boot is 0 |
+| The dock does not dodge correctly on a **second monitor** | Edge and poll thresholds are measured against the monitor the dock is on (D-052), and this box has one panel, so it can only be proven in the fabricated layout | `npm run test:headless` — `dock-monitor-geometry` |
+| Genie does not animate | Either `genie-enabled` is off, or `_validate()` rejected this shell and it is running with the native animation — that decision is logged, never silent | grep the journal for `[genie] enabled` vs `[genie] disabled — missing/changed private APIs:` |
+| Overview previews poke past the desktop, or the bottom band collapses | Both are the shell-layout concern behind `overview-patches-enabled`; a renamed shell symbol degrades to native with one warn line | `npm run test:headless` — `overview-band`, `overview-window-inset`, `overview-patches` |
+| Super+number does nothing, or the stock launcher icons broke | `keynav-enabled`, then the crash-recovery flags `keynav-stock-dirty` / `keynav-stock-backup` — a crash between grabbing and restoring those bindings is exactly what they exist to heal | read them: `GSETTINGS_SCHEMA_DIR=$PWD/schemas gsettings get org.gnome.shell.extensions.macosdock keynav-stock-dirty` |
+| Icons look soft when magnified | `icon-quality` (1/2/4 supersampling) trades memory for sharpness; `magnification-framerate` trades CPU for smoothness | see the settings reference above |
+| Something is configured wrong and you want the defaults back | **User action, not agent action.** This is a recursive reset of the extension's own keys | `dconf reset -f /org/gnome/shell/extensions/macosdock/` |
+
+Nothing on this list needs a reboot. A logout is needed only to load edited JavaScript, and it is
+always the user's to perform.
+
 ## 🧞 Genie animation
 
 Minimizing or restoring a window plays the macOS genie animation: the window is sliced into strips that pour into — and stream back out of — its **real dock icon** through a curved funnel. The funnel axis follows the dock's screen edge, so a bottom, top, left or right dock all funnel correctly. Both directions run from a single window snapshot, so the live window is parked (scale ≈ 0) for the duration and does not repaint every frame.

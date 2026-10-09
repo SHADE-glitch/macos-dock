@@ -64,6 +64,127 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 
 打开 **GNOME 设置 → 扩展 → MacOS Dock → 设置**，可配置外观与位置、放大效果、预览、避让/自动隐藏、键盘导航（含弹出 Dock）、媒体控制、运行指示器、分隔线、动画时长与 Genie 最小化/还原动画。
 
+## 📚 设置项说明
+
+扩展读取的每一个键，以及出厂默认值。内容取自
+`schemas/org.gnome.shell.extensions.macosdock.gschema.xml`；往 schema 里加键却没在这里加一行，
+`test/repo.test.js` 会直接失败。57 个键里偏好窗口绑定了 45 个：十个 `keynav-app-N` 由键盘代码
+写入（Super+数字抢的是 shell 自己的快捷键），`keynav-stock-backup` / `keynav-stock-dirty` 是它的
+崩溃恢复记账 —— 这 12 个界面上有意没有对应的行。
+
+### Dock 尺寸、外观与位置
+
+| 键 | 默认值 | 作用 |
+|---|---|---|
+| `icon-size` | `48` | 图标像素尺寸（16–96） |
+| `dock-opacity` | `60` | dock 背景不透明度百分比（0–100） |
+| `dock-background-color` | `'#1e1e1e'` | dock 背景色（十六进制，如 #1e1e1e） |
+| `dock-border-radius` | `16` | dock 圆角像素 |
+| `dock-blur-enabled` | `false` | 在 dock 后面加模糊（毛玻璃） |
+| `dock-position` | `0` | dock 贴哪条边（0=下 1=左 2=右 3=上） |
+| `icon-quality` | `2` | 按原生分辨率 N 倍渲染图标，放大时不发虚（1/2/4） |
+| `animation-duration` | `200` | 显示/隐藏动画时长毫秒（0=立即，上限 1000） |
+| `bounce-on-launch` | `true` | 新应用启动时图标播放弹跳 |
+
+### 放大
+
+| 键 | 默认值 | 作用 |
+|---|---|---|
+| `magnification-enabled` | `true` | 指针靠近 dock 时图标是否长大 |
+| `magnification-scale` | `1.4` | 光标正下方图标的最大缩放（1.0=不放大） |
+| `magnification-falloff` | `100` | 放大波从指针向外延伸的像素距离 |
+| `magnification-framerate` | `60` | 放大动画目标帧率 Hz（30/60/120） |
+
+### 指示器与媒体
+
+| 键 | 默认值 | 作用 |
+|---|---|---|
+| `running-indicators` | `true` | 运行中应用图标下方显示小点 |
+| `running-indicator-style` | `0` | 0=每窗口一个点（macOS 风格），1=横向条 |
+| `media-indicator` | `true` | 正在播放的媒体应用图标上加音符标记 |
+| `media-controls` | `false` | 在右键菜单里显示播放/暂停/上一首/下一首 |
+
+### 应用、窗口与预览
+
+| 键 | 默认值 | 作用 |
+|---|---|---|
+| `show-applications-button` | `true` | 显示「所有应用」按钮 |
+| `apps-button-fix-enabled` | `true` | 让 dock 的 Show Apps 按钮在概览内也进应用网格、并改用品牌图标（与「运行图标修复」彼此独立） |
+| `show-running-apps` | `true` | 把非收藏的运行中应用也显示进 dock |
+| `dock-workspace-mode` | `0` | 运行中应用按工作区显示（0=全部 1=仅当前） |
+| `window-previews` | `true` | 悬停时显示窗口的实时缩略预览 |
+| `preview-scale` | `200` | 每张预览缩略图的像素宽度（100–400） |
+| `icons-fix-enabled` | `true` | 最小化/切工作区后仍保留非收藏的运行应用图标 |
+| `overview-patches-enabled` | `true` | 把概览窗口预览内缩到桌面背景范围内，并在概览底部预留 dock 高度。属 shell 布局修复，与 dock 无关；shell 符号变动时自动退回原生布局 |
+
+### 避让（自动隐藏）与探出
+
+| 键 | 默认值 | 作用 |
+|---|---|---|
+| `dodge-enabled` | `true` | 只在被聚焦窗口压住 dock 时才隐藏 |
+| `dodge-only-focused` | `true` | 仅当前聚焦窗口压住才隐藏（推荐）；关掉则任何窗口压住都隐藏 |
+| `show-threshold` | `25` | 距屏幕边多少像素触发 dock 显示 |
+| `peek-edge-px` | `5` | 指针要贴边到多少像素以内才探出隐藏的 dock |
+| `peek-hold-ms` | `80` | 指针在深区停留多久才探出（0=立即） |
+| `hide-in-fullscreen` | `true` | 真正的全屏窗口（视频/游戏）存在时强制隐藏并禁用探出 |
+
+### Super+数字 键盘启动
+
+| 键 | 默认值 | 作用 |
+|---|---|---|
+| `keynav-enabled` | `true` | Super+1..9 / Super+0 操作第 n 个 dock 应用：未运行则启动，已运行未聚焦则唤起，正聚焦则最小化 |
+| `keynav-app-1` | `['<Super>1']` | 激活 dock 里第 1 个应用（默认 Super+1）；键位可改 |
+| `keynav-app-2` | `['<Super>2']` | 激活 dock 里第 2 个应用（默认 Super+2）；键位可改 |
+| `keynav-app-3` | `['<Super>3']` | 激活 dock 里第 3 个应用（默认 Super+3）；键位可改 |
+| `keynav-app-4` | `['<Super>4']` | 激活 dock 里第 4 个应用（默认 Super+4）；键位可改 |
+| `keynav-app-5` | `['<Super>5']` | 激活 dock 里第 5 个应用（默认 Super+5）；键位可改 |
+| `keynav-app-6` | `['<Super>6']` | 激活 dock 里第 6 个应用（默认 Super+6）；键位可改 |
+| `keynav-app-7` | `['<Super>7']` | 激活 dock 里第 7 个应用（默认 Super+7）；键位可改 |
+| `keynav-app-8` | `['<Super>8']` | 激活 dock 里第 8 个应用（默认 Super+8）；键位可改 |
+| `keynav-app-9` | `['<Super>9']` | 激活 dock 里第 9 个应用（默认 Super+9）；键位可改 |
+| `keynav-app-10` | `['<Super>0']` | 激活 dock 里第 10 个应用（默认 Super+0）；键位可改 |
+| `keynav-peek-dock` | `true` | 快捷键触发时短暂露出被避让隐藏的 dock（无论它启动/聚焦/切换/最小化） |
+| `keynav-peek-duration` | `800` | 快捷键后 dock 保持露出的时长毫秒 |
+| `keynav-stock-backup` | `[]` | 内部崩溃恢复备份（原装 switch-to-application-1..9 键位），不面向用户、偏好窗口里从不显示 |
+| `keynav-stock-dirty` | `false` | 内部标志：dock 持有已清空的原装键位时为真，让下一次 enable() 能在崩溃后自愈。不面向用户 |
+
+### Genie 动画
+
+| 键 | 默认值 | 作用 |
+|---|---|---|
+| `genie-enabled` | `true` | 窗口最小化进/从其 dock 图标还原时播放 macOS genie 动画 |
+| `genie-peek-hidden-dock` | `true` | dock 被避让隐藏时，最小化/还原过程中短暂露出它，好让你看见窗口飞向哪个图标；关掉则飞向 dock 所在屏幕边 |
+| `genie-icon-reaction` | `true` | 窗口落到目标图标（最小化）或离开它（还原）时，图标做一次按压回弹 |
+| `genie-minimize-duration` | `560` | 窗口「灌进」图标所需毫秒数 |
+| `genie-restore-duration` | `480` | 窗口从图标「流出」所需毫秒数 |
+| `genie-curvature` | `0.85` | 0=柔和的 macOS S 形曲线，1=更紧的 KDE 神灯收拢 |
+| `genie-lead-fraction` | `0.58` | 动画进行到该比例时近边已到达图标 |
+| `genie-trail-fraction` | `0.38` | 动画到该比例时远边才开始移动 |
+| `genie-absorb-depth` | `0.85` | 结尾窗口沉进图标多深（按图标深度比例） |
+| `genie-tail-fade` | `0.08` | 最后一片窄条淡出所占的动画比例 |
+| `genie-mesh-resolution` | `64` | 漏斗方向上的条带上限，实际数量随窗口尺寸自适应（越大曲线越顺） |
+
+## 🛠️ 故障排查
+
+下面每一条命令在写进文档之前都在这台机器上跑过。唯一例外是标注出来的"会改动东西"的那条 —— 本
+扩展自己的设置和正在运行的会话都不该由 agent 无人值守地动（见 `AGENTS.md`）。
+
+| 现象 | 先查什么 | 命令 |
+|---|---|---|
+| dock 根本没出现 | 扩展到底加载了没、处在什么状态 | `gnome-extensions info macos-dock@local`（`ERROR` / `OUT_OF_DATE` 会直接印在这里） |
+| 扩展停在 `OUT_OF_DATE`，完全不加载 | `metadata.json` 声明了支持的 shell 大版本，而 shell 只比较**大版本号**（`50.1` 匹配 `"50"`）。没列出的新大版本 = 扩展静默不加载 —— 这是升级流程的第一条 | `grep -A4 shell-version metadata.json` 和 `gnome-shell --version` |
+| 改了 `lib/*.js` 却没变化 | 这是预期：`disable`+`enable` 只在**缓存的**模块上重跑 `enable()`。只有注销会重新加载代码 | `npm run test:live` —— 它拒绝为比代码树更旧的 shell 出证明（`stale_code`） |
+| 登录后 dock 出现很慢，或图标闪 | 这两件都是启动链问题，各有自己的日志行：`enable() total Xms`、`reload: N icons in Xms`、`startup grace ended early at Xms`、`[dodge] grace released at Xms` | `journalctl --user -b -o cat _PID=$(bash -c 'source test/common.sh; shell_pid') \| grep -a '[macos-dock-local]'` |
+| dock 该隐藏时不藏、不该藏时乱藏 | `dodge-enabled`、`dodge-only-focused`、`hide-in-fullscreen`，以及是不是概览在跟它抢（退出动画后 300 ms 内的 `overview -> show` 就是那个已知签名） | `npm run test:live` 会把 `overview-flicker` 报成计数；健康开机是 0 |
+| dock 放在**副屏**时避让不对 | 边缘与轮询阈值是按 dock 所在显示器算的（D-052），而这台机器只有一块屏，所以只能在伪造布局里证明 | `npm run test:headless` —— `dock-monitor-geometry` |
+| genie 不动 | 要么 `genie-enabled` 关了，要么 `_validate()` 拒绝了这版 shell、正在走原生动画 —— 这个判定会打日志，不会闷声发生 | 在 journal 里找 `[genie] enabled` 与 `[genie] disabled — missing/changed private APIs:` |
+| 概览预览探出桌面，或底部预留带塌缩 | 两件都在 `overview-patches-enabled` 这个 shell 布局关注点后面；shell 符号改名会带一行 warn 降级回原生 | `npm run test:headless` —— `overview-band`、`overview-window-inset`、`overview-patches` |
+| Super+数字没反应，或原装启动器图标坏了 | 先看 `keynav-enabled`，再看崩溃恢复标志 `keynav-stock-dirty` / `keynav-stock-backup` —— 抓键位与还原之间崩掉，正是它们负责自愈的场景 | 读值：`GSETTINGS_SCHEMA_DIR=$PWD/schemas gsettings get org.gnome.shell.extensions.macosdock keynav-stock-dirty` |
+| 放大时图标发虚 | `icon-quality`（1/2/4 超采样）用内存换清晰；`magnification-framerate` 用 CPU 换顺滑 | 见上面的设置项说明 |
+| 设置被调乱了，想回到默认 | **归用户做，不归 agent 做。** 这是对本扩展自己那套键的递归重置 | `dconf reset -f /org/gnome/shell/extensions/macosdock/` |
+
+这些条目都不需要重启。只有"加载改过的 JavaScript"需要注销，而注销永远由用户自己执行。
+
 ## 🧞 Genie 动画
 
 最小化或还原窗口时播放 macOS Genie 动画：窗口被切成条带，经由弯曲的漏斗流进/流出其**真实 Dock 图标**。漏斗轴向跟随 Dock 所在的屏幕边缘，因此上、下、左、右四种 Dock 位置都能正确收束。两个方向都基于窗口的同一份快照运行，实时窗口在动画期间被停放（缩放 ≈ 0），不再逐帧重绘。
