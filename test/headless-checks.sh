@@ -47,10 +47,32 @@ mkdir -p "$T2/gnome-shell/extensions"
 ln -s "$REPO" "$T2/gnome-shell/extensions/$UUID"
 
 INNER=""
-t2cleanup() {
-    [ -n "$INNER" ] && kill -TERM "$INNER" 2>/dev/null
+
+# Every process under <pid>, children before their parent. Order matters: killing
+# a parent first reparents its children to systemd, where `pgrep -P` can no longer
+# see them, so the list has to be built while the tree is still intact.
+t2descendants() { # t2descendants <pid>
+    local c
+    for c in $(pgrep -P "$1" 2>/dev/null); do t2descendants "$c"; done
+    echo "$1"
+}
+
+# dbus-run-session forks TWO children — a private dbus-daemon and the command
+# (gnome-shell) — and `kill $INNER` reaches NEITHER: both are reparented to
+# systemd and keep running. Measured leak: after a day of runs, 7 headless
+# shells + 18 private dbus-daemons (~580 MB) were still alive. Reap the whole
+# subtree, children first, so nothing reparents mid-kill.
+t2killtree() {
+    [ -n "$INNER" ] || return 0
+    local pids p
+    pids=$(t2descendants "$INNER")
+    for p in $pids; do kill -TERM "$p" 2>/dev/null; done
     sleep 0.5
-    [ -n "$INNER" ] && kill -KILL "$INNER" 2>/dev/null
+    for p in $pids; do kill -KILL "$p" 2>/dev/null; done
+}
+
+t2cleanup() {
+    t2killtree
     # The only two sanctioned writes outside $T2, and both carry this run's own
     # unique name, so a stale file from another run can never be deleted here.
     [ -f "$LOCK" ] && rm -f "$LOCK"
@@ -431,5 +453,24 @@ else
     report $T overview-band FAIL "band=$(jq -r '.band' "$T2/band.json") < dock occupied=$(jq -r '.dockOccupied' "$T2/band.json") — dock would overlap the overview (dashPref=$(jq -r '.dashPref' "$T2/band.json"), spacing=$(jq -r '.spacing' "$T2/band.json"))"
 fi
 
-report $T teardown PASS "sandbox and its lockfile removed"
+# H15 ------------------------------------------------------------------------
+# Teardown is an assertion, not a formality. dbus-run-session's private
+# dbus-daemon and its gnome-shell both outlive a naive `kill $INNER` (reparented
+# to systemd), so snapshot the tree, reap it, and prove every pid is gone — the
+# leak this guards once left 7 shells + 18 dbus-daemons (~580 MB) behind.
+t2tree=$(t2descendants "$INNER")
+t2killtree
+INNER=""   # the trap's cleanup must not re-walk a tree we already reaped
+t2leaked=""
+for _ in $(seq 1 6); do
+    t2leaked=""
+    for p in $t2tree; do [ -r "/proc/$p/stat" ] && t2leaked="$t2leaked $p"; done
+    [ -z "$t2leaked" ] && break
+    sleep 0.5
+done
+if [ -z "$t2leaked" ]; then
+    report $T teardown PASS "reaped the whole subtree ($(wc -w <<< "$t2tree") pids) — no orphan dbus-daemon or headless shell"
+else
+    report $T teardown FAIL "teardown leaked:$t2leaked — dbus-run-session's children outlived the kill"
+fi
 exit_code_from_results
