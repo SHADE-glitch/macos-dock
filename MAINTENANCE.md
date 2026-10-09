@@ -75,7 +75,7 @@ and nowhere else until you log out and find the extension in ERROR.
 
 ## 4. Tier 2 — headless shell
 
-`test/headless-checks.sh` boots a private compositor in a clean room and asserts 16 things.
+`test/headless-checks.sh` boots a private compositor in a clean room and asserts 17 things.
 The isolation is not optional and every line of it is load-bearing:
 
 ```
@@ -138,6 +138,16 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   the reserved band (dash preferred height + the shell's own spacing) clears the dock's
   occupied height. Verified red-then-green: pre-fix `band=51 < dock=70`, post-fix
   `band=85 >= dock=70` (headless monitor, icon-size default 48).
+- The `overview-window-inset` check guards a class that only appears **once the dock is
+  visible in the overview**. The shell lays the window previews out with
+  `WorkspaceLayout._getWindowSlots`, fed the whole window-picker box, while the desktop
+  background is inset inside that box (theme: 20 px sides / 12 px top+bottom) — so previews
+  poke past the desktop edge, worst for the window counts whose content sits flush to the
+  bottom. `lib/overviewLayout.js` wraps that private method to pass the background rect
+  instead; the check is a **presence** oracle (like `genie-apis`), asserting the wrapper
+  logged `[overviewlayout] enabled` and not the one-line `disabled — missing/changed private
+  APIs` degrade. It proves the wrapper reached and accepted this shell's private surface, not
+  the pixels — visual confirmation is manual (see §10).
 - Teardown reaps the **whole subtree**, not just `dbus-run-session`. That process forks two
   children — a private `dbus-daemon` and the command (`gnome-shell`) — and killing only it
   reparents both to systemd, where they keep running: a day of runs left 7 headless shells +
@@ -149,7 +159,7 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   `/tmp/macosdock-t2-*` behind and nothing else ever reclaims it — 16 of them (2.9 MB) had
   accumulated before the sweep existed. Only dirs older than an hour are removed, so a
   concurrent run's fresh sandbox is never touched. It is hygiene, not an assertion: it prints
-  no report line, which is why the count above stays 16.
+  no report line, which is why the count above stays 17.
 
 ## 5. Tier 3 — live session, pointer-free
 
@@ -256,8 +266,13 @@ Settings protocol for group B, all of it enforced in `common.sh`:
 
 Everything that a GNOME update can take away:
 
-- `Main.wm._minimizing`, `Main.wm._unminimizing` — the only two genuinely private symbols
+- `Main.wm._minimizing`, `Main.wm._unminimizing` — two genuinely private symbols
   the fork touches.
+- `WorkspaceLayout.prototype._getWindowSlots` — the overview window-preview inset (D-057) wraps
+  this private layout method and feeds it the desktop background's rect. It also reads the
+  `Workspace` child structure: `Workspace._container` (the preview container, whose layout
+  manager is the `WorkspaceLayout`) and its `workspace-background` sibling. A rename of any of
+  these degrades to the native layout with one warn line — never a crash.
 - `global.window_manager.connect`, `completed_minimize`, `completed_unminimize` — public
   but reshaped before.
 - `genieEngine.validateRuntime()`: `global.window_group.add_child`, `Clutter.Timeline`,
@@ -333,8 +348,18 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   the stock dash leaves it empty, so that height collapses to the theme padding (36 px) and
   this dock — taller than the padding — overlapped the window picker / app grid. So
   `_hideDefaultDash` shadows the hidden dash instance's `get_preferred_height` to report the
-  dock's occupied height; the shell then reserves `occupied + spacing`. Do **not** "restore"
+  dock's occupied height;   the shell then reserves `occupied + spacing`. Do **not** "restore"
   the stock dash to fix this: a populated dash reserves far more than the dock needs.
+- The overview window previews are laid out in a container that **fills the whole window-picker
+  box**, while the desktop background is inset inside that box (measured 20 px sides / 12 px
+  top+bottom on GNOME 50.1) — so previews poke past the desktop edge, worst for the window
+  counts whose content sits flush to the bottom (the "1 window obvious / 2 none / 3 slight"
+  report). This is **shell layout, independent of the dock**: it is identical with the dock on
+  or off, which is why the earlier dash-height change (D-054) did not touch it. The fix
+  (`lib/overviewLayout.js`, D-057) wraps the private `WorkspaceLayout._getWindowSlots` and hands
+  it the background's rect. The inset is read from the live allocations, never hardcoded, so it
+  follows theme/monitor changes. Reopen only if a shell release changes that private method
+  (the wrapper degrades to native, one warn line).
 - Leaving the overview with a fullscreen window hides the dock for reason `overlap`, not
   `fullscreen`, because the shell itself clears `monitor.inFullscreen` while the overview is
   up. Both branches hide, so the outcome is identical; do not "fix" the label with a timing

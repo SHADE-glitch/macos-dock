@@ -417,3 +417,10 @@ Change   创建 `$T2` 之前加一次启动清扫：回收 `macosdock-t2-*` 中 
 Evidence L1 sandbox
 Cost     清扫必须带**年龄闸门**——按名字无差别删会误删并发运行的新沙箱（一次运行 ≤150 s）。它是卫生动作而非断言，所以刻意不发 `report` 行，MAINTENANCE 里"断言 16 项"的数字才不用跟着变
 Commit   b71ace1
+
+### D-057 · 2026-10-09 · taste · v1
+Symptom  概览里窗口预览探出桌面边缘（左右各 20px、下方 12px），窗口数让内容贴底时最明显（"1 个明显、2 个没有、3 个轻微"）
+Change   新增 `lib/overviewLayout.js`：在原型上包裹 `WorkspaceLayout._getWindowSlots`，把桌面背景 `WorkspaceBackground` 的实测矩形当作槽位区传入；`dockManager` 在 enable 挂载、disable 还原；结构探测缺符号即降级原生
+Evidence L1 overview-window-inset
+Cost     这是 **shell 自身布局**（预览容器占满整个盒子、背景内缩其中），与 dock 无关——dock 开或关都一样，所以上次改 dash 高度（D-054）根本没碰到它。补丁依赖 shell 私有布局，升级改名即降级（一行 warn，不崩）。属视觉偏好：预览可用高度少 12px、宽度少 40px，会整体缩放一点点
+Commit   980c4db

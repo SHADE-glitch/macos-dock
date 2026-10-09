@@ -70,7 +70,7 @@ shell 侧：工具链存在性（缺失 → ENV）、单测下限（72 断言 / 
 
 ## 4. 第二层：无头 shell
 
-`test/headless-checks.sh` 在干净房间里拉起一个私有合成器并断言 16 项。下面每一行隔离都是
+`test/headless-checks.sh` 在干净房间里拉起一个私有合成器并断言 17 项。下面每一行隔离都是
 必需的，不是装饰：
 
 ```
@@ -121,6 +121,13 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   dock 会压住窗口选择器/应用网格。该检查断言预留带（dash preferred height + shell 自身的
   spacing）不小于 dock 的占用高度。已做过先红后绿：改前 `band=51 < dock=70`，改后
   `band=85 >= dock=70`（无头显示器、icon-size 默认 48）。
+- `overview-window-inset` 守的是**只有 dock 在概览里可见时才出现**的一类问题。shell 用
+  `WorkspaceLayout._getWindowSlots` 布局窗口预览，喂给它的是整个 window-picker 盒子，而桌面
+  背景是内缩在这个盒子里的（主题：左右 20px、上下 12px）——于是预览会探出桌面边缘，窗口数让
+  内容贴底时最明显。`lib/overviewLayout.js` 包住这个私有方法、改为传入背景矩形；该检查是
+  **存在性**判据（与 `genie-apis` 同类），断言包装器打出了 `[overviewlayout] enabled`、且没有
+  那行 `disabled — missing/changed private APIs` 降级日志。它证明的是包装器成功接上了这个
+  shell 的私有面，而不是像素——像素靠肉眼确认（见 §10）。
 - 收尾回收的是**整棵子树**，不只是 `dbus-run-session`。该进程会 fork 出两个子进程——私有的
   `dbus-daemon` 和命令本身（`gnome-shell`）——只杀它会让这两个被 reparent 到 systemd 后继续
   存活：一天的运行留下了 7 个无头 shell + 18 个私有 dbus-daemon（约 580 MB）。`t2killtree`
@@ -129,7 +136,7 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
 - 创建沙箱之前会先做一次**陈旧沙箱清扫**。`t2cleanup` 在每次正常退出时都会删掉 `$T2`，但被
   `SIGKILL` 的运行（或主机断电）会把它留在 `/tmp/macosdock-t2-*`，之后再没有任何东西回收它——
   在这套清扫出现之前已累积了 16 个（2.9 MB）。只回收超过一小时的目录，所以并发运行的新沙箱
-  绝不会被碰到。它是卫生动作而非断言：不产生 report 行，所以上面的"断言 16 项"数字依然成立。
+  绝不会被碰到。它是卫生动作而非断言：不产生 report 行，所以上面的"断言 17 项"数字依然成立。
 
 ## 5. 第三层：实时会话（无指针）
 
@@ -224,7 +231,11 @@ B 组的设置协议，全部在 `common.sh` 里强制执行：
 
 GNOME 更新能拿走的东西，全在这里：
 
-- `Main.wm._minimizing`、`Main.wm._unminimizing` —— 本 fork 唯一两个真正私有的符号。
+- `Main.wm._minimizing`、`Main.wm._unminimizing` —— 本 fork 触及的两个真正私有的符号。
+- `WorkspaceLayout.prototype._getWindowSlots` —— 概览窗口预览内缩（D-057）包住了这个私有布局
+  方法，改为喂它桌面背景的矩形。它还依赖 `Workspace` 的子结构：`Workspace._container`（预览
+  容器，其 layout manager 即 `WorkspaceLayout`）与它的 `workspace-background` 兄弟。其中任一
+  被改名都会降级回原生布局、只打一行 warn——绝不崩。
 - `global.window_manager.connect`、`completed_minimize`、`completed_unminimize` —— 公开，但
   历史上被重塑过。
 - `genieEngine.validateRuntime()`：`global.window_group.add_child`、`Clutter.Timeline`、
@@ -293,6 +304,13 @@ GNOME 更新能拿走的东西，全在这里：
   `_hideDefaultDash` 给被隐藏的 dash 实例遮蔽 `get_preferred_height`，上报 dock 的占用高度，
   shell 便预留 `占用 + spacing`。**不要**用"恢复自带 dash"来修：填充过的 dash 预留得远比
   dock 需要的多。
+- 概览的窗口预览被布局在一个**占满整个 window-picker 盒子**的容器里，而桌面背景是内缩在这个
+  盒子里的（GNOME 50.1 实测：左右 20px、上下 12px）——于是预览会探出桌面边缘，窗口数让内容
+  贴底时最明显（你报的"1 个明显、2 个没有、3 个轻微"）。这是**shell 自身的布局，与 dock 无关**：
+  dock 开或关它都一样，这也是上次改 dash 高度（D-054）没碰到它的原因。修法
+  （`lib/overviewLayout.js`，D-057）是包住私有的 `WorkspaceLayout._getWindowSlots`、把背景矩形
+  传给它。内缩量从实时 allocation 读取、绝不硬编码，所以能跟随主题/显示器变化。只有 shell
+  版本改动这个私有方法时才需重开（包装器会降级回原生、只打一行 warn）。
 - 带着全屏窗口退出概览时，那条隐藏的理由是 `overlap` 而不是 `fullscreen`，因为 shell 自己
   在概览期间把 `monitor.inFullscreen` 清掉了。两条分支的结果都是隐藏，用户看不出区别；不要
   为了这个标签去加时序猜测 —— 那正是本 fork 避开的固定延时式 hack。
