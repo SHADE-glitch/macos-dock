@@ -307,7 +307,7 @@ else
     report $T icon-grace PASS "grace ran to its cap and released (window churn kept it alive — a real cold boot does the same)"
 fi
 
-# H10 -----------------------------------------------------------------------
+# H10 ------------------------------------------------------------------------
 # Headless boots emit unrelated shell noise (~90 "already disposed" from
 # dateMenu.js plus a `-nan` GLib critical in one recorded run). Counting raw
 # matches produced 1884 false hits once, so require our own path in the stack.
@@ -319,14 +319,14 @@ else
     report $T no-js-errors FAIL "$errblock error block(s) name macos-dock@local — rerun with KEEP_T2=1 and read the kept shell.log"
 fi
 
-# H11 -----------------------------------------------------------------------
+# H11 ------------------------------------------------------------------------
 # Zero windows means zero overlap, so a hide here is the stale-rectangle bug
 # class the startup grace gate exists to stop.
 [ "$(lc '\[macos-dock-local\]\[dodge\] .+ -> hide')" = 0 ] \
     && report $T no-boot-hide PASS "dodge never hid in a window-less session" \
     || report $T no-boot-hide FAIL "dodge hid the dock with no windows present — grace/geometry regression"
 
-# H12 -----------------------------------------------------------------------
+# H12 ------------------------------------------------------------------------
 cat > "$T2/e3.js" <<'JS'
 (async () => {
     const GLib = imports.gi.GLib;
@@ -470,7 +470,7 @@ else
     report $T overview-band FAIL "band=$(jq -r '.band' "$T2/band.json") < dock occupied=$(jq -r '.dockOccupied' "$T2/band.json") — dock would overlap the overview (dashPref=$(jq -r '.dashPref' "$T2/band.json"), spacing=$(jq -r '.spacing' "$T2/band.json"))"
 fi
 
-# H18 ------------------------------------------------------------------------
+# H15 ------------------------------------------------------------------------
 # The overview layout patches (D-054 band + D-057 inset) moved into their own
 # concern (lib/overviewPatches.js, D-058) behind the `overview-patches-enabled`
 # toggle. Presence check: the composer logs `enabled` on a good boot; it only
@@ -484,7 +484,7 @@ else
     report $T overview-patches FAIL "overview patches logged no 'enabled' line — composer not wired or the toggle defaulted off"
 fi
 
-# H17 ------------------------------------------------------------------------
+# H16 ------------------------------------------------------------------------
 # The overview window previews are laid out by WorkspaceLayout._getWindowSlots,
 # which the shell feeds the whole window-picker box while the desktop background
 # is inset inside it — so previews poke past the desktop edge. lib/overviewLayout.js
@@ -502,7 +502,7 @@ else
     report $T overview-window-inset FAIL "overview layout logged neither line — enable() did not reach applyOverviewLayout()"
 fi
 
-# H19 ------------------------------------------------------------------------
+# H17 ------------------------------------------------------------------------
 # The Show Apps button fix is now its own concern (D-058) behind
 # `apps-button-fix-enabled`, decoupled from icons-fix-enabled. Presence check:
 # lib/overviewApps.js logs `[appsbtn] applied` when it lands on the dock button.
@@ -511,6 +511,132 @@ if [ "$appsbtn_ok" -ge 1 ]; then
     report $T apps-button PASS "Show Apps button fix applied behind apps-button-fix-enabled"
 else
     report $T apps-button FAIL "Show Apps button fix logged no 'applied' line — not wired or the toggle defaulted off"
+fi
+
+# H18 ------------------------------------------------------------------------
+# The Show Apps fix decides "am I in the grid?" from the overview's pagination
+# state. It used to compare that value against the literal `2`, so a shell that
+# *renumbers* ControlsState (rather than renaming it) would make the answer
+# confidently wrong and log nothing. Now the module resolves
+# ControlsState.APP_GRID once and prints it in its `applied` line; this check
+# compares that printed number against the number the shell itself is using,
+# read in the same boot. Pre-fix the line carries no `grid=` at all, so the
+# check is red against the code it replaced.
+# Tier 2 reads $T2/shell.log (the private shell's own output); `jfield` is the
+# tier-3 primitive over the live journal and returns nothing here.
+applied_line=$(grep -a '\[appsbtn\] applied' "$L" 2>/dev/null | head -1)
+grid_reported=$(grep -oE 'grid=([0-9]+|null)' <<< "$applied_line" | head -1 | cut -d= -f2)
+cat > "$T2/e8.js" <<'JS'
+(async () => {
+    const GLib = imports.gi.GLib;
+    const oc = await import('resource:///org/gnome/shell/ui/overviewControls.js');
+    GLib.file_set_contents('%T2%/grid.json',
+        JSON.stringify({ appGrid: oc.ControlsState?.APP_GRID ?? null }));
+})();
+JS
+sed -i "s|%T2%|$T2|g" "$T2/e8.js"
+EV_FILE "$T2/e8.js" > "$T2/e8.reply" 2>&1
+for _ in $(seq 1 10); do [ -s "$T2/grid.json" ] && break; sleep 1; done
+shell_grid=$(jq -r '.appGrid // "none"' "$T2/grid.json" 2>/dev/null)
+if [ ! -s "$T2/grid.json" ]; then
+    report $T grid-state-source ENV "ControlsState probe wrote nothing — reply: $(head -c 120 "$T2/e8.reply" 2>/dev/null)"
+elif [ -z "$applied_line" ]; then
+    report $T grid-state-source ENV "no appsbtn applied line to read the grid source from"
+elif [ -z "$grid_reported" ]; then
+    report $T grid-state-source FAIL "the applied line carries no grid= field — the module still compares a hardcoded number"
+elif [ "$shell_grid" = none ]; then
+    report $T grid-state-source FAIL "shell reports no ControlsState.APP_GRID but the module printed grid=$grid_reported — the number cannot be trusted"
+elif [ "$grid_reported" = "$shell_grid" ]; then
+    report $T grid-state-source PASS "grid state read from the shell enum (both $grid_reported this boot)"
+else
+    report $T grid-state-source FAIL "module used grid=$grid_reported but this shell's ControlsState.APP_GRID is $shell_grid — grid detection is wrong"
+fi
+
+# H19 ------------------------------------------------------------------------
+# The hover tick must read each icon's geometry once per frame. It used to read
+# position and size twice per icon — once to find minDist, once to scale — and
+# each read returns a fresh GI array. Pointer injection into the live session is
+# impossible here and `global.set_pointer` does not exist in this shell either
+# (measured), so the probe shadows `global.get_pointer()` for exactly one frame —
+# coordinates taken from the container's own geometry — and counts the reads.
+# Precondition is the shadow actually being what the tick reads; if it is not,
+# the probe says ENV instead of quietly measuring zero.
+cat > "$T2/e10.js" <<'JS'
+(async () => {
+    const GLib = imports.gi.GLib;
+    const Main = await import('resource:///org/gnome/shell/ui/main.js');
+    const out = { precondition: false, ok: false };
+    try {
+        const dm = Main.extensionManager.lookup('macos-dock@local')?.stateObj
+            ?._dockManager;
+        const mag = dm?._magnification;
+        if (!mag || !mag._container || typeof mag._update !== 'function') {
+            out.error = 'no magnifier instance';
+            GLib.file_set_contents('%T2%/tick.json', JSON.stringify(out));
+            return;
+        }
+        const cont = mag._container;
+        const [dx, dy] = cont.get_position();
+        const [cw, ch] = cont.get_size();
+        const tx = dx + Math.round(cw / 2), ty = dy + Math.round(ch / 2);
+        // `global.set_pointer` does not exist in this shell (measured), and a
+        // Clutter device warp would not reach the code under test either. The
+        // tick reads the pointer through `global.get_pointer()`, so the honest
+        // instrument is to shadow that for exactly one frame and restore it —
+        // the coordinates come from the container's own real geometry.
+        const origGetPointer = global.get_pointer;
+        global.get_pointer = () => [tx, ty];
+        const [gx, gy] = global.get_pointer();
+        out.wanted = [tx, ty];
+        out.got = [gx, gy];
+        out.precondition = gx === tx && gy === ty;
+        if (!out.precondition) {
+            global.get_pointer = origGetPointer;
+            GLib.file_set_contents('%T2%/tick.json', JSON.stringify(out));
+            return;
+        }
+        const children = cont.get_children();
+        out.n = children.length;
+        let posCalls = 0;
+        const saved = [];
+        for (const c of children) {
+            const orig = c.get_position;
+            saved.push(orig);
+            c.get_position = function () { posCalls++; return orig.call(this); };
+        }
+        try {
+            mag._update();
+        } finally {
+            // Restore both shadows even if the tick threw: a left-behind fake
+            // `global.get_pointer` would corrupt every later probe in this run.
+            global.get_pointer = origGetPointer;
+            children.forEach((c, i) => { c.get_position = saved[i]; });
+        }
+        out.posCalls = posCalls;
+        // One read per icon is the target; zero means the tick never reached the
+        // geometry pass, which is an instrument gap, not a pass.
+        out.ok = out.n > 0 && posCalls === out.n;
+        out.tooFew = posCalls < out.n;
+    } catch (e) {
+        out.error = e.message;
+    }
+    GLib.file_set_contents('%T2%/tick.json', JSON.stringify(out));
+})();
+JS
+sed -i "s|%T2%|$T2|g" "$T2/e10.js"
+EV_FILE "$T2/e10.js" > "$T2/e10.reply" 2>&1
+for _ in $(seq 1 10); do [ -s "$T2/tick.json" ] && break; sleep 1; done
+tick_json=$(jq -c 'del(.ok)' "$T2/tick.json" 2>/dev/null)
+if [ ! -s "$T2/tick.json" ]; then
+    report $T tick-geometry-reads ENV "tick probe wrote nothing — reply: $(head -c 120 "$T2/e10.reply" 2>/dev/null)"
+elif [ "$(jq -r '.precondition' "$T2/tick.json")" != true ]; then
+    report $T tick-geometry-reads ENV "headless pointer warp did not land, so the tick cannot be driven: $tick_json"
+elif [ "$(jq -r '.tooFew' "$T2/tick.json")" = true ]; then
+    report $T tick-geometry-reads ENV "tick ran but never reached the geometry pass: $tick_json"
+elif [ "$(jq -r '.ok' "$T2/tick.json")" = true ]; then
+    report $T tick-geometry-reads PASS "one geometry read per icon per frame ($(jq -r '.posCalls' "$T2/tick.json") for $(jq -r '.n' "$T2/tick.json") icons)"
+else
+    report $T tick-geometry-reads FAIL "$(jq -r '.posCalls' "$T2/tick.json") position reads for $(jq -r '.n' "$T2/tick.json") icons in one tick — the tick passes over the icons more than once: $tick_json"
 fi
 
 # H20 ------------------------------------------------------------------------
@@ -567,6 +693,69 @@ else
 fi
 
 # H21 ------------------------------------------------------------------------
+# A monkey-patch apply must be idempotent *and* revertible. Both overview
+# patches used to answer "already applied" with a noop revert, which is only
+# reachable if a previous revert threw and the caller swallowed it — and then the
+# patch is stranded for the rest of the session with nothing left that can undo
+# it. The probe recreates exactly that state (drop the held revert, re-apply so
+# the already-applied branch is taken, then stop) and asserts both shadows are
+# really gone afterwards. Red against the noop form of the code.
+cat > "$T2/e9.js" <<'JS'
+(async () => {
+    const GLib = imports.gi.GLib;
+    const Main = await import('resource:///org/gnome/shell/ui/main.js');
+    const ws = await import('resource:///org/gnome/shell/ui/workspace.js');
+    const out = { precondition: false, ok: false };
+    try {
+        const dm = Main.extensionManager.lookup('macos-dock@local')?.stateObj
+            ?._dockManager;
+        const dash = Main.overview?.dash;
+        const proto = ws.WorkspaceLayout?.prototype;
+        if (!dm || !dash || !proto ||
+            typeof dm._startOverviewPatches !== 'function' ||
+            typeof dm._stopOverviewPatches !== 'function') {
+            out.error = 'patch surface unavailable';
+            GLib.file_set_contents('%T2%/revert.json', JSON.stringify(out));
+            return;
+        }
+        const shadowed = () =>
+            Object.prototype.hasOwnProperty.call(dash, 'get_preferred_height');
+        out.precondition = true;
+        out.installedBefore = shadowed() && proto._dockOverviewLayoutApplied === true;
+        // Simulate the lost revert, then take the already-applied branch.
+        dm._overviewPatchesRevert = null;
+        dm._startOverviewPatches();
+        dm._stopOverviewPatches();
+        out.shadowStillInstalled = shadowed();
+        out.insetStillApplied = proto._dockOverviewLayoutApplied === true;
+        out.ok = out.installedBefore === true &&
+            out.shadowStillInstalled === false && out.insetStillApplied === false;
+        // Leave the session as found: re-apply for whatever runs after this.
+        dm._startOverviewPatches();
+        out.reapplied = shadowed() && proto._dockOverviewLayoutApplied === true;
+    } catch (e) {
+        out.error = e.message;
+    }
+    GLib.file_set_contents('%T2%/revert.json', JSON.stringify(out));
+})();
+JS
+sed -i "s|%T2%|$T2|g" "$T2/e9.js"
+EV_FILE "$T2/e9.js" > "$T2/e9.reply" 2>&1
+for _ in $(seq 1 10); do [ -s "$T2/revert.json" ] && break; sleep 1; done
+revert_json=$(jq -c 'del(.ok)' "$T2/revert.json" 2>/dev/null)
+if [ ! -s "$T2/revert.json" ]; then
+    report $T patch-revert-idempotent ENV "revert probe wrote nothing — reply: $(head -c 120 "$T2/e9.reply" 2>/dev/null)"
+elif [ "$(jq -r '.precondition' "$T2/revert.json")" != true ]; then
+    report $T patch-revert-idempotent ENV "patch surface unavailable: $revert_json"
+elif [ "$(jq -r '.installedBefore' "$T2/revert.json")" != true ]; then
+    report $T patch-revert-idempotent ENV "patches were not installed to begin with, so the branch cannot be exercised: $revert_json"
+elif [ "$(jq -r '.ok' "$T2/revert.json")" = true ]; then
+    report $T patch-revert-idempotent PASS "already-applied branch still returns a working revert (and re-applied cleanly=$(jq -r '.reapplied' "$T2/revert.json"))"
+else
+    report $T patch-revert-idempotent FAIL "patch stranded after stop(): $revert_json — expected shadowStillInstalled=false insetStillApplied=false"
+fi
+
+# H22 ------------------------------------------------------------------------
 # Teardown of the chrome registration is an assertion, not a formality. The
 # container's own `destroy` handler nulls `_container`, and `stop()` decides
 # whether to call `removeChrome` by testing that very field — so if the shell
@@ -640,7 +829,7 @@ else
     report $T chrome-untracked FAIL "disposed actor still in _trackedActors after disable(): $chrome_json"
 fi
 
-# H15 ------------------------------------------------------------------------
+# H23 ------------------------------------------------------------------------
 # Teardown is an assertion, not a formality. dbus-run-session's private
 # dbus-daemon and its gnome-shell both outlive a naive `kill $INNER` (reparented
 # to systemd), so snapshot the tree, reap it, and prove every pid is gone — the
