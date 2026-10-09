@@ -37,6 +37,23 @@ for c in gnome-shell dbus-run-session gdbus jq; do
     need_cmd "$c" || { report $T prereq ENV "$c is absent — tier 2 cannot run here"; exit 77; }
 done
 
+# Reclaim sandboxes a previous run could not remove. t2cleanup deletes $T2 on
+# every normal exit, but a run that was SIGKILLed (or a host that lost power)
+# leaves its dir behind and nothing else ever picks it up — 16 of them (2.9 MB)
+# had piled up before this sweep existed. Only dirs older than an hour are
+# reclaimed, so a *concurrent* run's fresh sandbox (a run here is ≤150 s) is
+# never touched. Best-effort hygiene, not an assertion, so it prints no report
+# line and the "asserts 16 things" count in MAINTENANCE stays true.
+t2swept=0
+for d in "${TMPDIR:-/tmp}"/macosdock-t2-*; do
+    [ -d "$d" ] || continue
+    [ -n "$(find "$d" -maxdepth 0 -mmin +60 2>/dev/null)" ] || continue
+    rm -rf "$d" && t2swept=$((t2swept + 1))
+done
+if [ "$t2swept" -gt 0 ]; then
+    echo "  sweep  reclaimed $t2swept stale sandbox dir(s) from earlier runs"
+fi
+
 T2=$(mktemp -d "${TMPDIR:-/tmp}/macosdock-t2-XXXXXX")
 UNIQ=${T2##*-}
 SOCK_NAME="wayland-$UNIQ"
