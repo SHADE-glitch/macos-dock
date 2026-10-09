@@ -70,7 +70,7 @@ shell 侧：工具链存在性（缺失 → ENV）、单测下限（72 断言 / 
 
 ## 4. 第二层：无头 shell
 
-`test/headless-checks.sh` 在干净房间里拉起一个私有合成器并断言 17 项。下面每一行隔离都是
+`test/headless-checks.sh` 在干净房间里拉起一个私有合成器并断言 19 项。下面每一行隔离都是
 必需的，不是装饰：
 
 ```
@@ -136,7 +136,7 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
 - 创建沙箱之前会先做一次**陈旧沙箱清扫**。`t2cleanup` 在每次正常退出时都会删掉 `$T2`，但被
   `SIGKILL` 的运行（或主机断电）会把它留在 `/tmp/macosdock-t2-*`，之后再没有任何东西回收它——
   在这套清扫出现之前已累积了 16 个（2.9 MB）。只回收超过一小时的目录，所以并发运行的新沙箱
-  绝不会被碰到。它是卫生动作而非断言：不产生 report 行，所以上面的"断言 17 项"数字依然成立。
+  绝不会被碰到。它是卫生动作而非断言：不产生 report 行，所以上面的"断言 19 项"数字依然成立。
 
 ## 5. 第三层：实时会话（无指针）
 
@@ -236,6 +236,11 @@ GNOME 更新能拿走的东西，全在这里：
   方法，改为喂它桌面背景的矩形。它还依赖 `Workspace` 的子结构：`Workspace._container`（预览
   容器，其 layout manager 即 `WorkspaceLayout`）与它的 `workspace-background` 兄弟。其中任一
   被改名都会降级回原生布局、只打一行 warn——绝不崩。
+- `Main.overview.dash.get_preferred_height` —— 概览底部预留带（D-054）在 stock dash 实例上遮蔽
+  它；现在住在 `lib/overviewPatches.js`、由 `overview-patches-enabled` 开关控制（D-058）。这是
+  挂在活动 actor 上的自有属性、用 `delete` 移除。shell 改名会降级回原生高度（预留带塌缩、高的
+  dock 可能压住概览），但不会崩——安装前先探测、且整体 try/catch，与 dock 的唯一耦合是注入的
+  `getBandMetrics()` provider。
 - `global.window_manager.connect`、`completed_minimize`、`completed_unminimize` —— 公开，但
   历史上被重塑过。
 - `genieEngine.validateRuntime()`：`global.window_group.add_child`、`Clutter.Timeline`、
@@ -300,10 +305,16 @@ GNOME 更新能拿走的东西，全在这里：
   任何延迟。
 - 概览底部预留带按**自带 dash** 的 preferred height 计算（`overviewControls.js`
   `vfunc_allocate`），即使 dash 被隐藏也照算。隐藏自带 dash 会让它变空、该高度塌缩成主题
-  内边距（36px），比该内边距高的本 dock 于是压住窗口选择器/应用网格。所以
-  `_hideDefaultDash` 给被隐藏的 dash 实例遮蔽 `get_preferred_height`，上报 dock 的占用高度，
-  shell 便预留 `占用 + spacing`。**不要**用"恢复自带 dash"来修：填充过的 dash 预留得远比
-  dock 需要的多。
+  内边距（36px），比该内边距高的本 dock 于是压住窗口选择器/应用网格。所以预留带遮蔽经 dash 的
+  `get_preferred_height` 上报 dock 的占用高度，shell 便预留 `占用 + spacing`。它现在住在
+  `lib/overviewPatches.js`（D-058），只通过注入的 `getBandMetrics()` provider 读 dock 高度。
+  **不要**用"恢复自带 dash"来修：填充过的 dash 预留得远比 dock 需要的多。
+- 非 dock 关注点一律**就地隔离**、单扩展单 uuid（D-058）：每个都是一个 `lib/` 模块，带边界头注释、
+  自己的 `*-enabled` 设置与 `dockManager` 里**真正的** start/stop，以及探测→warn-once→降级。概览
+  布局补丁（预留带 D-054 + 内缩 D-057）就是这样一个关注点，由 `overview-patches-enabled` 控制；
+  Show Apps 按钮补丁（`lib/overviewApps.js`）从 `icons-fix-enabled` 解耦、改由
+  `apps-button-fix-enabled` 控制（它的 stop 会触发 IconManager `reload`，因为该补丁替换了按钮原装的
+  press 处理器）。genie 与 keynav 本已符合此标准。**不要**把这些再捆回 dock 自己的开关下。
 - 概览的窗口预览被布局在一个**占满整个 window-picker 盒子**的容器里，而桌面背景是内缩在这个
   盒子里的（GNOME 50.1 实测：左右 20px、上下 12px）——于是预览会探出桌面边缘，窗口数让内容
   贴底时最明显（你报的"1 个明显、2 个没有、3 个轻微"）。这是**shell 自身的布局，与 dock 无关**：

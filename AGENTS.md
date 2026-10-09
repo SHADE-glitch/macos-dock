@@ -11,6 +11,12 @@ fork of MacOSDock (v9) with the macOS Genie animation merged in.
 - **`disable` + `enable` does NOT reimport modules.** A cached ESModule keeps its old code, so a change to a `lib/*.js` file only takes effect after a **log out / log in**. Never claim a reload activated an edit.
 - **Keep `genieGeometry.js` and `signalManager.js` free of `gi://` imports.** They are the only pure modules and the only ones testable under plain Node. Any `gi://`/`resource://` import there breaks `npm test`.
 
+## Scope
+- This extension is a **dock**, but it also carries non-dock concerns: overview layout patches, the genie window animation, global hotkeys, and the Show Apps button fix. They are kept, but must stay **isolated in place** — never entangled with the dock.
+- Every non-dock concern is its own `lib/` module with: a boundary header (what it is, and whether it is dock-coupled), its OWN `*-enabled` setting, a REAL start/stop in `dockManager`, a `[macos-dock-local][<name>]` log tag, and probe → warn-once → fall back (never throw into the shell).
+- Do **not** re-bundle a non-dock concern under the dock's own toggle, and do **not** add a new uuid / second extension: the pieces are coupled (genie reads the dock's icon rects, keynav the dock's icon order, the Show Apps fix the dock's button), so splitting costs more than it saves.
+- A new shell-layout patch goes behind `overview-patches-enabled` (or its own toggle) with a structural probe and a native fallback; see `MAINTENANCE.md` §11.
+
 ## Tests
 - **Run `npm test`** (i.e. `node --test test/*.test.js`) after editing a pure module. No gjs, no dependencies, no build step.
 - Pure modules and their suites:

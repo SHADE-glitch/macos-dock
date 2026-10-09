@@ -75,7 +75,7 @@ and nowhere else until you log out and find the extension in ERROR.
 
 ## 4. Tier 2 — headless shell
 
-`test/headless-checks.sh` boots a private compositor in a clean room and asserts 17 things.
+`test/headless-checks.sh` boots a private compositor in a clean room and asserts 19 things.
 The isolation is not optional and every line of it is load-bearing:
 
 ```
@@ -159,7 +159,7 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   `/tmp/macosdock-t2-*` behind and nothing else ever reclaims it — 16 of them (2.9 MB) had
   accumulated before the sweep existed. Only dirs older than an hour are removed, so a
   concurrent run's fresh sandbox is never touched. It is hygiene, not an assertion: it prints
-  no report line, which is why the count above stays 17.
+  no report line, which is why the count above stays 19.
 
 ## 5. Tier 3 — live session, pointer-free
 
@@ -273,6 +273,12 @@ Everything that a GNOME update can take away:
   `Workspace` child structure: `Workspace._container` (the preview container, whose layout
   manager is the `WorkspaceLayout`) and its `workspace-background` sibling. A rename of any of
   these degrades to the native layout with one warn line — never a crash.
+- `Main.overview.dash.get_preferred_height` — the overview bottom-band override (D-054) shadows
+  this on the stock dash instance; it now lives in `lib/overviewPatches.js` behind the
+  `overview-patches-enabled` toggle (D-058). It is an own-property override on a live actor,
+  removed with `delete`. A shell rename degrades to the native height (the band collapses and a
+  tall dock may overlap the overview) but cannot crash — installation is probe-gated and in
+  try/catch, and the only dock coupling is an injected `getBandMetrics()` provider.
 - `global.window_manager.connect`, `completed_minimize`, `completed_unminimize` — public
   but reshaped before.
 - `genieEngine.validateRuntime()`: `global.window_group.add_child`, `Clutter.Timeline`,
@@ -346,10 +352,19 @@ Each of these was tested directly and failed. Do not spend time retrying them.
 - The overview's bottom band is sized from the **stock dash's** preferred height
   (`overviewControls.js` `vfunc_allocate`), computed even while the dash is hidden. Hiding
   the stock dash leaves it empty, so that height collapses to the theme padding (36 px) and
-  this dock — taller than the padding — overlapped the window picker / app grid. So
-  `_hideDefaultDash` shadows the hidden dash instance's `get_preferred_height` to report the
-  dock's occupied height;   the shell then reserves `occupied + spacing`. Do **not** "restore"
+  this dock — taller than the padding — overlapped the window picker / app grid. So the band
+  shadow reports the dock's occupied height via the dash's `get_preferred_height`; the shell
+  then reserves `occupied + spacing`. It lives in `lib/overviewPatches.js` (D-058), which reads
+  the dock's height only through an injected `getBandMetrics()` provider. Do **not** "restore"
   the stock dash to fix this: a populated dash reserves far more than the dock needs.
+- Non-dock concerns are isolated **in place**, one extension / one uuid (D-058): each is a `lib/`
+  module with a boundary header, its OWN `*-enabled` setting and a REAL start/stop in
+  `dockManager`, and probe→warn-once→fallback. The overview layout patches (band D-054 + inset
+  D-057) are one such concern behind `overview-patches-enabled`; the Show Apps button fix
+  (`lib/overviewApps.js`) is decoupled from `icons-fix-enabled` behind `apps-button-fix-enabled`
+  (its stop triggers an IconManager `reload`, because the fix replaced the button's stock press
+  handler). genie and keynav already met this standard. Do not re-bundle these back under the
+  dock's own toggles.
 - The overview window previews are laid out in a container that **fills the whole window-picker
   box**, while the desktop background is inset inside that box (measured 20 px sides / 12 px
   top+bottom on GNOME 50.1) — so previews poke past the desktop edge, worst for the window

@@ -424,3 +424,10 @@ Change   新增 `lib/overviewLayout.js`：在原型上包裹 `WorkspaceLayout._g
 Evidence L1 overview-window-inset
 Cost     这是 **shell 自身布局**（预览容器占满整个盒子、背景内缩其中），与 dock 无关——dock 开或关都一样，所以上次改 dash 高度（D-054）根本没碰到它。补丁依赖 shell 私有布局，升级改名即降级（一行 warn，不崩）。属视觉偏好：预览可用高度少 12px、宽度少 40px，会整体缩放一点点
 Commit   980c4db
+
+### D-058 · 2026-10-09 · chore · v1
+Symptom  四类非 dock 关注点（概览布局补丁、genie 窗口动画、全局快捷键、Show Apps 按钮补丁）与 dock 本体混在一起：概览补丁（D-054/D-057）常开且硬编码在 `dockManager` 里，Show Apps 按钮补丁搭在 `icons-fix-enabled` 下——既关不掉、也说不清边界
+Change   概览布局补丁抽进新 `lib/overviewPatches.js`（`overview-patches-enabled` 开关；dock 高度经注入的 `getBandMetrics()` 读取，模块不再反向 import DockManager）；Show Apps 按钮补丁从 `iconFix`/`icons-fix-enabled` 解耦为 `apps-button-fix-enabled`（stop 触发 IconManager reload 以恢复原装按钮）；genie/keynav 补边界头注释（本已有独立开关）。每个非 dock 关注点 = 一个模块 + 一个 `*-enabled` + 真 start/stop + 探测→warn-once→降级
+Evidence L1 overview-patches, apps-button
+Cost     **就地隔离而非拆扩展**：这些件与 dock 有真实耦合（genie 要图标矩形、keynav 要图标顺序、按钮补丁要 dock 的按钮），硬拆要造跨扩展接口、反而更贵。**不要**再把它们捆回 dock 自己的开关下。新增 schema 键必须同步 prefs（repo.test.js 守卫）；`overviewApps` 的 stop 会有一次 dock 重建/闪动（改设置很少见）
+Commit   0e15fff
