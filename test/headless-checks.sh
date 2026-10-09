@@ -43,7 +43,7 @@ done
 # had piled up before this sweep existed. Only dirs older than an hour are
 # reclaimed, so a *concurrent* run's fresh sandbox (a run here is ≤150 s) is
 # never touched. Best-effort hygiene, not an assertion, so it prints no report
-# line and the "asserts 16 things" count in MAINTENANCE stays true.
+# line and the "asserts 17 things" count in MAINTENANCE stays true.
 t2swept=0
 for d in "${TMPDIR:-/tmp}"/macosdock-t2-*; do
     [ -d "$d" ] || continue
@@ -468,6 +468,24 @@ elif [ "$(jq -r '.ok' "$T2/band.json")" = true ]; then
     report $T overview-band PASS "overview reserves band=$(jq -r '.band' "$T2/band.json") >= dock=$(jq -r '.dockOccupied' "$T2/band.json") (no overlap)"
 else
     report $T overview-band FAIL "band=$(jq -r '.band' "$T2/band.json") < dock occupied=$(jq -r '.dockOccupied' "$T2/band.json") — dock would overlap the overview (dashPref=$(jq -r '.dashPref' "$T2/band.json"), spacing=$(jq -r '.spacing' "$T2/band.json"))"
+fi
+
+# H17 ------------------------------------------------------------------------
+# The overview window previews are laid out by WorkspaceLayout._getWindowSlots,
+# which the shell feeds the whole window-picker box while the desktop background
+# is inset inside it — so previews poke past the desktop edge. lib/overviewLayout.js
+# wraps that private method to pass the background rect instead. This is a
+# presence check (tier-2 style): the wrapper logs `enabled` on a good boot, or a
+# one-line `disabled — missing/changed private APIs` degrade when a shell symbol
+# moves. Either way it must not throw — the FAIL here is "it logged neither".
+ovl_ok=$(lc '\[macos-dock-local\]\[overviewlayout\] enabled')
+ovl_bad=$(lc '\[macos-dock-local\]\[overviewlayout\] disabled')
+if [ "$ovl_ok" -ge 1 ] && [ "$ovl_bad" = 0 ]; then
+    report $T overview-window-inset PASS "_validate() accepted this shell's WorkspaceLayout._getWindowSlots surface"
+elif [ "$ovl_bad" -ge 1 ]; then
+    report $T overview-window-inset FAIL "overview inset degraded to native layout — a shell symbol moved or vanished (see facts.json)"
+else
+    report $T overview-window-inset FAIL "overview layout logged neither line — enable() did not reach applyOverviewLayout()"
 fi
 
 # H15 ------------------------------------------------------------------------
