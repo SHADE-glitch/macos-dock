@@ -144,6 +144,12 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   18 private dbus-daemons (~580 MB) alive. `t2killtree` walks children-first (before any
   reparent can hide them), TERM then KILL, and the `teardown` check proves every pid in the
   pre-kill snapshot is gone.
+- A **stale-sandbox sweep** runs before the sandbox is created. `t2cleanup` removes `$T2` on
+  every normal exit, but a run that is `SIGKILL`ed (or a host that loses power) leaves its
+  `/tmp/macosdock-t2-*` behind and nothing else ever reclaims it — 16 of them (2.9 MB) had
+  accumulated before the sweep existed. Only dirs older than an hour are removed, so a
+  concurrent run's fresh sandbox is never touched. It is hygiene, not an assertion: it prints
+  no report line, which is why the count above stays 16.
 
 ## 5. Tier 3 — live session, pointer-free
 

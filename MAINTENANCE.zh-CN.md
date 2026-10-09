@@ -126,6 +126,10 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   存活：一天的运行留下了 7 个无头 shell + 18 个私有 dbus-daemon（约 580 MB）。`t2killtree`
   先子后父地走一遍（趁还没 reparent、`pgrep -P` 还看得见），TERM→KILL，`teardown` 检查再
   证明快照里的每个 pid 都已消失。
+- 创建沙箱之前会先做一次**陈旧沙箱清扫**。`t2cleanup` 在每次正常退出时都会删掉 `$T2`，但被
+  `SIGKILL` 的运行（或主机断电）会把它留在 `/tmp/macosdock-t2-*`，之后再没有任何东西回收它——
+  在这套清扫出现之前已累积了 16 个（2.9 MB）。只回收超过一小时的目录，所以并发运行的新沙箱
+  绝不会被碰到。它是卫生动作而非断言：不产生 report 行，所以上面的"断言 16 项"数字依然成立。
 
 ## 5. 第三层：实时会话（无指针）
 

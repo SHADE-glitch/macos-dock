@@ -410,3 +410,10 @@ Change   新增 `t2descendants`（先子后父收集，趁 reparent 前 `pgrep -
 Evidence L1 teardown
 Cost     `dbus-run-session` 的子进程不止命令本身，还有它自己的 dbus-daemon；`kill $INNER` 一个都够不着。**判据必须是"快照过的 pid 全部消失"，不能是 `kill` 的返回码**——上一轮正是被返回码骗过（循环报 gone，`ps` 里 7 个全在）
 Commit   1f7d0d3
+
+### D-056 · 2026-10-09 · chore · v1
+Symptom  被 `SIGKILL` 的 `test/headless-checks.sh` 运行（或主机断电）会把它在 `/tmp/macosdock-t2-*` 的沙箱目录留在原地，之后没有任何东西回收；一次手工清理时已累积 16 个（2.9 MB）
+Change   创建 `$T2` 之前加一次启动清扫：回收 `macosdock-t2-*` 中 mtime 超过一小时的目录，有回收就打印一行非 report 的说明
+Evidence L1 sandbox
+Cost     清扫必须带**年龄闸门**——按名字无差别删会误删并发运行的新沙箱（一次运行 ≤150 s）。它是卫生动作而非断言，所以刻意不发 `report` 行，MAINTENANCE 里"断言 16 项"的数字才不用跟着变
+Commit   b71ace1
