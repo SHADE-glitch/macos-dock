@@ -487,3 +487,10 @@ Change   第一层新增 `README documents every settings key`——双语 READM
 Evidence L0/L1 红→绿各两次：guard 在表写出前红（`README documents no row for: icon-size, magnification-enabled, …`），写后 75 assertions / 21 suites 绿；S8 在一次性克隆里跑过四态——无规则=红(规则缺失)、有规则=绿、`git add -f docs/reports/STATE.md`=红("1 file(s) … tracked")、撤销 staging=绿
 Cost     schema 每加一键要动三处（README 双语各一行；这一半由守卫兜住，描述写没写对兜不住）。README 键表与 `prefs.js` 的 subtitle 是两处并行文案，会分叉——这一点在拍板时已知并选择
 Commit   a6a17a1
+
+### D-067 · 2026-10-09 · guard · v1
+Symptom  INVARIANTS.md 是人写的指针表：条目被删、检查被改名、或把 `taste` 当成"不得回退"，它都会**继续显示为一张正常的表**。AGENTS.md 规定它"不抄正文"，但没人能机械判断它有没有开始抄
+Change   新增 `test/invariants.mjs`（纯 Node）承载规则 6.0–6.7：表非空、四格齐全且无占位符、id 解析到真实条目、自上而下严格递增、`taste` 不得列为不变量、证据列以 L0/L1/L2/L? 开头、证据列里反引号包住的连字符 token 必须是 harness 仍在报告的检查名、正文不得从 CHANGELOG 整段照抄。两个消费者共用同一份实现与同一个条目正则：`check-log.mjs` 作为第 6 项（`--invariants` 单跑它，纯文档改动不必走一遍 commit 窗口），`repo.test.js` 在 `npm test` 里跑同一次校验，所以第一层与 CI 都会抓到过期行
+Evidence L0/L1 逐条打红：`test/invariants.test.js` 对每条规则各造一个违规表并断言报出的正是那条规则，另有一个绿色控制组（格式正确的表零报告，`visible`/`lib/dodge.js`/`test:live-trigger` 不被误认成检查名）。真表在一次性克隆里被四种破坏各打红一次——改名后的检查名(6.6)、指向不存在的条目(6.2 连带 6.3)、把 D-057 这个 taste 条目当不变量(6.4)、从 CHANGELOG 整段复制 336 字符(6.7)，每次都恢复并复验绿；`repo.test.js` 走第一层路径同样红 1 / 绿 0
+Cost     一条**真红**从这里暴露：6.6 的初版只匹配小写，`tick-geometry-reads` 半改名成 `tick-geometry-readX` 会静默通过，改成大小写与下划线都收。反过来它是有意的宽松——证据列里若把非检查名的词用反引号包住（形如 `some-phrase`），会得到一次假红，代价只是去掉那对反引号。文档里"12 个键没有偏好行"这句话现在由 `EXPECTED_UNBOUND.length === 12` 撑着
+Commit   c425a44

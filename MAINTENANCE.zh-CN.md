@@ -52,6 +52,7 @@
 | `DODGE_DEBUG` 必须是 `false` | dodge 的 `_dbg`/`hide-trigger` 会打印真实窗口标题 | journal 开始收集私人标题，日后任何一次日志粘贴都会泄露 |
 | schema 键集减去 `prefs.js` 键集恰好等于钉住的 12 个名字（十个 `keynav-app-N` + `keynav-stock-backup`/`-dirty`） | 设置面完整性 | 新键没有偏好设置行是静默功能缺口；有行没键会让偏好窗口抛异常 |
 | 每个 schema 键都以反引号形式出现在**两份** README 里 | 设置说明是用户唯一能知道某个键存在的地方 | 往 schema 加了键却哪儿都没写（守卫只证明有这一行，不证明描述写对了） |
+| `INVARIANTS.md` 每一行都能解析（`test/invariants.mjs`，规则 6.0–6.7 写在文件头） | 这份指针表是"这个东西能不能回退"的唯一快答 | 某条不变量指向被删掉的条目、被改名的检查，或指向一个口味级偏好 —— 同一个校验器也可用 `npm run check:log --invariants` 单独跑 |
 | `metadata.json` 的 uuid / schema id / 纯数字 `shell-version` | 加载期接线 | schema id 写错会让扩展在登录时进 ERROR |
 | 双语对 `##` 数量相等且首行是语言切换器 | 文档约定 | 两个文件已经漂移 |
 | markdown 里不得有任务 checkbox | 本仓四个 fork 的共同约定 | 提交进仓库的文档读起来像未完成的活 |

@@ -58,6 +58,7 @@ is invisible to every other check:
 | `DODGE_DEBUG` is `false` | dodge's `_dbg`/`hide-trigger` log real window titles | the journal starts collecting private titles, and any future log paste leaks them |
 | schema keys minus `prefs.js` keys equals exactly 12 pinned names (the ten `keynav-app-N` + `keynav-stock-backup`/`-dirty`) | settings surface completeness | a new key with no row is a silent feature gap; a row without a key throws in the prefs window |
 | every schema key appears in backticks in **both** READMEs | the settings reference is the only place a user can learn a key exists | a key was added to the schema and documented nowhere (it proves the row exists, not that the prose is right) |
+| every `INVARIANTS.md` row resolves (`test/invariants.mjs`, rules 6.0–6.7 in its header) | the pointer list is the only fast answer to "may I revert this?" | an invariant cites an entry that was deleted, a check that was renamed, or a taste preference — same validator via `npm run check:log --invariants` |
 | `metadata.json` uuid / schema id / plain numeric `shell-version` | load-time wiring | wrong schema id puts the extension in ERROR at login |
 | bilingual pairs have equal `##` counts and the switcher line | documentation convention | the two files drifted apart |
 | no task checkboxes in markdown | house convention across all four forks | committed docs read as unfinished work |

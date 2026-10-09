@@ -208,6 +208,7 @@ npm test
 
 - `lib/genieGeometry.js` → `test/genieGeometry.test.js` (coordinate transforms, easing, the dock-position table, the strip-transform contract)
 - `lib/signalManager.js` → `test/signalManager.test.js` (connection bookkeeping: per-source disconnect, error tolerance, idempotent teardown)
+- `test/invariants.mjs` → `test/invariants.test.js` (the rules that keep [`INVARIANTS.md`](INVARIANTS.md) a pointer list: every row must name a real `D-###`, a check the harness still reports, and no copied prose)
 
 Checks run in three tiers, because most of this extension cannot be imported outside the shell:
 
@@ -218,7 +219,7 @@ Checks run in three tiers, because most of this extension cannot be imported out
 | 3 · live | `npm run test:live` | yes | no — reads this boot's journal |
 | 3 · live A/B | `npm run test:live-trigger` | yes | settings, restored and proven |
 
-Tier 1 also guards repository invariants that nothing else can see — the genie licence headers, the pure modules staying `gi://`-free, the privacy scan for a public repo, and the schema/prefs key coverage. The tiers, the measured numbers behind them and the per-GNOME-release playbook are documented in [`MAINTENANCE.md`](MAINTENANCE.md).
+Tier 1 also guards repository invariants that nothing else can see — the genie licence headers, the pure modules staying `gi://`-free, the privacy scan for a public repo, the schema/prefs key coverage, that every schema key is documented in both READMEs, and that `INVARIANTS.md` still points at real entries and live checks. The tiers, the measured numbers behind them and the per-GNOME-release playbook are documented in [`MAINTENANCE.md`](MAINTENANCE.md).
 
 When fixing a bug, add a regression test that fails against the pre-fix code before making it pass.
 

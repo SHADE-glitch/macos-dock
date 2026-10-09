@@ -147,7 +147,10 @@ exact command and wait — never substitute a workaround that touches the sessio
 - **[`INVARIANTS.md`](INVARIANTS.md) is a pointer list** of fixes that must not be reverted, and
   it restates nothing: the mechanism lives in `CHANGELOG.md`, the reasoning in
   `MAINTENANCE.md` §11. When the three disagree, those two win and INVARIANTS is stale — so add
-  its row in the same change that adds the entry, and never copy prose into it.
+  its row in the same change that adds the entry, and never copy prose into it. This is
+  **machine-checked** by `test/invariants.mjs`, which runs inside `npm test` (so tier 1 catches a
+  stale row) and inside `npm run check:log`; `npm run check:log --invariants` runs that one check
+  alone. Read the rules from the module's header instead of copying them here.
 - **[`MAINTENANCE.md`](MAINTENANCE.md) is the procedure file** (how to verify a change, the per-release playbook, what can never be automated here and why). This file is rules; do not restate procedures here.
 - `MAINTENANCE.md` / `MAINTENANCE.zh-CN.md` are a bilingual pair like the READMEs — keep their `##` sections in lockstep (`test/repo.test.js` enforces it).
 - `README.md` and `README.zh-CN.md` are a **two-file bilingual pair** — edit both together, keeping section order aligned.

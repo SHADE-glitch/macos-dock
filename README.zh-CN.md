@@ -205,6 +205,7 @@ npm test
 
 - `lib/genieGeometry.js` → `test/genieGeometry.test.js`（坐标变换、缓动、Dock 位置表、条带变换契约）
 - `lib/signalManager.js` → `test/signalManager.test.js`（连接记账：按 source 断开、容错、幂等清理）
+- `test/invariants.mjs` → `test/invariants.test.js`（让 [`INVARIANTS.md`](INVARIANTS.md) 保持"指针表"性质的规则：每行必须指向真实存在的 `D-###`、指向 harness 仍在报告的检查名，且不得抄写正文）
 
 检查分三层运行，因为这个扩展的大部分代码无法在 shell 之外被导入：
 
@@ -215,7 +216,7 @@ npm test
 | 3 · 实时 | `npm run test:live` | 是 | 无 —— 只读本次开机的 journal |
 | 3 · 实时 A/B | `npm run test:live-trigger` | 是 | 设置项，且必定还原并自证 |
 
-第一层还守着一些别处看不见的仓库不变量：genie 的许可头、两个纯净模块必须不含 `gi://`、面向公开仓库的隐私扫描，以及 schema 与偏好设置的键覆盖。三层检查、支撑它的实测数字，以及每个 GNOME 版本的回归流程，都写在 [`MAINTENANCE.zh-CN.md`](MAINTENANCE.zh-CN.md)。
+第一层还守着一些别处看不见的仓库不变量：genie 的许可头、两个纯净模块必须不含 `gi://`、面向公开仓库的隐私扫描、schema 与偏好设置的键覆盖、每个 schema 键在两份 README 里都有一行，以及 `INVARIANTS.md` 的每一行仍指向真实条目与仍存在的检查。三层检查、支撑它的实测数字，以及每个 GNOME 版本的回归流程，都写在 [`MAINTENANCE.zh-CN.md`](MAINTENANCE.zh-CN.md)。
 
 修 bug 时请先补一个在**修复前代码上会失败**的回归测试，再让它通过。
 
