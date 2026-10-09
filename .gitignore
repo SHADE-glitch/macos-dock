@@ -7,3 +7,9 @@
 
 # Tooling (the tree itself stays dependency-free)
 node_modules/
+
+# Phase evidence for this maintenance fork: PROFILE/AUDIT/PLAN/VERIFY/STATE.
+# This repo is public and these files may quote raw journal lines, window
+# titles or resolved temp paths, so they stay local-only. Tier 1 S8 asserts the
+# rule below exists and that nothing under reports/ is tracked.
+reports/

@@ -29,7 +29,13 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
  */
 function listFiles() {
     const out = [];
-    const skip = new Set([".git", "node_modules", ".gitignore", "__pycache__"]);
+    // `reports` is skipped on purpose: it holds local-only phase evidence that is
+    // ALLOWED to quote journal lines and window titles precisely because it can
+    // never be committed. Scanning it here would make the privacy guard fail on
+    // the one directory whose whole job is to hold that data. The guarantee that
+    // it stays out of the repository is not asserted here — `static-checks.sh`
+    // S8 does that against git itself (ignore rule present, nothing tracked).
+    const skip = new Set([".git", "node_modules", ".gitignore", "__pycache__", "reports"]);
     const walk = (rel) => {
         for (const e of fs.readdirSync(path.join(REPO, rel), { withFileTypes: true })) {
             if (skip.has(e.name))

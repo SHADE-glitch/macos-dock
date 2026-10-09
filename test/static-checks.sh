@@ -106,6 +106,21 @@ else
 fi
 
 # S8 -----------------------------------------------------------------------
+# reports/ holds local-only phase evidence that may quote raw journal lines and
+# window titles — the exact content this public repository must never carry. The
+# enforceable half is not "the directory exists" (it legitimately does not in a
+# CI checkout) but: the ignore rule is present, AND nothing under it is tracked.
+# A rule that exists yet was bypassed by an explicit add is the failure mode.
+tracked_reports=$( (cd "$REPO" && git ls-files -- reports/) | wc -l | tr -d ' ')
+if ! (cd "$REPO" && git check-ignore -q reports/STATE.md); then
+    report $T reports-untracked FAIL "reports/ is not ignored — an unattended git add would publish local evidence"
+elif [ "$tracked_reports" != 0 ]; then
+    report $T reports-untracked FAIL "$tracked_reports file(s) under reports/ are tracked — raw evidence in a public repo"
+else
+    report $T reports-untracked PASS "ignore rule present, 0 tracked files under reports/"
+fi
+
+# S9 -----------------------------------------------------------------------
 [ "$(tree_fingerprint)" = "$BASELINE_FINGERPRINT" ] \
     && report $T no-tree-writes PASS "this tier wrote nothing into the repo" \
     || report $T no-tree-writes FAIL "the harness modified or created files in the working tree"
