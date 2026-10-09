@@ -391,5 +391,45 @@ else
     report $T dock-monitor-geometry FAIL "geometry: $(jq -c 'del(.ok)' "$T2/geom.json") — expected pickedDockMonitor=true deepOnDockMonitor=true deepOnPrimary=false far=false"
 fi
 
+# H14 ------------------------------------------------------------------------
+# The overview reserves its bottom band from the stock dash's preferred height
+# (overviewControls.js: vfunc_allocate), even while the dash is hidden. Hiding
+# the dash leaves it empty, so that height collapses to the theme padding — and
+# a dock taller than that padding then overlapped the window picker / app grid.
+# Assert the reserved band (dash preferred height + the shell's own spacing)
+# clears the dock's occupied height. Red before the fix (36 + 21 = 57 < 70).
+cat > "$T2/e5.js" <<'JS'
+(async () => {
+    const GLib = imports.gi.GLib;
+    const Main = await import('resource:///org/gnome/shell/ui/main.js');
+    const mon = Main.layoutManager.primaryMonitor;
+    const wa = Main.layoutManager.getWorkAreaForMonitor(mon.index);
+    const dash = Main.overview?.dash;
+    const dm = Main.extensionManager.lookup('macos-dock@local')?.stateObj?._dockManager;
+    const rect = dm?.getRestingContainerRect?.();
+    const spacing = Math.round(wa.height * 0.02);
+    const out = {
+        dashPref: dash ? dash.get_preferred_height(wa.width)[1] : null,
+        spacing,
+        band: null,
+        dockOccupied: rect ? (mon.y + mon.height - rect.y) : null,
+        ok: false,
+    };
+    out.band = out.dashPref === null ? null : out.dashPref + spacing;
+    out.ok = out.dockOccupied !== null && out.band !== null && out.band >= out.dockOccupied;
+    GLib.file_set_contents('%T2%/band.json', JSON.stringify(out));
+})();
+JS
+sed -i "s|%T2%|$T2|g" "$T2/e5.js"
+EV_FILE "$T2/e5.js" > "$T2/e5.reply" 2>&1
+for _ in $(seq 1 10); do [ -s "$T2/band.json" ] && break; sleep 1; done
+if [ ! -s "$T2/band.json" ]; then
+    report $T overview-band ENV "band probe wrote nothing — reply: $(head -c 120 "$T2/e5.reply" 2>/dev/null)"
+elif [ "$(jq -r '.ok' "$T2/band.json")" = true ]; then
+    report $T overview-band PASS "overview reserves band=$(jq -r '.band' "$T2/band.json") >= dock=$(jq -r '.dockOccupied' "$T2/band.json") (no overlap)"
+else
+    report $T overview-band FAIL "band=$(jq -r '.band' "$T2/band.json") < dock occupied=$(jq -r '.dockOccupied' "$T2/band.json") — dock would overlap the overview (dashPref=$(jq -r '.dashPref' "$T2/band.json"), spacing=$(jq -r '.spacing' "$T2/band.json"))"
+fi
+
 report $T teardown PASS "sandbox and its lockfile removed"
 exit_code_from_results
