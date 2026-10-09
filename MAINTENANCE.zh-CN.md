@@ -70,8 +70,9 @@ shell 侧：工具链存在性（缺失 → ENV）、单测下限（72 断言 / 
 
 ## 4. 第二层：无头 shell
 
-`test/headless-checks.sh` 在干净房间里拉起一个私有合成器并断言 19 项。下面每一行隔离都是
-必需的，不是装饰：
+`test/headless-checks.sh` 在干净房间里拉起一个私有合成器；下面这张表就是它断言的全部内容，
+具体项数由 `test/run-all.sh` 在每轮跑出来（抄进这里的数字第一次加检查就会过期）。下面每一行
+隔离都是必需的，不是装饰：
 
 ```
 GSETTINGS_BACKEND=memory        没有 dconf 客户端：读返回 schema 默认值，写全部被丢弃
@@ -136,7 +137,7 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
 - 创建沙箱之前会先做一次**陈旧沙箱清扫**。`t2cleanup` 在每次正常退出时都会删掉 `$T2`，但被
   `SIGKILL` 的运行（或主机断电）会把它留在 `/tmp/macosdock-t2-*`，之后再没有任何东西回收它——
   在这套清扫出现之前已累积了 16 个（2.9 MB）。只回收超过一小时的目录，所以并发运行的新沙箱
-  绝不会被碰到。它是卫生动作而非断言：不产生 report 行，所以上面的"断言 19 项"数字依然成立。
+  绝不会被碰到。它是卫生动作而非断言：不产生 report 行，所以上面那张表不因为它多一行。
 
 ## 5. 第三层：实时会话（无指针）
 
@@ -258,6 +259,13 @@ GNOME 更新能拿走的东西，全在这里：
   `Dash` 定义了 `vfunc_get_preferred_height`（`dash.js:82`），而我们的覆盖是挂在
   `get_preferred_height` 上的自有属性 —— C 侧分配路径究竟问的是哪一个，这里没有查清；预留带哪天不再
   跟随 dock 高度，先从这条查。
+- 一条**没人写下来的行为依赖**，靠实测而非阅读才发现：shell 的 `Layout._trackActor()` 把 chrome
+  actor 自己的 `destroy` 连到 `_untrackActor`（`layout.js:962-965`）。所以即使
+  `dockManager.js:287` 在容器先被销毁时跳过 `removeChrome`（`:74` 把 `_container` 置空），
+  `layoutManager._trackedActors` 里也不会留着我们的 actor。已在私有 shell 里量过：destroy →
+  `disable()` → 再问注册表，actor 不在了（第二层 `chrome-untracked`）。今天这不是泄漏；它是
+  "哪天 shell 去掉这条自动连接，`:287` 那个条件就变成真泄漏"的原因，而 `_findActor()` 每次布局
+  查询都要扫这个数组。那条检查是哨兵，不是修法。
 - `global.window_manager.connect`、`completed_minimize`、`completed_unminimize` —— 公开，但
   历史上被重塑过。
 - `genieEngine.validateRuntime()`：`global.window_group.add_child`、`Clutter.Timeline`、

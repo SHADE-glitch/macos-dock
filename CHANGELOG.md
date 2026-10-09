@@ -431,3 +431,17 @@ Change   概览布局补丁抽进新 `lib/overviewPatches.js`（`overview-patche
 Evidence L1 overview-patches, apps-button
 Cost     **就地隔离而非拆扩展**：这些件与 dock 有真实耦合（genie 要图标矩形、keynav 要图标顺序、按钮补丁要 dock 的按钮），硬拆要造跨扩展接口、反而更贵。**不要**再把它们捆回 dock 自己的开关下。新增 schema 键必须同步 prefs（repo.test.js 守卫）；`overviewApps` 的 stop 会有一次 dock 重建/闪动（改设置很少见）
 Commit   0e15fff
+
+### D-059 · 2026-10-09 · perf · v1
+Symptom  一次 motion 事件把 dock 所在显示器解析两遍：`_onPointer` 自己 `_dockMonitor()` 一次，随后 `_pointerFarFromEdge(px,py)` 内部又解析一次；每次都要把 `Main.layoutManager.monitors` 转成新的 JS 数组并线性扫描
+Change   `_pointerFarFromEdge(px, py, monitor = null)` —— 已解析出 monitor 的调用方直接传入，不传时走原来的自解析路径；`_shouldPark` 那条不带坐标的调用与 H13 几何用例行为不变
+Evidence L1 motion-monitor-resolve（对修复前的代码实测 `calls=2` 红，修复后 `calls=1` 绿）
+Cost     调用图上的去重，**没有 L2 毫秒数**：本机注入不了指针。仍值得做的理由是这条路径不限流、且正是"跟手"的判定路径；量化收益继续挂在 §10 的人工清单上
+Commit   73c2f55
+
+### D-060 · 2026-10-09 · guard · v1
+Symptom  两件事无人断言：motion 路径的重复解析（D-059 修的正是它），以及"禁用之后我们的 chrome actor 是否还留在 `layoutManager._trackedActors` 里"——后者原本只是审计里一条**静态推断**
+Change   `test/headless-checks.sh` 加两项：`motion-monitor-resolve`（直接调 `_onPointer` 并统计 `_dockMonitor()` 次数）、`chrome-untracked`（销毁容器 → `disable()` → 问注册表）。破坏性探针必须排在最后——第一次跑时后面的探针拿到 ENV "no dodge instance"，那是仪器问题不是代码问题
+Evidence L1 chrome-untracked
+Cost     审计里那条"禁用后泄漏 chrome 注册"的 P1 结论**撤回**：实测无残留，原因在 shell 一侧（`Layout._trackActor()` 把 actor 的 `destroy` 连到 `_untrackActor`，已登记 MAINTENANCE §8）。`chrome-untracked` 留作哨兵——哪天 shell 去掉那条自动连接，`dockManager.js:287` 拿 `_container` 是否存活来决定要不要 `removeChrome` 就重新变成真泄漏
+Commit   75f034c

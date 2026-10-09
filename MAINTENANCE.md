@@ -77,7 +77,9 @@ and nowhere else until you log out and find the extension in ERROR.
 
 ## 4. Tier 2 — headless shell
 
-`test/headless-checks.sh` boots a private compositor in a clean room and asserts 19 things.
+`test/headless-checks.sh` boots a private compositor in a clean room; the table below is the
+whole list of what it asserts, and `test/run-all.sh` prints the count for the run (a number
+copied into this file goes stale the first time a check is added).
 The isolation is not optional and every line of it is load-bearing:
 
 ```
@@ -161,7 +163,7 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   `/tmp/macosdock-t2-*` behind and nothing else ever reclaims it — 16 of them (2.9 MB) had
   accumulated before the sweep existed. Only dirs older than an hour are removed, so a
   concurrent run's fresh sandbox is never touched. It is hygiene, not an assertion: it prints
-  no report line, which is why the count above stays 19.
+  no report line, which is why the list above gains no row from it.
 
 ## 5. Tier 3 — live session, pointer-free
 
@@ -300,6 +302,14 @@ Everything that a GNOME update can take away:
   `vfunc_get_preferred_height` (`dash.js:82`) while our override is an own-property on
   `get_preferred_height` — which of the two the C allocation path consults was never established
   here, so if the band ever stops tracking the dock height, check that first.
+- A **behaviour dependency nobody wrote down**, found by testing rather than reading: the shell's
+  `Layout._trackActor()` connects the chrome actor's own `destroy` to `_untrackActor`
+  (`layout.js:962-965`), so an actor the C side destroys leaves `layoutManager._trackedActors`
+  **even though** `dockManager.js:287` skips `removeChrome` when the container was destroyed first
+  (`:74` nulls `_container`). Measured in the private shell — destroy, then `disable()`, then ask the
+  registry: the actor is gone (tier-2 `chrome-untracked`). Today that is not a leak; it is the reason
+  a shell that ever drops that auto-connect turns `:287` into one, and `_findActor()` scans that
+  array on every layout query. The check is the sentinel, not the fix.
 - `global.window_manager.connect`, `completed_minimize`, `completed_unminimize` — public
   but reshaped before.
 - `genieEngine.validateRuntime()`: `global.window_group.add_child`, `Clutter.Timeline`,
