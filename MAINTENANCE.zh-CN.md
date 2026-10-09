@@ -14,7 +14,7 @@
 | 跑会开真实窗口的实时 A/B | `npm run test:live-trigger`（需要空闲会话） |
 | 纯单元测试覆盖 | `npm test` —— 72 条断言 / 20 个套件，不需要桌面 |
 | 支配一切的那条事实 | `disable`+`enable` **不会**重新加载改过的 JS，只有注销再登录才会 |
-| 代码规模 | 15 个文件、约 7.6k 行，无构建步骤、无依赖 |
+| 代码在哪 | 全在 `lib/` —— 数字用 `wc -l lib/*.js` 现取；无构建步骤、无依赖 |
 
 ## 1. 范围与基本前提
 
@@ -42,12 +42,12 @@
 
 ## 3. 第一层：离线静态检查
 
-`test/repo.test.js`（12 条守卫，跑在 `npm test` 里）加 `test/static-checks.sh`（S1–S8）。每
-条守卫的存在理由都是"它失败时其他检查全都看不见"：
+`test/repo.test.js`（跑在 `npm test` 里）加上 `test/static-checks.sh` 的 shell 侧检查（按文件
+顺序编号为 `S1`…）。每条守卫的存在理由都是"它失败时其他检查全都看不见"：
 
 | 守卫 | 守住的规则 | 失败意味着什么 |
 |---|---|---|
-| 纯净模块不得有 GI 导入 | `AGENTS.md` 硬规则 | 所有人的 `npm test` 挂掉，包括没有 GNOME 的评审者 |
+| 纯净模块不得有 GI 或 `resource://` 导入 | `AGENTS.md` 硬规则 | 所有人的 `npm test` 挂掉，包括没有 GNOME 的评审者 |
 | genie 的 SPDX 与署名行；GPL 文件集合等于 `LICENSES.md` | 公开仓库的许可义务 | 是法律风险，不是格式问题 |
 | `DODGE_DEBUG` 必须是 `false` | dodge 的 `_dbg`/`hide-trigger` 会打印真实窗口标题 | journal 开始收集私人标题，日后任何一次日志粘贴都会泄露 |
 | schema 键集减去 `prefs.js` 键集等于那 12 个 `keynav-*` | 设置面完整性 | 新键没有偏好设置行是静默功能缺口；有行没键会让偏好窗口抛异常 |
@@ -61,8 +61,8 @@
 
 shell 侧：工具链存在性（缺失 → ENV）、单测下限（72 断言 / 20 套件 —— 是下限，加测试永远不
 会失败）、对**全部** tracked `.js` 跑 `node --check`、对 harness 跑 `bash -n`、
-`glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟，最后断言这一
-轮没有把工作树弄脏。
+`glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟、`reports/`
+确被忽略且其中没有任何文件被跟踪，最后断言这一轮没有把工作树弄脏。
 
 对所有 GI 绑定文件跑 `node --check` 是全仓性价比最高的一项：`package.json` 里是
 `type: module`，所以 `lib/dodge.js` 的语法错误只能在这里被发现 —— 否则要等到注销后看到扩展
@@ -231,7 +231,8 @@ B 组的设置协议，全部在 `common.sh` 里强制执行：
 
 GNOME 更新能拿走的东西，全在这里：
 
-- `Main.wm._minimizing`、`Main.wm._unminimizing` —— 本 fork 触及的两个真正私有的符号。
+- `Main.wm._minimizing`、`Main.wm._unminimizing` —— genie 把 actor 从 shell 自家的动画列表里
+  取走，靠的就是这两个私有符号；`_validate()` 探测它们，缺失时 genie 退回原生动画。
 - `WorkspaceLayout.prototype._getWindowSlots` —— 概览窗口预览内缩（D-057）包住了这个私有布局
   方法，改为喂它桌面背景的矩形。它还依赖 `Workspace` 的子结构：`Workspace._container`（预览
   容器，其 layout manager 即 `WorkspaceLayout`）与它的 `workspace-background` 兄弟。其中任一
@@ -241,13 +242,34 @@ GNOME 更新能拿走的东西，全在这里：
   挂在活动 actor 上的自有属性、用 `delete` 移除。shell 改名会降级回原生高度（预留带塌缩、高的
   dock 可能压住概览），但不会崩——安装前先探测、且整体 try/catch，与 dock 的唯一耦合是注入的
   `getBandMetrics()` provider。
+- `dash._dashSpacer`（`dockManager.js:661`、`:682`）—— **在本机装的 50.1 里根本不存在**：shell 的
+  `dash.js` 乃至其它任何 `ui/*.js` 都搜不到这个名字。启用与禁用两条路径都用 `if (dashSpacer)` 兜着
+  读它，所以这是一次永久静默 no-op，而不是升级带来的破坏。它属死重量：删不删是个决定，任何检查都
+  不会因此变红。
+- `Main.overview._overview.controls._stateAdjustment`（`overviewApps.js:59`），并把网格状态硬编码成
+  裸数字 `2`（`:61`）。改名会降级到 `showAppsButton.checked` 兜底（try/catch，不崩）—— 而那个兜底
+  恰恰是代码注释里明说"不再信任"的过期来源。要是枚举被**重排**而不是删除，这个判断会答错且一行日志
+  都不打。全仓唯一一个能"静默答错"的依赖。
+- `Main.uiGroup`（`iconManager.js:1262`）—— 公开，但 shell 自己的 `main.js` 把它标为"在其它代码改完
+  之前先让它们继续跑"的向后兼容别名，这使它成为此处最不持久的公开依赖。
+- 是行为上限而非改名风险：shell 把概览 dash 夹在 `box.height * DASH_MAX_HEIGHT_RATIO`（0.16）以内，
+  并且取 `Math.min(dashHeight, maxDashHeight)`（`overviewControls.js:23,174-178`）。所以只要 dock 高度
+  超过约工作区的 16%，概览预留带就会被夹住，`get_preferred_height` 返回多少都没用。相关且尚未定论：
+  `Dash` 定义了 `vfunc_get_preferred_height`（`dash.js:82`），而我们的覆盖是挂在
+  `get_preferred_height` 上的自有属性 —— C 侧分配路径究竟问的是哪一个，这里没有查清；预留带哪天不再
+  跟随 dock 高度，先从这条查。
 - `global.window_manager.connect`、`completed_minimize`、`completed_unminimize` —— 公开，但
   历史上被重塑过。
 - `genieEngine.validateRuntime()`：`global.window_group.add_child`、`Clutter.Timeline`、
   `Clutter.Clone`、`Graphene.Matrix`。
 - 公开但会变的形状：`Main.layoutManager.monitors`（以及 `monitor.inFullscreen`）、
   `global.get_window_actors()`、`Meta.Window.is_fullscreen` / `get_frame_rect()`、
-  `Shell.BlurEffect`，以及 dodge 在 `start()` 里接的那一组 `global.display` 信号。
+  `Shell.BlurEffect`，以及 dodge 在 `start()` 里接的那一组 `global.display` 信号。同样公开、但
+  升级可以安静改变的承重面还有：`Main.wm.addKeybinding` / `removeKeybinding`
+  （`hotkeyNav.js:83,98,117` —— 参数形状**以及**由 uuid 派生的绑定名）、
+  `PopupMenu.PopupMenuManager` / `PopupMenu` / `PopupMenuItem` 的构造函数签名
+  （`iconManager.js:185,1256,1284`）、`Main.modalCount`（`dodge.js:571` 那条"概览占用"探针）、
+  `global.window_group.get_children()`（`genieEngine.js:58`，按名字扫整个 actor 组）。
 - 不构成风险：其余所有下划线名字（`actor._genieSquash`、`actor._dockRemovalPending`、
   `wrapper._dockFixDestroyId`）都是我们挂在别人对象上的自家记账字段，升级不会让它们失效。
 
@@ -347,8 +369,9 @@ GNOME 更新能拿走的东西，全在这里：
 
 ## 12. Schema、设置与编译产物
 
-- 55 个键；`prefs.js` 绑定其中一部分，12 个归 keynav。第一层精确断言这个集合差，所以新键
-  不可能悄悄绕过偏好窗口。
+- 键的数量由第一层 `compiled-fresh` 打印（它比对 编译产物 == XML == shell 实际读到的），抄进
+  这里只会过期 —— 本机当前是 57 个，是随 D-058 的两个开关长出来的。`prefs.js` 绑定除那 12 个
+  `keynav-*` 之外的全部键，第一层精确断言这个集合差，所以新键不可能悄悄绕过偏好窗口。
 - `schemas/gschemas.compiled` 是**被跟踪的二进制**。改过 XML 之后必须
   `glib-compile-schemas schemas/` 重新生成 —— shell 是从编译产物读默认值的，产物过期就意味
   着运行时默认值和 XML 写的不一样。`static-checks.sh` 的 S6 会重编译到临时目录比对：可复现
@@ -362,11 +385,15 @@ GNOME 更新能拿走的东西，全在这里：
 - 提交正文可以引用**标签与数字**，绝不引用原始 journal 行，绝不引用窗口标题。先例：
   `f93ef54` 为一次开机验证打开 `DODGE_DEBUG`，`5c84880` 回退 —— 这两条正文里都引了真实标题，
   而它们现在已经公开了。请改写成"某个邮件客户端窗口""一个自启项"。
-- `hide-trigger` 与任何 `DODGE_DEBUG = true` 都不得进提交。第一层守卫 4 和 A 组的哨兵就是为
-  了把这件事变成机械检查。
-- tracked 文件里不得有已解析的临时路径、wayland 槽名、主机名、用户名或邮箱。守卫 9 专查这一点，
-  并且不会把查到的内容打印出来。
+- `hide-trigger` 与任何 `DODGE_DEBUG = true` 都不得进提交。第一层那条 `DODGE_DEBUG` 守卫和
+  A 组的哨兵就是为了把这件事变成机械检查。
+- tracked 文件里不得有已解析的临时路径、wayland 槽名、主机名、用户名或邮箱。第一层的机器
+  指纹守卫专查这一点，并且不会把查到的内容打印出来。
 - 报告输出只有值：计数、抽出来的数字，绝不打印消息正文。
+- 阶段证据（`PROFILE`/`AUDIT`/`PLAN`/`VERIFY`/`STATE`）放在 `reports/`，它被 git 忽略 —— 第一层
+  同时证明两半：忽略规则存在，且其中没有任何文件被跟踪。journal 原文、窗口标题、已解析路径
+  **只能出现在那里**；tracked 文件和 commit 正文照上面那条"只有值"的标准，不享受 `reports/` 的
+  豁免。
 - 证据目录留在 `$TMPDIR` 下、mode 700、结束时删除；`--keep` 是给人本地看的，不是用来提交的。
 
 ## 14. 已知不修 / 待确认

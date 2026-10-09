@@ -15,14 +15,14 @@ change is safe). Nothing here duplicates a rule.
 | Run the live A/B that opens windows | `npm run test:live-trigger` (needs an idle session) |
 | Pure unit coverage | `npm test` — 72 assertions, 20 suites, no desktop needed |
 | The fact that governs everything | `disable`+`enable` does **not** reload edited JS; only log out / log in does |
-| Where the code lives | 15 files, ~7.6k lines, no build step, no dependencies |
+| Where the code lives | everything is in `lib/` — print `wc -l lib/*.js`; no build step, no dependencies |
 
 ## 1. Scope and ground rules
 
 - A "test" here means one of three things, because the majority of the code cannot be
   imported outside the shell: text guards on the repository, a private headless
   compositor, and the live session's own log lines.
-- The extension's unconditional log output is the oracle for tiers 2 and 3. It is a
+- The extension's unconditional log output is the oracle for tiers 2 and 3. It is an
   interface in the same sense as a function signature: renaming or gating a line
   silently removes coverage, so `test/repo.test.js` guards the ones the harness reads.
 - An assertion that cannot distinguish "regression" from "this machine was busy" is
@@ -47,12 +47,13 @@ session). Definitions are by *what environment a claim needs*, not by the tool t
 
 ## 3. Tier 1 — static and offline
 
-`test/repo.test.js` (12 guards, runs inside `npm test`) and `test/static-checks.sh`
-(S1–S8). Each guard exists because its failure is invisible to every other check:
+`test/repo.test.js` (runs inside `npm test`) and the shell-side checks in
+`test/static-checks.sh`, numbered `S1`… in file order. Each guard exists because its failure
+is invisible to every other check:
 
 | Guard | Rule it protects | What a failure means |
 |---|---|---|
-| pure modules carry no GI imports | `AGENTS.md` hard rule | `npm test` breaks for everyone, including reviewers with no GNOME |
+| pure modules carry no GI or `resource://` imports | `AGENTS.md` hard rule | `npm test` breaks for everyone, including reviewers with no GNOME |
 | genie SPDX + attribution lines; GPL set equals `LICENSES.md` | licence obligation on a public repo | legal exposure, not a style complaint |
 | `DODGE_DEBUG` is `false` | dodge's `_dbg`/`hide-trigger` log real window titles | the journal starts collecting private titles, and any future log paste leaks them |
 | schema keys minus `prefs.js` keys equals the 12 `keynav-*` | settings surface completeness | a new key with no row is a silent feature gap; a row without a key throws in the prefs window |
@@ -67,7 +68,8 @@ session). Definitions are by *what environment a claim needs*, not by the tool t
 Shell side: toolchain presence (missing → ENV), unit floors (72 assertions / 20 suites —
 floors, so adding tests never fails), `node --check` over **every** tracked `.js`, `bash -n`
 over the harness, `glib-compile-schemas --strict --dry-run`, compiled-binary freshness,
-`gjs -c 'true'` smoke, and a final assertion that the run left the working tree untouched.
+`gjs -c 'true'` smoke, that `reports/` is ignored and holds nothing tracked, and as the last
+check an assertion that the run left the working tree untouched.
 
 `node --check` on the GI-bound files is the highest value-per-second check in the repo:
 `package.json` sets `type: module`, so a syntax error in `lib/dodge.js` parses cleanly here
@@ -266,8 +268,8 @@ Settings protocol for group B, all of it enforced in `common.sh`:
 
 Everything that a GNOME update can take away:
 
-- `Main.wm._minimizing`, `Main.wm._unminimizing` — two genuinely private symbols
-  the fork touches.
+- `Main.wm._minimizing`, `Main.wm._unminimizing` — the private animation lists genie lifts the
+  actor out of. `_validate()` probes both; absent, genie falls back to the native animation.
 - `WorkspaceLayout.prototype._getWindowSlots` — the overview window-preview inset (D-057) wraps
   this private layout method and feeds it the desktop background's rect. It also reads the
   `Workspace` child structure: `Workspace._container` (the preview container, whose layout
@@ -279,13 +281,37 @@ Everything that a GNOME update can take away:
   removed with `delete`. A shell rename degrades to the native height (the band collapses and a
   tall dock may overlap the overview) but cannot crash — installation is probe-gated and in
   try/catch, and the only dock coupling is an injected `getBandMetrics()` provider.
+- `dash._dashSpacer` (`dockManager.js:661` and `:682`) — **absent from the installed 50.1**: the
+  string does not occur anywhere in the shell's `dash.js` or its other `ui/*.js`. Both the enable
+  and the disable path read it behind `if (dashSpacer)`, so this is a permanent silent no-op, not an
+  upgrade casualty. Dead weight: removing it is a decision, and no check notices either way.
+- `Main.overview._overview.controls._stateAdjustment` (`overviewApps.js:59`), with the grid state
+  hardcoded as the bare number `2` at `:61`. A rename degrades to the `showAppsButton.checked`
+  fallback (try/catch, no crash) — but that fallback is exactly the stale source the code comments
+  say it stopped trusting. If the enum is ever *reordered* rather than removed, the check answers
+  the wrong state with nothing logged. The only dependency in the fork that can be wrong silently.
+- `Main.uiGroup` (`iconManager.js:1262`) — public, but the shell's own `main.js` labels it a
+  back-compat alias kept "until it's updated", which makes it the least durable public dependency
+  here.
+- Behaviour cap rather than a rename risk: the shell clamps the overview dash to
+  `box.height * DASH_MAX_HEIGHT_RATIO` (0.16) and takes `Math.min(dashHeight, maxDashHeight)`
+  (`overviewControls.js:23,174-178`), so a dock taller than ~16% of the work area is capped in the
+  overview band no matter what `get_preferred_height` returns. Related and unresolved: `Dash` defines
+  `vfunc_get_preferred_height` (`dash.js:82`) while our override is an own-property on
+  `get_preferred_height` — which of the two the C allocation path consults was never established
+  here, so if the band ever stops tracking the dock height, check that first.
 - `global.window_manager.connect`, `completed_minimize`, `completed_unminimize` — public
   but reshaped before.
 - `genieEngine.validateRuntime()`: `global.window_group.add_child`, `Clutter.Timeline`,
   `Clutter.Clone`, `Graphene.Matrix`.
 - Public-but-shifting shapes: `Main.layoutManager.monitors` (and `monitor.inFullscreen`),
   `global.get_window_actors()`, `Meta.Window.is_fullscreen` / `get_frame_rect()`,
-  `Shell.BlurEffect`, and the `global.display` signal set dodge wires in `start()`.
+  `Shell.BlurEffect`, and the `global.display` signal set dodge wires in `start()`. Also public but
+  load-bearing in a way an upgrade can quietly change: `Main.wm.addKeybinding` / `removeKeybinding`
+  (`hotkeyNav.js:83,98,117` — argument shape *and* the uuid-derived binding name), the
+  `PopupMenu.PopupMenuManager` / `PopupMenu` / `PopupMenuItem` constructor signatures
+  (`iconManager.js:185,1256,1284`), `Main.modalCount` (the `dodge.js:571` overview-busy canary) and
+  `global.window_group.get_children()` (`genieEngine.js:58`, a name-based sweep of the actor group).
 - Not a risk: every other underscore name in the fork (`actor._genieSquash`,
   `actor._dockRemovalPending`, `wrapper._dockFixDestroyId`) is our own bookkeeping attached
   to foreign objects, and cannot break on upgrade.
@@ -405,8 +431,10 @@ Each of these was tested directly and failed. Do not spend time retrying them.
 
 ## 12. Schema, settings and the compiled binary
 
-- 55 keys; `prefs.js` binds a subset and 12 are keynav-owned. Tier 1 asserts the set
-  difference exactly, so a new key cannot silently skip the prefs window.
+- Key count: `test:static` prints it (`compiled-fresh`), because a number copied into this file
+  would only go stale — it is 57 here and grew with D-058's two toggles. `prefs.js` binds every key
+  except the 12 `keynav-*` ones, and tier 1 asserts that set difference exactly, so a new key cannot
+  silently skip the prefs window.
 - `schemas/gschemas.compiled` is a **tracked binary**. Regenerate with
   `glib-compile-schemas schemas/` after any XML edit — the shell reads defaults from the
   compiled file, so a stale one means running defaults differ from what the XML says.
@@ -424,11 +452,17 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   title. Precedent: `f93ef54` turned `DODGE_DEBUG` on for one boot and `5c84880` reverted it;
   both bodies quote real titles, and they are now public. Write "a mail client window" or
   "an autostart entry" instead.
-- `hide-trigger` and any `DODGE_DEBUG = true` must never reach a commit. Tier 1 guard 4 and
-  group A's tripwire exist to make that mechanical.
+- `hide-trigger` and any `DODGE_DEBUG = true` must never reach a commit. Tier 1's `DODGE_DEBUG`
+  guard and group A's tripwire exist to make that mechanical.
 - No resolved temp paths, wayland slot names, host names, user names or mail addresses in
-  tracked files. Guard 9 checks for exactly those, and prints nothing it finds.
+  tracked files. Tier 1's machine-fingerprint guard checks exactly those, and prints nothing it
+  finds.
 - Report output is value-only: counts, extracted numbers, and never a message body.
+- Phase evidence (`PROFILE`/`AUDIT`/`PLAN`/`VERIFY`/`STATE`) lives in `reports/`, which is
+  gitignored — tier 1 proves both halves: the rule is present and nothing under it is tracked.
+  Journal lines, window titles and resolved paths may appear **there** and nowhere else; the
+  standard for tracked files and commit bodies is the value-only rule above, not the `reports/`
+  exemption.
 - Evidence directories stay under `$TMPDIR`, mode 700, deleted at the end; `--keep` is for
   humans reading them locally, not for committing them.
 
