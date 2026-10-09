@@ -121,6 +121,11 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   dock 会压住窗口选择器/应用网格。该检查断言预留带（dash preferred height + shell 自身的
   spacing）不小于 dock 的占用高度。已做过先红后绿：改前 `band=51 < dock=70`，改后
   `band=85 >= dock=70`（无头显示器、icon-size 默认 48）。
+- 收尾回收的是**整棵子树**，不只是 `dbus-run-session`。该进程会 fork 出两个子进程——私有的
+  `dbus-daemon` 和命令本身（`gnome-shell`）——只杀它会让这两个被 reparent 到 systemd 后继续
+  存活：一天的运行留下了 7 个无头 shell + 18 个私有 dbus-daemon（约 580 MB）。`t2killtree`
+  先子后父地走一遍（趁还没 reparent、`pgrep -P` 还看得见），TERM→KILL，`teardown` 检查再
+  证明快照里的每个 pid 都已消失。
 
 ## 5. 第三层：实时会话（无指针）
 

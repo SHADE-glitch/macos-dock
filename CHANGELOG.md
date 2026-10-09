@@ -403,3 +403,10 @@ Change   `_hideDefaultDash` 给被隐藏的 dash 实例遮蔽 `get_preferred_hei
 Evidence L1 overview-band
 Cost     GNOME 50 的概览底部预留带是 shell 从自带 dash 的 preferred height 推出来的（`overviewControls.js`），隐藏它会让 dash 变空——**隐藏不等于不参与布局**；`_dashSpacer` 在 GNOME 50 已删，旧写法是死代码
 Commit   023b739
+
+### D-055 · 2026-10-09 · fix · v1
+Symptom  `test/headless-checks.sh` 收尾只 `kill` 了 `dbus-run-session`，它 fork 出的私有 dbus-daemon 与 gnome-shell 被 reparent 到 systemd 后继续存活；一天的运行残留 7 个无头 shell + 18 个私有 dbus-daemon（约 580 MB）
+Change   新增 `t2descendants`（先子后父收集，趁 reparent 前 `pgrep -P` 还看得见）与 `t2killtree`（整棵子树 TERM→KILL）；trap 改调 `t2killtree`；`teardown` 由恒 PASS 改为真实断言——快照子树、回收、逐个 `/proc` 证明 pid 已消失
+Evidence L1 teardown
+Cost     `dbus-run-session` 的子进程不止命令本身，还有它自己的 dbus-daemon；`kill $INNER` 一个都够不着。**判据必须是"快照过的 pid 全部消失"，不能是 `kill` 的返回码**——上一轮正是被返回码骗过（循环报 gone，`ps` 里 7 个全在）
+Commit   1f7d0d3

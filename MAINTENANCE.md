@@ -138,6 +138,12 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   the reserved band (dash preferred height + the shell's own spacing) clears the dock's
   occupied height. Verified red-then-green: pre-fix `band=51 < dock=70`, post-fix
   `band=85 >= dock=70` (headless monitor, icon-size default 48).
+- Teardown reaps the **whole subtree**, not just `dbus-run-session`. That process forks two
+  children — a private `dbus-daemon` and the command (`gnome-shell`) — and killing only it
+  reparents both to systemd, where they keep running: a day of runs left 7 headless shells +
+  18 private dbus-daemons (~580 MB) alive. `t2killtree` walks children-first (before any
+  reparent can hide them), TERM then KILL, and the `teardown` check proves every pid in the
+  pre-kill snapshot is gone.
 
 ## 5. Tier 3 — live session, pointer-free
 
