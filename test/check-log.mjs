@@ -15,14 +15,22 @@
  *   3. every commit that touched a code path inside the window is cited, and every cited hash resolves
  *   4. every D-### mentioned in any tracked .md resolves to a real entry
  *   5. every entry carries all five fields and a kind from the allowed set
+ *   6. INVARIANTS.md is a pointer list that still points (see test/invariants.mjs)
+ *
+ * `--invariants` runs only check 6, for a docs-only change where re-walking the
+ * whole commit window is noise. The same rules also run inside `npm test`, so this
+ * flag is a convenience, not the only way the check ever executes.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { INVARIANTS_FILE, CHANGELOG_ENTRY_RE, changelogEntries, harnessCheckNamesFromSources, validateInvariants } from './invariants.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHANGELOG = 'CHANGELOG.md';
+const ONLY_INVARIANTS = process.argv.includes('--invariants');
+const HARNESS_SCRIPTS = ['test/static-checks.sh', 'test/headless-checks.sh', 'test/live-checks.sh'];
 
 /** Production code paths. stylesheet.css is authored here (not generated), so it is listed. */
 const CODE_PATHS = ['extension.js', 'lib/', 'stylesheet.css'];
@@ -63,9 +71,39 @@ const anchor = coverage[1];
 const anchorSha = resolveSha(anchor);
 if (!anchorSha) fail(`1. coverage anchor does not resolve: ${anchor}`);
 
-const entryRe = /^### (D-\d+) · (\d{4}-\d{2}-\d{2}) · ([a-z]+)(?: · (.*))?$/gm;
+const entryRe = CHANGELOG_ENTRY_RE;
 const entries = [...changelog.matchAll(entryRe)];
 const ids = entries.map((m) => m[1]);
+
+/** Check 6 — the pointer list must still point. Reads only tracked docs and the harness. */
+function invariantProblems() {
+  const sources = {};
+  for (const rel of HARNESS_SCRIPTS) {
+    try { sources[rel] = readFileSync(path.join(ROOT, rel), 'utf8'); } catch { /* absent in a trimmed checkout */ }
+  }
+  let text;
+  try {
+    text = readFileSync(path.join(ROOT, INVARIANTS_FILE), 'utf8');
+  } catch {
+    return [`6.0 ${INVARIANTS_FILE} is missing — the pointer list is part of the record`];
+  }
+  return validateInvariants({
+    text,
+    entries: changelogEntries(changelog),
+    checkNames: harnessCheckNamesFromSources(sources),
+    changelog,
+  });
+}
+
+const invProblems = invariantProblems();
+if (ONLY_INVARIANTS) {
+  console.log(`[check:log --invariants] ${ids.length} entries, ${invProblems.length ? 'problems' : 'table holds'}`);
+  if (invProblems.length) {
+    for (const p of invProblems) console.error(`  - ${p}`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
 
 if (entries.length === 0) {
   fail('0. the record has no entries — a coverage check over an empty set proves nothing. Widen the window to where real deviations exist, or state in the header that there are none to record.');
@@ -138,6 +176,7 @@ for (const file of tracked) {
 }
 
 const codeCommits = git(['rev-list', '--count', `${anchorSha}..HEAD`, '--', ...CODE_PATHS]);
+problems.push(...invProblems);
 console.log(`[check:log] window ${anchor}..HEAD over code paths ${CODE_PATHS.join(' ')}: ${codeCommits} commit(s) touched them`);
 console.log(`[check:log] ${entries.length} entries, ${recorded.size} distinct commit(s) cited`);
 if (problems.length) {

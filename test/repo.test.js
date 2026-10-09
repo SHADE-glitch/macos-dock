@@ -18,8 +18,17 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+    INVARIANTS_FILE,
+    changelogEntries,
+    harnessCheckNamesFromSources,
+    validateInvariants,
+} from "./invariants.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/** Where check names are declared — `report $T <name> PASS|FAIL|ENV`. */
+const HARNESS_SCRIPTS = ["test/static-checks.sh", "test/headless-checks.sh", "test/live-checks.sh"];
 
 /**
  * Every file in the working tree, skipping VCS and install noise. This is a
@@ -148,6 +157,10 @@ describe("settings surface is complete", () => {
     const schemaKeys = () => [...schemaXml().matchAll(/<key\s+name="([^"]+)"/g)].map(m => m[1]);
 
     it("every schema key except the keynav-owned set appears in prefs.js", () => {
+        // The word "twelve" appears in both READMEs and in MAINTENANCE §12, so the
+        // set that justifies it is asserted by size as well as by membership.
+        assert.equal(EXPECTED_UNBOUND.length, 12,
+            "the docs say twelve keys have no prefs row — if this set changes, those sentences change with it");
         const prefs = read("prefs.js");
         const unbound = schemaKeys().filter(k => !prefs.includes(`"${k}"`)).sort();
         assert.deepEqual(unbound, [...EXPECTED_UNBOUND].sort(),
@@ -190,6 +203,35 @@ describe("README documents every settings key", () => {
                 `${rel} documents no row for: ${missing.join(", ")} — a key a user cannot find is a silent feature gap`);
         });
     }
+});
+
+describe("INVARIANTS.md still points at real things", () => {
+    // The file is a pointer list, so its whole value is that every pointer resolves.
+    // This runs the same validator `npm run check:log` runs (which CI executes), so a
+    // local `npm run test:static` catches a stale row without the extra command.
+    // Rule-by-rule behaviour is proved in test/invariants.test.js; here the claim is
+    // about the real table, and the non-empty precondition stops this from being a
+    // vacuous green.
+    it("the real table has rows", () => {
+        const rows = read(INVARIANTS_FILE).split("\n").filter(l => /^\|\s*D-\d{3,}\s*\|/.test(l));
+        assert.ok(rows.length >= 5,
+            `only ${rows.length} invariant rows — the file went quiet, which is not the same as being satisfied`);
+    });
+
+    it("every row resolves against CHANGELOG and the harness", () => {
+        const sources = {};
+        for (const rel of HARNESS_SCRIPTS)
+            sources[rel] = read(rel);
+        const changelog = read("CHANGELOG.md");
+        const problems = validateInvariants({
+            text: read(INVARIANTS_FILE),
+            entries: changelogEntries(changelog),
+            checkNames: harnessCheckNamesFromSources(sources),
+            changelog,
+        });
+        assert.deepEqual(problems, [],
+            "INVARIANTS.md drifted from the record or the harness:\n" + problems.map(p => `  - ${p}`).join("\n"));
+    });
 });
 
 describe("documentation conventions hold", () => {
