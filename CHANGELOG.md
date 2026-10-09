@@ -396,3 +396,10 @@ Change   关闭时按 shell 默认恢复，不再回写抓取值
 Evidence L?
 Cost     与 D-013 的"备份 + dirty"是同一类恢复语义：恢复的基准应该是默认值，不是我见过的值
 Commit   cb8a34a
+
+### D-054 · 2026-10-09 · fix · v1
+Symptom  隐藏自带 dash 使其变空，概览底部预留带随之塌缩到主题内边距（36px），低于本 dock 占用高度，dock 顶边侵入窗口选择器/应用网格
+Change   `_hideDefaultDash` 给被隐藏的 dash 实例遮蔽 `get_preferred_height`，上报 dock 占用高度；`_showDefaultDash` 里 `delete` 还原
+Evidence L1 overview-band
+Cost     GNOME 50 的概览底部预留带是 shell 从自带 dash 的 preferred height 推出来的（`overviewControls.js`），隐藏它会让 dash 变空——**隐藏不等于不参与布局**；`_dashSpacer` 在 GNOME 50 已删，旧写法是死代码
+Commit   023b739

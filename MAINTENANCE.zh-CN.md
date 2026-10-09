@@ -70,7 +70,7 @@ shell 侧：工具链存在性（缺失 → ENV）、单测下限（72 断言 / 
 
 ## 4. 第二层：无头 shell
 
-`test/headless-checks.sh` 在干净房间里拉起一个私有合成器并断言 15 项。下面每一行隔离都是
+`test/headless-checks.sh` 在干净房间里拉起一个私有合成器并断言 16 项。下面每一行隔离都是
 必需的，不是装饰：
 
 ```
@@ -115,6 +115,12 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   `primaryMonitor` 写法时它报 `pickedPrimaryInstead=true`、`farFromEdgeAtDockEdge=true`
   —— 也就是贴在 dock 边缘的指针被判成"离得远"，于是轮询会错误停表、peek 触发区跑到另一块
   屏上。
+- `overview-band` 守的是**只有隐藏自带 dash 之后才出现**的一类问题。GNOME 50 从自带 dash 的
+  preferred height 推导概览底部预留带（`overviewControls.js` `vfunc_allocate`），即使 dash
+  被隐藏也照算；隐藏它会让 dash 变空、该高度塌缩成主题内边距（36px），于是比该内边距高的
+  dock 会压住窗口选择器/应用网格。该检查断言预留带（dash preferred height + shell 自身的
+  spacing）不小于 dock 的占用高度。已做过先红后绿：改前 `band=51 < dock=70`，改后
+  `band=85 >= dock=70`（无头显示器、icon-size 默认 48）。
 
 ## 5. 第三层：实时会话（无指针）
 
@@ -272,6 +278,12 @@ GNOME 更新能拿走的东西，全在这里：
   dock 收起）。一次开机实测到 40 组 300ms 内的 hide → `overview -> show`，就是"收起、弹
   一下、再收起"。进入方向不受影响：`_animateVisible()` 同时置两个标志，所以没有给显示增加
   任何延迟。
+- 概览底部预留带按**自带 dash** 的 preferred height 计算（`overviewControls.js`
+  `vfunc_allocate`），即使 dash 被隐藏也照算。隐藏自带 dash 会让它变空、该高度塌缩成主题
+  内边距（36px），比该内边距高的本 dock 于是压住窗口选择器/应用网格。所以
+  `_hideDefaultDash` 给被隐藏的 dash 实例遮蔽 `get_preferred_height`，上报 dock 的占用高度，
+  shell 便预留 `占用 + spacing`。**不要**用"恢复自带 dash"来修：填充过的 dash 预留得远比
+  dock 需要的多。
 - 带着全屏窗口退出概览时，那条隐藏的理由是 `overlap` 而不是 `fullscreen`，因为 shell 自己
   在概览期间把 `monitor.inFullscreen` 清掉了。两条分支的结果都是隐藏，用户看不出区别；不要
   为了这个标签去加时序猜测 —— 那正是本 fork 避开的固定延时式 hack。

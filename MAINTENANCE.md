@@ -75,7 +75,7 @@ and nowhere else until you log out and find the extension in ERROR.
 
 ## 4. Tier 2 — headless shell
 
-`test/headless-checks.sh` boots a private compositor in a clean room and asserts 15 things.
+`test/headless-checks.sh` boots a private compositor in a clean room and asserts 16 things.
 The isolation is not optional and every line of it is load-bearing:
 
 ```
@@ -130,6 +130,14 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   `primaryMonitor`-based code it reports `pickedPrimaryInstead=true` and
   `farFromEdgeAtDockEdge=true` (the pointer at the dock's edge reads as "far away", so the
   poll would park and the peek zone would sit on the other screen).
+- The `overview-band` check guards a class that only appears **once the stock dash is
+  hidden**. GNOME 50 derives the overview's bottom band from the stock dash's preferred
+  height (`overviewControls.js` `vfunc_allocate`), computed even while the dash is hidden;
+  hiding it leaves the dash empty, so that height collapses to the theme padding (36 px) and
+  a dock taller than that padding overlaps the window picker / app grid. The check asserts
+  the reserved band (dash preferred height + the shell's own spacing) clears the dock's
+  occupied height. Verified red-then-green: pre-fix `band=51 < dock=70`, post-fix
+  `band=85 >= dock=70` (headless monitor, icon-size default 48).
 
 ## 5. Tier 3 — live session, pointer-free
 
@@ -308,6 +316,13 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   pairs under 300 ms, i.e. the dock collapsing, popping back out, then collapsing again.
   Entering the overview is unaffected — `_animateVisible()` sets both flags on the same
   frame, so nothing was added to the show latency.
+- The overview's bottom band is sized from the **stock dash's** preferred height
+  (`overviewControls.js` `vfunc_allocate`), computed even while the dash is hidden. Hiding
+  the stock dash leaves it empty, so that height collapses to the theme padding (36 px) and
+  this dock — taller than the padding — overlapped the window picker / app grid. So
+  `_hideDefaultDash` shadows the hidden dash instance's `get_preferred_height` to report the
+  dock's occupied height; the shell then reserves `occupied + spacing`. Do **not** "restore"
+  the stock dash to fix this: a populated dash reserves far more than the dock needs.
 - Leaving the overview with a fullscreen window hides the dock for reason `overlap`, not
   `fullscreen`, because the shell itself clears `monitor.inFullscreen` while the overview is
   up. Both branches hide, so the outcome is identical; do not "fix" the label with a timing
