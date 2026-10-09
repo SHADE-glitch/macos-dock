@@ -3,7 +3,9 @@
  * check-log.mjs — the recording-coverage check. No dependencies; bare
  * `node test/check-log.mjs` is the real gate (npm is only a name for it).
  * It is deliberately not named *.test.js: `npm test` globs test/*.test.js via node --test.
- * macos-dock@local: 57 code-touching commits since the frozen-upstream baseline a2140d0.
+ * macos-dock@local: the code-touching commit count since the frozen-upstream baseline a2140d0 is
+ * printed by this run, never written here — it grows with every commit, so a number copied into
+ * this comment would be a stale claim about a moving aggregate.
  * The window deliberately starts at the baseline, not at the `freeze-2026-09-23` tag: that tag
  * points at 85eb488, an ordinary fix commit, so anchoring on it would silently drop the whole
  * P1/P2 batch from the record.
