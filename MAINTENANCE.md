@@ -13,7 +13,7 @@ change is safe). Nothing here duplicates a rule.
 | Run everything that is safe unattended | `npm run test:static` then `npm run test:live` |
 | Run the private throwaway compositor | `npm run test:headless` (~60 s) |
 | Run the live A/B that opens windows | `npm run test:live-trigger` (needs an idle session) |
-| Pure unit coverage | `npm test` — 72 assertions, 20 suites, no desktop needed |
+| Pure unit coverage | `npm test` — it prints the counts (`# tests`, `# suites`); tier 1 keeps a **floor** of 95/24, no desktop needed |
 | The fact that governs everything | `disable`+`enable` does **not** reload edited JS; only log out / log in does |
 | Where the code lives | everything is in `lib/` — print `wc -l lib/*.js`; no build step, no dependencies |
 
@@ -67,8 +67,9 @@ is invisible to every other check:
 | nothing matching `*.test.js` imports GI; the GI probe keeps its name | `npm test` stays runnable under plain Node | renaming `probe-window.js` into the glob breaks every run |
 | `package.json` has no dependencies and no `node_modules` | the no-build-step story | tests stop being offline-runnable |
 
-Shell side: toolchain presence (missing → ENV), unit floors (72 assertions / 20 suites —
-floors, so adding tests never fails), `node --check` over **every** tracked `.js`, `bash -n`
+Shell side: toolchain presence (missing → ENV), unit floors (95 assertions / 24 suites —
+floors, so adding tests never fails; they are raised in the same change that adds
+a suite, so a suite that stops being collected goes red), `node --check` over **every** tracked `.js`, `bash -n`
 over the harness, `glib-compile-schemas --strict --dry-run`, compiled-binary freshness,
 `gjs -c 'true'` smoke, that `docs/reports/` is ignored and holds nothing tracked, and as the last
 check an assertion that the run left the working tree untouched.
@@ -531,7 +532,9 @@ support it never tested.
 |---|---|---|---|
 | 45–47 | no | no | Not supported. The ES-module rewrite, `Meta.get_window_actors()` shapes and `St`/`Clutter` versioning all moved before 48; nothing here is aimed at them. |
 | 48, 49 | **yes** | **no** | Untested. The one known divergence is `dash._dashSpacer`: absent in 50.1 (so the branch in `dockManager.js` is inert here) and unverified on 48/49, which is why D-064 kept the branch instead of deleting it. Anything else claimed for 48/49 is inference from 50.1, nothing more. |
-| 50.1 (mutter-18, gjs 1.88) | yes | **yes — the shipping target** | `Main.overview.visibleTarget` exists (dodge's overview reconcile reads it, with a `visible` fallback). `ControlsState = {HIDDEN:0, WINDOW_PICKER:1, APP_GRID:2}` and the fork now resolves it from the module instead of hardcoding `2` (D-061). `dash._dashSpacer` does not exist. `Layout._trackActor()` auto-untracks on `destroy` (`layout.js:962-965`) — see §8. The overview clamps the dash to `box.height * DASH_MAX_HEIGHT_RATIO` = 0.16 (`overviewControls.js:23,174-178`). `Main.uiGroup` is a documented back-compat alias. Shell JS lives in `/usr/lib/gnome-shell/libshell-18.so` as a GResource (111 `ui/*.js`), **not** in `/usr/share/gnome-shell`. |
+| 50.1 (mutter-18, gjs 1.88) | yes | **yes — the shipping target** | `Main.overview.visibleTarget` exists (dodge's overview reconcile reads it, with a `visible` fallback). `ControlsState = {HIDDEN:0, WINDOW_PICKER:1, APP_GRID:2}` and the fork now resolves it from the module instead of hardcoding `2` (D-061). `dash._dashSpacer` does not exist. `Layout._trackActor()` auto-untracks on `destroy` (`layout.js:962-965`) — see §8. The overview clamps the dash to `box.height * DASH_MAX_HEIGHT_RATIO` = 0.16 (`overviewControls.js:23,174-178`). `Main.uiGroup` is a documented back-compat alias. Shell JS lives in `/usr/lib/gnome-shell/libshell-18.so` as a GResource (111 `ui/*.js` — reprint with
+`gresource list /usr/lib/gnome-shell/libshell-18.so | grep -cE '^/org/gnome/shell/ui/.*\.js$'`),
+**not** in `/usr/share/gnome-shell`. |
 | 51 and later | — | — | See the procedure below. Expect the library name to change (`libshell-19.so`), which breaks every source-lookup command in this file. |
 
 **When a new major appears** (the full playbook is §7; this is the version-specific part):

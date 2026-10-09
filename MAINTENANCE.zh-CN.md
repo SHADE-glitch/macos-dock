@@ -12,7 +12,7 @@
 | 跑完所有可无人值守的检查 | `npm run test:static`，再 `npm run test:live` |
 | 跑私有的一次性合成器 | `npm run test:headless`（约 60 秒） |
 | 跑会开真实窗口的实时 A/B | `npm run test:live-trigger`（需要空闲会话） |
-| 纯单元测试覆盖 | `npm test` —— 72 条断言 / 20 个套件，不需要桌面 |
+| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 95/24**，不需要桌面 |
 | 支配一切的那条事实 | `disable`+`enable` **不会**重新加载改过的 JS，只有注销再登录才会 |
 | 代码在哪 | 全在 `lib/` —— 数字用 `wc -l lib/*.js` 现取；无构建步骤、无依赖 |
 
@@ -61,8 +61,8 @@
 | 匹配 `*.test.js` 的文件不得导入 GI；GI 探针保持自己的文件名 | `npm test` 必须能用纯 Node 跑 | 把 `probe-window.js` 改名进 glob 会毁掉每一次运行 |
 | `package.json` 无依赖、无 `node_modules` | "无构建步骤"这条故事线 | 测试不再能离线运行 |
 
-shell 侧：工具链存在性（缺失 → ENV）、单测下限（72 断言 / 20 套件 —— 是下限，加测试永远不
-会失败）、对**全部** tracked `.js` 跑 `node --check`、对 harness 跑 `bash -n`、
+shell 侧：工具链存在性（缺失 → ENV）、单测下限（95 断言 / 24 套件 —— 是下限，加测试永远不会失败；每
+次加用例时在同一次改动里把下限一起抬上去，这样"某个套件不再被收集"会直接报红）、对**全部** tracked `.js` 跑 `node --check`、对 harness 跑 `bash -n`、
 `glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟、`docs/reports/`
 确被忽略且其中没有任何文件被跟踪，最后断言这一轮没有把工作树弄脏。
 
@@ -446,7 +446,8 @@ GNOME 更新能拿走的东西，全在这里：
 |---|---|---|---|
 | 45–47 | 否 | 否 | 不支持。ES 模块改写、`Meta.get_window_actors()` 形状、`St`/`Clutter` 版本都在 48 之前动过，这里没有任何东西面向它们。 |
 | 48、49 | **是** | **否** | 未测。已知的一处差异是 `dash._dashSpacer`：50.1 里不存在（所以 `dockManager.js` 那个分支在本机是惰性的），而 48/49 上有没有该字段**无法验证** —— 这正是 D-064 保留分支而不是删掉它的原因。除这条之外，关于 48/49 的一切说法都只是从 50.1 出发的推断。 |
-| 50.1（mutter-18、gjs 1.88） | 是 | **是，出货目标** | `Main.overview.visibleTarget` 存在（dodge 的概览校正读它，并留 `visible` 兜底）。`ControlsState = {HIDDEN:0, WINDOW_PICKER:1, APP_GRID:2}`，且 fork 现在从模块解析它而不再硬编码 `2`（D-061）。`dash._dashSpacer` 不存在。`Layout._trackActor()` 在 `destroy` 时自动摘除登记（`layout.js:962-965`），见 §8。概览把 dash 夹在 `box.height * DASH_MAX_HEIGHT_RATIO` = 0.16 内（`overviewControls.js:23,174-178`）。`Main.uiGroup` 是官方写明向后兼容的别名。shell 的 JS 以 GResource 存在 `/usr/lib/gnome-shell/libshell-18.so` 里（111 个 `ui/*.js`），**不在** `/usr/share/gnome-shell`。 |
+| 50.1（mutter-18、gjs 1.88） | 是 | **是，出货目标** | `Main.overview.visibleTarget` 存在（dodge 的概览校正读它，并留 `visible` 兜底）。`ControlsState = {HIDDEN:0, WINDOW_PICKER:1, APP_GRID:2}`，且 fork 现在从模块解析它而不再硬编码 `2`（D-061）。`dash._dashSpacer` 不存在。`Layout._trackActor()` 在 `destroy` 时自动摘除登记（`layout.js:962-965`），见 §8。概览把 dash 夹在 `box.height * DASH_MAX_HEIGHT_RATIO` = 0.16 内（`overviewControls.js:23,174-178`）。`Main.uiGroup` 是官方写明向后兼容的别名。shell 的 JS 以 GResource 存在 `/usr/lib/gnome-shell/libshell-18.so` 里（111 个 `ui/*.js`，重取命令：
+`gresource list /usr/lib/gnome-shell/libshell-18.so | grep -cE '^/org/gnome/shell/ui/.*\.js$'`），**不在** `/usr/share/gnome-shell`。 |
 | 51 及以后 | — | — | 见下面的流程。预期库名会变（`libshell-19.so`），那会让本文件里所有查源码的命令失效。 |
 
 **新 major 出现时**（完整流程在 §7，这里是与版本相关的部分）：
