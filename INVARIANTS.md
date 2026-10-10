@@ -18,6 +18,7 @@ win and this one is stale.
 | D-062 | an already-applied patch returns a **real, idempotent** revert | L1 (`patch-revert-idempotent`) + L2 (`overview-patches-roundtrip`) | a swallowed revert error strands the patch for the rest of the session |
 | D-063 | the magnification tick is single-pass | L1 (`tick-geometry-reads`, 12 → 6 reads/frame) | double allocation traffic on the hover path |
 | D-064 | `dash._dashSpacer` stays although it is inert on 50.1 | L0 + untested on 48/49 | deleting it is an unverified behaviour change on a declared-supported major |
+| D-072 | `overview-flicker` grades a show the shell then contradicts — never a bare hide→show pair | L1 (`overview-flicker`, fixtures in `test/flicker.test.js`) | the pair shape is also what a genuine overview entry writes, so every real entry becomes a false regression claim |
 
 Two rules about the list itself:
 

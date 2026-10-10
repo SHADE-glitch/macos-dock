@@ -522,3 +522,17 @@ Change   见证改为 harness **自己驱动并独立计数**的活动（探针�
 Evidence L1 第一次六臂 A/B 实测（同一份代码，`pid=3147`）：A/B 各约 25.6–29.7 s CPU / 60 s，配对差 −1191 / +1020 / −1171 ms（变号），一对臂 RSS +40264 kB 与 dock 无关，6 条臂中 4 条见证为 0 → 按规则**全部丢弃**。`final state=ACTIVE enabled=Yes`，收尾 trap 生效，扩展没被留在关闭状态
 Cost     空闲基线仍然不存在，因此 §16 只有流程没有带宽，任何数字都不是阈值；并且 (a) 这项采样**不能由 agent 在会话内部完成**——我一运行就在污染它，只有你在 agent 停下的时候能取。旧样式的 §14 说法（"归用户在空闲会话上跑"）不足以解释为什么这次跑了还是不算，已改写
 Commit   2b9cd8a
+
+### D-072 · 2026-10-10 · guard · v1
+Symptom  A 组把「一次 hide 之后 300ms 内出现 `overview -> show`」当成退出动画抢占的签名并据此判 FAIL。这个形状不是抖动的充分条件：dock 因遮挡收起、概览紧接着经非键盘路径真的打开，写出的正是同样两行 —— dodge 那行日志记的是决定，不是支撑决定的状态。本次会话的 journal 里就有 2 个这样的对，都是真实进入，检查报红
+Change   判决只看一种形状：`overview -> show` 在 600ms 内被一次 hide 推翻，且两者之间没有任何进入见证（`canary overlay-key`、Show Apps 的 open-grid）。实测的每一次真实进入都在 show 之后 2–15ms 收到见证，缺陷形状一次都没有。旧的「对」形状保留为独立计数、只作上下文打印，不参与判决。另加空白保护：采样窗口按 `_PID=` 收口，会话 shell 重启后窗口内没有概览进入时判 ENV 而不是 PASS
+Evidence L1 新增 `test/flicker.test.js` 9 例，形状全部取自实测（缺陷链 / 快速连击 / 无见证真实进入 / 600 与 601ms 边界 / open-grid 与 close 的差别 / 空缓存）；`live-checks.sh` 里原样抽出的代码块在合成缓存上逐条逼出 ENV、FAIL、PASS 三条分支；同一批形状新旧对比 —— 缺陷形状两套都是 2，真实进入形状旧判 1、新判 0。当天三层实测 9/9、24/24、9/9，`check:log` PASS。空白保护的动因是实测：shell 于 11:19:34 重启后，本检查在 3 秒钟大的窗口上给出了一个不可能变红的 PASS
+Cost     盲区已写进 helper 注释而没有藏：热角或触控板手势进入概览不产生任何见证，若在同一次 600ms 内被关闭，本检查会误判为抖动；实测的这类进入其后的 hide 落在 1.7–56 s 之后，远在窗口外。收窄不改动历史结论 —— 40→0 那条旧开机的原始样本不可复现，本次没有重测
+Commit   50ad4f0
+
+### D-073 · 2026-10-10 · guard · v1
+Symptom  stale 闸门比较 shell 进程的启动时间与 `git ls-files '*.js'` 里最新的 mtime。这个 glob 把测试目录下的 js 也算进来，而 shell 从不加载它们：按提交后的状态计入一个新测试文件，闸门就会永久报「运行中的代码比磁盘旧」，把 A 组整体降成一条不代表任何风险的 ENV
+Change   范围收到 `extension.js` 与 `lib/*.js`，即 shell 真正 import 的集合；`prefs.js` 一并排除 —— 它运行在 prefs 进程，而 A 组断言的是 shell
+Evidence L1 同一天两次实测：旧集合（按提交后状态计入新测试文件）最新 mtime 11:29:54 晚于 shell 启动 11:19:34 → 判 STALE（假警报）；新集合最新 mtime 17:54:12（前一天）早于 shell 启动 → 判 fresh。新集合的算术在 started = newest±1 两侧分别得到 STALE / fresh，闸门仍能真的变红。新集合覆盖 16 个文件，被剔除 7 个
+Cost     编辑 prefs 页或测试文件后 A 组不再提示 stale，这是正确行为，但意味着「prefs 进程里的代码是否已加载」不在 A 组的保证范围内
+Commit   50ad4f0

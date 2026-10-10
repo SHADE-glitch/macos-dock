@@ -12,7 +12,7 @@
 | 跑完所有可无人值守的检查 | `npm run test:static`，再 `npm run test:live` |
 | 跑私有的一次性合成器 | `npm run test:headless`（约 60 秒） |
 | 跑会开真实窗口的实时 A/B | `npm run test:live-trigger`（需要空闲会话） |
-| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 95/24**，不需要桌面 |
+| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 104/26**，不需要桌面 |
 | 支配一切的那条事实 | `disable`+`enable` **不会**重新加载改过的 JS，只有注销再登录才会 |
 | 代码在哪 | 全在 `lib/` —— 数字用 `wc -l lib/*.js` 现取；无构建步骤、无依赖 |
 
@@ -61,7 +61,7 @@
 | 匹配 `*.test.js` 的文件不得导入 GI；GI 探针保持自己的文件名 | `npm test` 必须能用纯 Node 跑 | 把 `probe-window.js` 改名进 glob 会毁掉每一次运行 |
 | `package.json` 无依赖、无 `node_modules` | "无构建步骤"这条故事线 | 测试不再能离线运行 |
 
-shell 侧：工具链存在性（缺失 → ENV）、单测下限（95 断言 / 24 套件 —— 是下限，加测试永远不会失败；每
+shell 侧：工具链存在性（缺失 → ENV）、单测下限（104 断言 / 26 套件 —— 是下限，加测试永远不会失败；每
 次加用例时在同一次改动里把下限一起抬上去，这样"某个套件不再被收集"会直接报红）、对**全部** tracked `.js` 跑 `node --check`、对 harness 跑 `bash -n`、
 `glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟、`docs/reports/`
 确被忽略且其中没有任何文件被跟踪，最后断言这一轮没有把工作树弄脏。
@@ -293,7 +293,7 @@ GNOME 更新能拿走的东西，全在这里：
 | `[dodge] started (onlyFocused=…, watching N windows)`（`dodge.js:595`） | dodge 接好了线并建了轮询 | 它之后能否判对 | 2、3A |
 | `[dodge] grace released at Xms (window quiet Yms)`（`dodge.js:1000`） | 第一次允许隐藏的时刻；`quiet 0ms` 表示走的是上限 | 之后是否真的隐藏 | 3A |
 | `[dodge] {overlap,uncovered,overview,fullscreen} -> {hide,show}`（`dodge.js:1197,1243`） | 每一次真实迁移，reason 点名分支 | dock 的位置或 opacity | 2、3A、3B |
-| 一次 hide 之后约 300ms 内又出现 `overview -> show` | 不是好事：那一轮 tick 抢在概览退出动画里把刚收起的 dock 又弹了出来。A 组以 `overview-flicker` 计数，健康的开机应为 0（有 bug 的那版实测 40） | —— | 3A |
+| 一次 `overview -> show` 在 600ms 内被一次 hide 推翻，且两者之间**没有进入见证**（`canary overlay-key`、`[appsbtn] … action=open-grid`） | 不是好事：那一轮 tick 抢在概览退出动画里把刚收起的 dock 又弹了出来。A 组以 `overview-flicker` 计数，健康的开机应为 0（有 bug 的那版实测 40）。单纯「hide → overview -> show」这一对**不是**这个签名 —— dock 因遮挡收起、紧接着概览真的打开，写出的就是同样两行，而 dodge 自己的日志记的是决定、不是支撑决定的状态（2026-10-10 一次健康开机实测到 2 对，都是真实进入） | —— | 3A |
 | `[dodge] peek show (edge=N)` | 指针揭示路径可用（只有真指针能触发） | 全屏相关的事，除非与 B 组配对 | 3A |
 | `[icons] +separator at=N (…)` / `-separator (…)`（`iconManager.js:1358,694,737`） | 分隔线状态变化及原因 | 有没有抖动（需要看这一对） | 3A、3B |
 | `[genie] enabled`（`genieController.js:62`） | `_validate()` 接受了这个 shell 构建 | 动画好不好看 | 2、3A、3B |
@@ -441,9 +441,12 @@ GNOME 更新能拿走的东西，全在这里：
 - `_onPointer` 里指针触发的 peek 抑制只是"由构造证明"（同一个谓词，且在 hold 能触发之前求值），
   从未被观测到，因为指针输入不可用。
 - `gschemas.compiled` 的字节可复现性只在这台机器、这个 glib 版本上确认过。
-- A 组的 `overview-flicker` 计数描述的是**本次开机跑的那份代码**，不是工作树上的代码：
-  它读的 journal 是注销之前的旧代码写的。修复没被加载之前，它会把旧开机的 40 次报成 `ENV`，
-  这是正确行为、不是通过 —— 真正的验证要一次注销加一次复现，然后这个数必须是 0。
+- A 组的 `overview-flicker` 计数描述的是**被采样窗口里跑的那份代码**，不是工作树上的代码：
+  它读的 journal 是注销之前的旧代码写的。修复没被加载之前，它会把命中报成 `ENV`，这是正确行为、
+  不是通过 —— 真正的验证要一次注销加一次复现，然后这个数必须是 0。
+- 采样窗口按 `_PID=` 收口，所以它的起点是**会话 shell** 的起点而不是机器的起点：同一次开机里
+  shell 重启，窗口就跟着新进程重来。于是 A 组拒绝给「窗口里根本没有概览进入」的样本打分（报
+  `ENV`：无从判起）—— 2026-10-10 实测到一个 3 秒钟大的 shell 给出了一次不可能变红的 PASS。
 - 第一层的用例数是下限，所以"改个套件名"也能让覆盖率倒退。
 
 

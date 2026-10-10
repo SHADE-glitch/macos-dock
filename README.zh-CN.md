@@ -175,7 +175,7 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | 扩展停在 `OUT_OF_DATE`，完全不加载 | `metadata.json` 声明了支持的 shell 大版本，而 shell 只比较**大版本号**（`50.1` 匹配 `"50"`）。没列出的新大版本 = 扩展静默不加载 —— 这是升级流程的第一条 | `grep -A4 shell-version metadata.json` 和 `gnome-shell --version` |
 | 改了 `lib/*.js` 却没变化 | 这是预期：`disable`+`enable` 只在**缓存的**模块上重跑 `enable()`。只有注销会重新加载代码 | `npm run test:live` —— 它拒绝为比代码树更旧的 shell 出证明（`stale_code`） |
 | 登录后 dock 出现很慢，或图标闪 | 这两件都是启动链问题，各有自己的日志行：`enable() total Xms`、`reload: N icons in Xms`、`startup grace ended early at Xms`、`[dodge] grace released at Xms` | `journalctl --user -b -o cat _PID=$(bash -c 'source test/common.sh; shell_pid') \| grep -a '[macos-dock-local]'` |
-| dock 该隐藏时不藏、不该藏时乱藏 | `dodge-enabled`、`dodge-only-focused`、`hide-in-fullscreen`，以及是不是概览在跟它抢（退出动画后 300 ms 内的 `overview -> show` 就是那个已知签名） | `npm run test:live` 会把 `overview-flicker` 报成计数；健康开机是 0 |
+| dock 该隐藏时不藏、不该藏时乱藏 | `dodge-enabled`、`dodge-only-focused`、`hide-in-fullscreen`，以及是不是概览在跟它抢（已知签名是：一次 `overview -> show` 在 600 ms 内被 hide 推翻，中间没有任何概览进入） | `npm run test:live` 会把 `overview-flicker` 报成计数；健康开机是 0 |
 | dock 放在**副屏**时避让不对 | 边缘与轮询阈值是按 dock 所在显示器算的（D-052），而这台机器只有一块屏，所以只能在伪造布局里证明 | `npm run test:headless` —— `dock-monitor-geometry` |
 | genie 不动 | 要么 `genie-enabled` 关了，要么 `_validate()` 拒绝了这版 shell、正在走原生动画 —— 这个判定会打日志，不会闷声发生 | 在 journal 里找 `[genie] enabled` 与 `[genie] disabled — missing/changed private APIs:` |
 | 概览预览探出桌面，或底部预留带塌缩 | 两件都在 `overview-patches-enabled` 这个 shell 布局关注点后面；shell 符号改名会带一行 warn 降级回原生 | `npm run test:headless` —— `overview-band`、`overview-window-inset`、`overview-patches` |

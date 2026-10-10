@@ -13,7 +13,7 @@ change is safe). Nothing here duplicates a rule.
 | Run everything that is safe unattended | `npm run test:static` then `npm run test:live` |
 | Run the private throwaway compositor | `npm run test:headless` (~60 s) |
 | Run the live A/B that opens windows | `npm run test:live-trigger` (needs an idle session) |
-| Pure unit coverage | `npm test` — it prints the counts (`# tests`, `# suites`); tier 1 keeps a **floor** of 95/24, no desktop needed |
+| Pure unit coverage | `npm test` — it prints the counts (`# tests`, `# suites`); tier 1 keeps a **floor** of 104/26, no desktop needed |
 | The fact that governs everything | `disable`+`enable` does **not** reload edited JS; only log out / log in does |
 | Where the code lives | everything is in `lib/` — print `wc -l lib/*.js`; no build step, no dependencies |
 
@@ -67,7 +67,7 @@ is invisible to every other check:
 | nothing matching `*.test.js` imports GI; the GI probe keeps its name | `npm test` stays runnable under plain Node | renaming `probe-window.js` into the glob breaks every run |
 | `package.json` has no dependencies and no `node_modules` | the no-build-step story | tests stop being offline-runnable |
 
-Shell side: toolchain presence (missing → ENV), unit floors (95 assertions / 24 suites —
+Shell side: toolchain presence (missing → ENV), unit floors (104 assertions / 26 suites —
 floors, so adding tests never fails; they are raised in the same change that adds
 a suite, so a suite that stops being collected goes red), `node --check` over **every** tracked `.js`, `bash -n`
 over the harness, `glib-compile-schemas --strict --dry-run`, compiled-binary freshness,
@@ -339,7 +339,7 @@ Everything that a GNOME update can take away:
 | `[dodge] started (onlyFocused=…, watching N windows)` (`dodge.js:595`) | dodge wired up and its poll exists | that it will decide correctly | 2, 3A |
 | `[dodge] grace released at Xms (window quiet Yms)` (`dodge.js:1000`) | first moment a hide was allowed; `quiet 0ms` means the cap path | that a hide then happened | 3A |
 | `[dodge] {overlap,uncovered,overview,fullscreen} -> {hide,show}` (`dodge.js:1197,1243`) | every real transition; the reason names the branch | dock position or opacity | 2, 3A, 3B |
-| an `overview -> show` within ~300 ms *after* a hide | nothing good: the tick raced the overview exit animation and re-showed a dock that had just been put away. Group A counts it as `overview-flicker`; a healthy boot scores 0 (a buggy one scored 40) | — | 3A |
+| an `overview -> show` contradicted by a hide within 600 ms with **no entry witness** (`canary overlay-key`, `[appsbtn] … action=open-grid`) between them | nothing good: the tick raced the overview exit animation and re-showed a dock that had just been put away. Group A counts it as `overview-flicker`; a healthy boot scores 0 (a buggy one scored 40). The bare `hide → overview -> show` pair is **not** this signature — an overlap hide followed by the overview genuinely opening writes the same two lines, and dodge's own log records the decision, not the state behind it (2 such pairs measured on a healthy 2026-10-10 boot) | — | 3A |
 | `[dodge] peek show (edge=N)` | the pointer reveal path works (only a real cursor can trigger it) | anything about fullscreen, unless paired with group B | 3A |
 | `[icons] +separator at=N (…)` / `-separator (…)` (`iconManager.js:1358,694,737`) | separator state changes and why | the absence of jitter (needs the pair) | 3A, 3B |
 | `[genie] enabled` (`genieController.js:62`) | `_validate()` accepted this shell build | that an animation looks right | 2, 3A, 3B |
@@ -525,10 +525,15 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   is unavailable.
 - `gschemas.compiled` byte reproducibility is only known to hold on this box, and only for
   this glib version.
-- Group A's `overview-flicker` count describes **the code that ran this boot**, not the
-  working tree: the journal it reads was written before any logout. Until a fix is loaded it
-  reports the old boot's 40 as `ENV`, which is correct behaviour and not a pass — a real
+- Group A's `overview-flicker` count describes **the code that ran in the sampled window**,
+  not the working tree: the journal it reads was written before any logout. Until a fix is
+  loaded it reports hits as `ENV`, which is correct behaviour and not a pass — a real
   verification needs a logout plus a reproduction, and then the number must be 0.
+- The sampled window is `_PID=`-scoped, so it begins when the **session shell** begins, not when
+  the machine does: a shell restart inside the same boot truncates it to the new process. Group A
+  therefore refuses to grade a window that contains no overview entry at all (`ENV`, "nothing to
+  grade") — measured 2026-10-10, where a 3-second-old shell produced a PASS that could not have
+  been a FAIL.
 - Tier 1's counts are floors, so coverage can regress by *renaming* a suite rather than
   breaking it.
 
