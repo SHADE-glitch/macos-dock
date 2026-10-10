@@ -69,6 +69,7 @@ fork of MacOSDock (v9) with the macOS Genie animation merged in.
 
 ## Tests
 - **Run `npm test`** (i.e. `node --test test/*.test.js`) after editing a pure module. No gjs, no dependencies, no build step.
+- `npm run test:coverage` — the same pure suites with Node's built-in coverage (`--experimental-test-coverage`), test files excluded so the report shows only the loadable modules. A **reading, not a gate**: no threshold, and the shell-bound modules (`extension.js` and the rest of `lib/`) cannot appear because Node never imports them.
 - Pure modules and their suites:
   - `lib/genieGeometry.js` → `test/genieGeometry.test.js`
   - `lib/signalManager.js` → `test/signalManager.test.js`
