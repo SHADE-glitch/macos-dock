@@ -140,6 +140,23 @@ if [ "$bad" != 0 ]; then
     report $T genie-apis FAIL "genie degraded to native animation this boot — a shell private API moved"
 fi
 
+# A7: does D-061's enum actually resolve in the *running* shell? The module logs the
+# number it read, so `grid=<n>` is live proof `ControlsState.APP_GRID` was reachable;
+# `grid=null` is the documented degrade (it falls back to the button's `checked`,
+# which overviewApps.js itself calls stale-prone); no line at all means the fix never
+# ran this boot. Deliberately bounded only by "an integer" — pinning 0/1/2 here would
+# re-hardcode the literal this fix exists to stop trusting.
+gsel=$(jfield '\[appsbtn\] applied \(' 's/.*grid=([A-Za-z0-9]+)\).*/\1/p' | tail -1)
+if [ -z "$gsel" ]; then
+    report $T grid-state-loaded ENV "no [appsbtn] applied line this boot — the fix did not run (setting off, or the dock had no button yet)"
+elif [ "$gsel" = "null" ]; then
+    report $T grid-state-loaded ENV "grid state degraded to the button's checked flag — ControlsState.APP_GRID was not resolvable on this shell"
+elif [[ "$gsel" =~ ^[0-9]+$ ]]; then
+    report $T grid-state-loaded PASS "grid state resolved from the shell's own enum on the live session (value $gsel)"
+else
+    report $T grid-state-loaded FAIL "grid state printed as '$gsel', neither an integer nor null — the log field or the enum source changed shape"
+fi
+
 if [ "$TRIGGER" != 1 ]; then
     echo "  group B not run — it opens probe windows on the live desktop (LIVE_TRIGGER=1)"
     exit_code_from_results
@@ -190,7 +207,15 @@ if [ "$quiet" != yes ]; then
     report $T preflight ENV "session is not idle (3 s produced new dodge/pointer activity) — retry when the mouse is still"
     exit 77
 fi
-report $T preflight PASS "screen unlocked and the log was quiet for 3 s"
+# Session age is printed, never judged: group B measures dodge's *reaction* time,
+# and in the first minutes after login the autostart churn (window events,
+# installed-changed reloads) changes what the poll is doing. Measured on 2026-10-10:
+# `control` took ~3 s and FAILed against a shell 1.5 min old, then 26 ms against the
+# same code 20 min later. A bound violation without this number is unattributable.
+shell_age=$(( $(now_ms) / 1000 - $(stat -c %Y /proc/$(pgrep -x gnome-shell | head -1)) ))
+age_note=""
+[ "$shell_age" -lt 300 ] && age_note=" — under 5 min old, treat latency verdicts as suspect"
+report $T preflight PASS "screen unlocked and the log was quiet for 3 s (shell up ${shell_age}s${age_note})"
 
 # One probe sample: run the window timeline, return its STEP stamps.
 SAMPLE_LOG=""
@@ -392,7 +417,8 @@ b3_run() {
     return $rc
 }
 b3_run
-case $? in
+B3_RC=$?
+case $B3_RC in
     0) if [ "$T3_SHOWS" = 0 ] && [ "$T3_PEEKS" = 0 ]; then
            report $T fullscreen-suppresses-show PASS "no show and no peek for ${SILENCE_WINDOW}ms while a real fullscreen window existed"
        elif [ "$T3_SHOWS" != 0 ]; then
@@ -415,6 +441,17 @@ esac
 # B4: is that silence caused by the SETTING? Flip hide-in-fullscreen off and
 # re-run: the show line must now appear. Without this, B3 could be measuring the
 # moment rather than the branch.
+#
+# Gated on B3 having produced an attributable sample. When B3 could not make the
+# probe window hold focus (rc 6) or its timeline broke (rc 2/3), B4 runs the same
+# unstable session under a *different* setting, and "no show" there says nothing
+# about the fullscreen branch — yet it used to be reported as a FAIL that reads
+# like a product regression. Measured on 2026-10-10: one run had
+# `fullscreen-suppresses-show ENV` (mutter would not keep focus) alongside
+# `flag-control FAIL`, and the identical chain was fully green minutes later.
+if [ "$B3_RC" != 0 ]; then
+    report $T flag-control ENV "B3 gave no attributable sample (rc=$B3_RC) — the flag-off arm would measure the harness's focus problem, not the fullscreen branch"
+else
 set_key hide-in-fullscreen false || { report $T flag-control ENV "could not write hide-in-fullscreen"; }
 b4_run() {
     PROBE_BG=1 run_sample fullscreen flag-off || return 2
@@ -443,6 +480,7 @@ case $? in
     *) report $T flag-control ENV "sample incomplete (rc=$?)" ;;
 esac
 set_key hide-in-fullscreen true
+fi
 
 # B5: re-run genie's private-API feature detection on the LIVE session, which is
 # otherwise only reachable by logging out. dockManager listens for
@@ -462,6 +500,34 @@ elif [ "$degraded" != 0 ]; then
     report $T genie-revalidate FAIL "genie degraded on the live shell — a private API moved in this GNOME build"
 else
     report $T genie-revalidate FAIL "genie never re-logged enabled after the toggle — the settings listener or _startGenie is broken"
+fi
+
+# B5b: the two overview patches on a real settings round-trip. dockManager holds the
+# revert closure and drops it on disable, so re-enabling must re-apply from scratch.
+# This is the path D-062 hardened: an "already applied" branch that handed back a no-op
+# revert would strand the shadowed get_preferred_height for the rest of the session, and
+# only a live disable→enable can show the re-apply really happens. Counts and the `band`
+# field only — never a raw line.
+patch_toggle_ms=$(now_ms)
+if ! set_key overview-patches-enabled false; then
+    report $T overview-patches-roundtrip ENV "could not write overview-patches-enabled"
+else
+    sleep 0.6
+    set_key overview-patches-enabled true
+    reapplied_at=$(wait_for '\[overviewpatches\] enabled \(' "$patch_toggle_ms" 6000)
+    journal_load
+    band_skip=$(jcount 'band skipped' "$patch_toggle_ms")
+    inset_off=$(jcount '\[overviewlayout\] disabled —' "$patch_toggle_ms")
+    band_field=$(jfield '\[overviewpatches\] enabled \(' 's/.*band=([a-z]+).*/\1/p' | tail -1)
+    if [ -z "$reapplied_at" ]; then
+        report $T overview-patches-roundtrip FAIL "the patches never re-applied after the toggle — the settings listener or _startOverviewPatches is broken"
+    elif [ "${band_skip:-0}" != 0 ] || [ "${inset_off:-0}" != 0 ]; then
+        report $T overview-patches-roundtrip FAIL "re-applied but degraded (band skipped=$band_skip, inset disabled=$inset_off) — a shell private symbol moved"
+    elif [ "$band_field" != "ok" ]; then
+        report $T overview-patches-roundtrip FAIL "re-applied, but the band field read as '$band_field' instead of ok"
+    else
+        report $T overview-patches-roundtrip PASS "disable→enable re-applied inset+band on the live shell $(( (reapplied_at - patch_toggle_ms) / 1000 ))s after the toggle, no logout needed"
+    fi
 fi
 
 # B6: separator oracle, only meaningful if something non-favorite is running.
