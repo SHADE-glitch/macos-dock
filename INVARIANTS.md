@@ -1,3 +1,5 @@
+<p align="right"><a href="INVARIANTS.md"><b>English</b></a> | <a href="INVARIANTS.zh-CN.md">简体中文</a></p>
+
 # INVARIANTS
 
 Fixes that have been verified on a real shell and must **not** be reverted. This file is a pointer
