@@ -1,6 +1,6 @@
 <p align="right"><a href="README.md">English</a> | <a href="README.zh-CN.md"><b>简体中文</b></a></p>
 
-# MacOS Dock —— 本地维护分支
+# 🍎 MacOS Dock —— 本地维护分支
 
 带放大、动画、避让、键盘导航与 Genie 最小化/还原动画的 macOS 风格 GNOME Shell Dock。
 

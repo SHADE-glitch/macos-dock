@@ -1,6 +1,6 @@
 <p align="right"><a href="README.md"><b>English</b></a> | <a href="README.zh-CN.md">简体中文</a></p>
 
-# MacOS Dock — Local Maintenance Fork
+# 🍎 MacOS Dock — Local Maintenance Fork
 
 A macOS-style dock for GNOME Shell with magnification, animations, dodge, keyboard navigation and a genie minimize/restore animation.
 
