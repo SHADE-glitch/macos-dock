@@ -571,3 +571,10 @@ Change   Narrowed `shell-version` to `["50"]` — the only major actually run �
 Evidence L0: `test/repo.test.js` "metadata.json matches the schema and declares plain majors" green on the narrowed array (`"50"` is a plain major, and `_isOutOfDate`'s `startsWith("50")` still matches 50.1); `npm test` 129/129; `check:log` PASS. The D-076/D-077 reword is text-only, byte-identical in meaning
 Cost     The extension can no longer be installed on GNOME 48/49. That is the point: declaring support that was never run is the claim being removed, and re-adding the two majors is a two-line edit if they are ever tested. The `_dashSpacer` branch stays inert on 50 (the field is absent from this shell's `ui/*.js`)
 Commit   fd3a5ea
+
+### D-079 · 2026-10-10 · guard · v1
+Symptom  `STANDARD.md` §7 (machine-wide) requires every `.gitignore` to carry at least the runtime ignore list `.venv/ venv/ __pycache__/ *.db *.db-wal *.db-shm .pytest_cache/ reports/`. This repo carried `reports/`, `node_modules/` and the editor cruft, but none of the Python-tooling or database entries, so a stray `.venv/`, `__pycache__/` or `*.db` dropped beside the extension during testing would have shown up as untracked and been committable
+Change   Added the seven missing entries under a labeled block citing STANDARD §7. Every existing rule is left byte-identical: `node_modules/`, the `reports/` rule with its Tier 1 S8 note, and the editor/OS cruft
+Evidence L0: `git check-ignore -v .venv/x __pycache__/x.py foo.db .pytest_cache/x` now names `.gitignore` for all four paths (before the change none resolved); `node --test test/repo.test.js` 26/26; `npm run check:log` PASS
+Cost     The block is a rule, not a check — only `reports/` is pinned by `test/repo.test.js`, so the full list can still drift (the very gap this closes for this repo). No `.venv` or `*.db` is produced by this extension's tooling, so the entries are prophylactic
+Commit   db46b64
