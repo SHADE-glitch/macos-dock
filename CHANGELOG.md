@@ -543,3 +543,10 @@ Change   三处一起收：`common.sh` 顶部 `umask 077`（一条覆盖三个 m
 Evidence L1 一次清扫清出 83 个 `/tmp/macosdock-*`（最老 2026-10-01，模式 0664），改后三层各跑一遍剩 0。新增 `test/temp-hygiene.test.js` 4 例；前三条在 `git show HEAD:test/common.sh` 的原文件上分别红（umask 0002 / 写-移链后 664 / 钉好的路径被清空），新代码上 4/4 绿；第四条是控制（无人钉时必须为空）。下限重导出 108/27，tier 1 9/9、tier 2 24/24、tier 3 9/9
 Cost     harness 进程此后所有建文件都是 0700/0600 —— 目前它只写自己的临时文件；将来若某项检查要产出用户可读的报告，必须显式改模式。缓存在一次 run 内跨 tier 共用一份路径，这正是回收成立的前提
 Commit   9932da2
+
+### D-075 · 2026-10-10 · guard · v1
+Symptom  隐私守卫在运行时现取身份指纹（`os.userInfo().username`、`os.homedir()`、hostname）再拿去扫全部跟踪文本。在托管 runner 上这三个值属于跑批机而不是任何人：用户名就是 `runner`、home 就是 `/home/runner`。于是文档里出现"test runner"这个普通词就判红（CI run 38023874826 实测，三处命中：`CHANGELOG.md`、`test/common.sh`、`test/temp-hygiene.test.js`），而那台机器本来无从知道开发者的真实指纹 —— 这条检查在 CI 上是负的、在本地才是正的
+Change   只跳过已知构建账号 `^runner\d*$`，且只跳过由它派生的两条（user 与 home）；host、个人邮箱域名表、解析出来的 `/tmp` 与 wayland 槽位这些模式在任何环境照旧；自建 runner 用真人账号登录时仍全程生效。不是把整条检查挂到 `CI` 环境变量上 —— 那才是真的自废
+Evidence L1 本地实测：`isBuildAccount=false`（真实用户名不是 runner），两条谓词对一个伪造的含用户名/含 home 的 body 仍分别命中 → 收窄没有把本地能力打掉；`npm test` 108/108。红的一半由 CI 那次真实失败提供（同一份代码、同一断言、托管环境），绿的一半是下一次 CI
+Cost     托管环境不再检查"有没有写出开发者用户名/home"—— 它以前也没检查过（它不知道要查什么），现在只是不再因此误报；这道防线实际落在本地 tier 1 与提交前那次 `npm test` 上
+Commit   e8f3605
