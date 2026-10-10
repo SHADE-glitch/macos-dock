@@ -515,3 +515,10 @@ Change   组 A 加 `grid-state-loaded`（`[appsbtn] applied (… grid=<n>)` 必�
 Evidence L2 真机：`grid-state-loaded PASS (value 2)`、`overview-patches-roundtrip PASS（toggle 后 0 s 重新装上）`。分支覆盖用抽取原文的方式对四份合成 journal 各执行一次，得到 PASS / ENV / ENV / FAIL；preflight 两分支用桩时钟各跑一次
 Cost     `grid-state-loaded` **故意不封顶 0/1/2**——D-061 的存在理由就是不信任字面量，判据不能把它请回来，代价是 shell 把枚举挪到别处时这里只会报形状。第一版 preflight 无条件附上"under ~5 min"的提醒，把 553 s 自己标成可疑，属于检查文案与自己数据打架，已改成条件式
 Commit   c5972fc
+
+### D-071 · 2026-10-10 · chore · v1
+Symptom  §16 的 witness 步骤规定"每轮记下工作确实做了的证据"，给的证据是扩展自己的日志行（`[dodge] … -> …`、`enable() total`）。关闭的那条臂按构造不打任何标签日志 —— 照这条规则，每一条对照臂都会被自动判成废样，A/B 永远无法完成。规则自己不可执行
+Change   见证改为 harness **自己驱动并独立计数**的活动（探针窗口映射/撤销、发出的最小化/还原请求）加上该窗口的 `load1`；扩展日志从此是被测对象，不是见证。§16 的"两条臂"段同时补上"做测量的 agent 也不能在跑"这条前提
+Evidence L1 第一次六臂 A/B 实测（同一份代码，`pid=3147`）：A/B 各约 25.6–29.7 s CPU / 60 s，配对差 −1191 / +1020 / −1171 ms（变号），一对臂 RSS +40264 kB 与 dock 无关，6 条臂中 4 条见证为 0 → 按规则**全部丢弃**。`final state=ACTIVE enabled=Yes`，收尾 trap 生效，扩展没被留在关闭状态
+Cost     空闲基线仍然不存在，因此 §16 只有流程没有带宽，任何数字都不是阈值；并且 (a) 这项采样**不能由 agent 在会话内部完成**——我一运行就在污染它，只有你在 agent 停下的时候能取。旧样式的 §14 说法（"归用户在空闲会话上跑"）不足以解释为什么这次跑了还是不算，已改写
+Commit   2b9cd8a
