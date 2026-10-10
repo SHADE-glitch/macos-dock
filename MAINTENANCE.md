@@ -501,9 +501,13 @@ Each of these was tested directly and failed. Do not spend time retrying them.
 - `metadata.json` declares 48 and 49, and **neither has ever been run here**. Everything the fork
   claims about those majors is inference from 50.1 (see §15). Closing this needs a machine or an
   image with 48/49, not more reading.
-- The idle-cost baseline in §16 does not exist yet: the only sample taken so far was on a busy
-  machine (27.5 s CPU per 60 s, which measures other work). A real baseline needs the A/B arms on a
-  quiet session, which is the user's to run.
+- The idle-cost baseline in §16 still does not exist. Two attempts, both discarded by the method's own
+  rule: the earlier single sample was taken on a busy machine (27.5 s CPU per 60 s), and the 2026-10-10
+  six-arm A/B was taken **while the measuring agent itself held a core** — both arms ~27 s/60 s, paired
+  difference sign-flipping (−1.2 s, +1.0 s, −1.2 s), 40 MB of RSS drift unrelated to the dock, 4 of 6
+  arms with nothing to witness. A valid run needs (a) no agent process driving the box, so it cannot be
+  taken by me from inside a session, and (b) harness-driven, independently counted activity in both
+  arms. Until then §16 is a procedure with no band, and no number in it is a threshold.
 - Group B's release confirmation depends on the compositor letting the probe window hold
   focus. When it cannot, the check reports ENV. Running it on an idle session answers it.
 - **Group B is unreliable in the first minutes after login.** Measured 2026-10-10 on the
@@ -570,7 +574,10 @@ pass/fail question is never "how many ms" but "how much more with the extension 
 **Arms.** A/B on the same timeline, one variable: extension enabled vs disabled. `disable`+`enable`
 does re-run `stop()`/`enable()` on the cached classes, so it is a valid arm switch even though it
 never loads edited code. Every arm needs the session otherwise untouched: no typing, no video, no
-agent running a build, at least 60 s per arm, two repeats.
+agent running a build, at least 60 s per arm, two repeats. **No agent doing the measuring either** —
+with an agent runtime holding a core (`load1` 4–6), both arms read ~27 s of shell CPU per 60 s, so the
+absolute numbers are worthless; only the paired difference means anything, and it first has to clear
+the round-to-round sign flip (the first attempt under load: −1.2 s, +1.0 s, −1.2 s per 60 s).
 
 ```sh
 # identity: never pgrep -x gnome-shell blind — other agents run --headless shells
@@ -587,10 +594,17 @@ N `enable`/`disable` cycles, after N minimize/restore cycles. Report the deltas 
 point. Do not invent a threshold before a baseline exists: the band comes from the first measured
 run, and a `MAINTENANCE` number that was not printed by a run is a guess.
 
-**Witness — this is the step that gets skipped.** A flat RSS curve proves nothing if nothing
-happened during it. Each round must record evidence that the work occurred: the count of
-`[dodge] … -> …` transition lines, `enable() total` lines, `minimize`/`unminimize` pairs. If the
-witness count is 0, the sample is discarded, not reported as clean — the same rule as §1's
+**Witness — this is the step that gets skipped, and my first version of it was wrong.** A flat RSS
+curve proves nothing if nothing happened during it, so each round must record evidence that work
+occurred. It must **not** be the extension's own log lines: a disabled arm emits none by construction,
+so a log-based witness voids every control arm and an A/B can never be completed. The witness is the
+activity the harness *itself* drove and counted independently of the extension — probe windows
+mapped/unmapped, minimize/restore requests issued, and the box's `load1` for that window. First
+attempt measured 2026-10-10 under the old rule: 6 arms, 4 of them had zero tagged lines (two because
+the extension was off, two because nothing happened), one pair's RSS grew 40 MB for reasons the dock
+was not part of, and the paired CPU difference came out sign-flipping (−1.2 s, +1.0 s, −1.2 s per
+60 s) — i.e. indistinguishable from zero. If the witness count is 0, the sample is discarded, not
+reported as clean — the same rule as §1's
 "an assertion that cannot distinguish regression from a busy machine is `ENV`".
 
 **Actor/source leaks.** Alongside RSS, count what should have been freed:
