@@ -13,7 +13,7 @@ change is safe). Nothing here duplicates a rule.
 | Run everything that is safe unattended | `npm run test:static` then `npm run test:live` |
 | Run the private throwaway compositor | `npm run test:headless` (~60 s) |
 | Run the live A/B that opens windows | `npm run test:live-trigger` (needs an idle session) |
-| Pure unit coverage | `npm test` — it prints the counts (`# tests`, `# suites`); tier 1 keeps a **floor** of 104/26, no desktop needed |
+| Pure unit coverage | `npm test` — it prints the counts (`# tests`, `# suites`); tier 1 keeps a **floor** of 108/27, no desktop needed |
 | The fact that governs everything | `disable`+`enable` does **not** reload edited JS; only log out / log in does |
 | Where the code lives | everything is in `lib/` — print `wc -l lib/*.js`; no build step, no dependencies |
 
@@ -67,7 +67,7 @@ is invisible to every other check:
 | nothing matching `*.test.js` imports GI; the GI probe keeps its name | `npm test` stays runnable under plain Node | renaming `probe-window.js` into the glob breaks every run |
 | `package.json` has no dependencies and no `node_modules` | the no-build-step story | tests stop being offline-runnable |
 
-Shell side: toolchain presence (missing → ENV), unit floors (104 assertions / 26 suites —
+Shell side: toolchain presence (missing → ENV), unit floors (108 assertions / 27 suites —
 floors, so adding tests never fails; they are raised in the same change that adds
 a suite, so a suite that stops being collected goes red), `node --check` over **every** tracked `.js`, `bash -n`
 over the harness, `glib-compile-schemas --strict --dry-run`, compiled-binary freshness,
@@ -495,6 +495,15 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   exemption.
 - Evidence directories stay under `$TMPDIR`, mode 700, deleted at the end; `--keep` is for
   humans reading them locally, not for committing them.
+
+
+The harness is part of the privacy surface. `test/common.sh` sets `umask 077` and
+`test/run-all.sh` pins the journal cache inside the evidence directory it removes on
+exit, because the cache holds live shell log lines: before that, every tier process
+picked its own `/tmp` path, the ones created inside a command substitution were
+invisible to the cleanup handler, and the write-and-move chain left them 0664 —
+83 accumulated files found in one sweep, the oldest nine days. `test/temp-hygiene.test.js`
+holds all three properties, and each of them was red against the pre-fix `common.sh`.
 
 ## 14. Known issues (recorded, not fixed)
 

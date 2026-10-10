@@ -12,7 +12,7 @@
 | 跑完所有可无人值守的检查 | `npm run test:static`，再 `npm run test:live` |
 | 跑私有的一次性合成器 | `npm run test:headless`（约 60 秒） |
 | 跑会开真实窗口的实时 A/B | `npm run test:live-trigger`（需要空闲会话） |
-| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 104/26**，不需要桌面 |
+| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 108/27**，不需要桌面 |
 | 支配一切的那条事实 | `disable`+`enable` **不会**重新加载改过的 JS，只有注销再登录才会 |
 | 代码在哪 | 全在 `lib/` —— 数字用 `wc -l lib/*.js` 现取；无构建步骤、无依赖 |
 
@@ -61,7 +61,7 @@
 | 匹配 `*.test.js` 的文件不得导入 GI；GI 探针保持自己的文件名 | `npm test` 必须能用纯 Node 跑 | 把 `probe-window.js` 改名进 glob 会毁掉每一次运行 |
 | `package.json` 无依赖、无 `node_modules` | "无构建步骤"这条故事线 | 测试不再能离线运行 |
 
-shell 侧：工具链存在性（缺失 → ENV）、单测下限（104 断言 / 26 套件 —— 是下限，加测试永远不会失败；每
+shell 侧：工具链存在性（缺失 → ENV）、单测下限（108 断言 / 27 套件 —— 是下限，加测试永远不会失败；每
 次加用例时在同一次改动里把下限一起抬上去，这样"某个套件不再被收集"会直接报红）、对**全部** tracked `.js` 跑 `node --check`、对 harness 跑 `bash -n`、
 `glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟、`docs/reports/`
 确被忽略且其中没有任何文件被跟踪，最后断言这一轮没有把工作树弄脏。
@@ -417,6 +417,13 @@ GNOME 更新能拿走的东西，全在这里：
   原文、窗口标题、已解析路径**只能出现在那里**；tracked 文件和
   commit 正文照上面那条"只有值"的标准，不享受 `docs/reports/` 的豁免。
 - 证据目录留在 `$TMPDIR` 下、mode 700、结束时删除；`--keep` 是给人本地看的，不是用来提交的。
+
+
+harness 自己也是隐私面。`test/common.sh` 里设了 `umask 077`，`test/run-all.sh` 把 journal
+缓存钉在它退出时会删除的 evidence 目录里 —— 因为那个缓存装的是真机 shell 的日志行。改之前每一
+个 tier 进程都自己挑一个 `/tmp` 路径，在命令替换里创建的那份 cleanup 根本看不见，而"重定向写
+.part 再 mv"这条链把权限留在了 0664：一次清扫清出 83 个积累的文件，最老的九天大。这三条性质
+都由 `test/temp-hygiene.test.js` 看着，而且每一条都在改之前的 `common.sh` 上红过。
 
 ## 14. 已知不修 / 待确认
 

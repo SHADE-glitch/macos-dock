@@ -536,3 +536,10 @@ Change   范围收到 `extension.js` 与 `lib/*.js`，即 shell 真正 import �
 Evidence L1 同一天两次实测：旧集合（按提交后状态计入新测试文件）最新 mtime 11:29:54 晚于 shell 启动 11:19:34 → 判 STALE（假警报）；新集合最新 mtime 17:54:12（前一天）早于 shell 启动 → 判 fresh。新集合的算术在 started = newest±1 两侧分别得到 STALE / fresh，闸门仍能真的变红。新集合覆盖 16 个文件，被剔除 7 个
 Cost     编辑 prefs 页或测试文件后 A 组不再提示 stale，这是正确行为，但意味着「prefs 进程里的代码是否已加载」不在 A 组的保证范围内
 Commit   50ad4f0
+
+### D-074 · 2026-10-10 · guard · v1
+Symptom  tier 3 的 journal 缓存里是真实 shell 日志行，落到 /tmp 时却是 0664，而且没人保证被回收：`common.sh` 在 source 时把 `JOURNAL_CACHE` 置空，覆盖了 runner 钉好的路径 → 每个 tier 进程各挑一个 mktemp 名字；而 `shell_start_ms()` 与 preflight 在命令替换里调 `journal_load`，赋值只活在子 shell，父进程的 cleanup 看不见那个文件
+Change   三处一起收：`common.sh` 顶部 `umask 077`（一条覆盖三个 mktemp 点与 `> "$JOURNAL_CACHE.part"` 这条重定向，比逐点 chmod 更难漏）；`JOURNAL_CACHE='${JOURNAL_CACHE:-}'` 尊重继承值；`run-all.sh` 把缓存钉进退出时 `rm -rf` 的 evidence 目录
+Evidence L1 一次清扫清出 83 个 `/tmp/macosdock-*`（最老 2026-10-01，模式 0664），改后三层各跑一遍剩 0。新增 `test/temp-hygiene.test.js` 4 例；前三条在 `git show HEAD:test/common.sh` 的原文件上分别红（umask 0002 / 写-移链后 664 / 钉好的路径被清空），新代码上 4/4 绿；第四条是控制（无人钉时必须为空）。下限重导出 108/27，tier 1 9/9、tier 2 24/24、tier 3 9/9
+Cost     harness 进程此后所有建文件都是 0700/0600 —— 目前它只写自己的临时文件；将来若某项检查要产出用户可读的报告，必须显式改模式。缓存在一次 run 内跨 tier 共用一份路径，这正是回收成立的前提
+Commit   9932da2
