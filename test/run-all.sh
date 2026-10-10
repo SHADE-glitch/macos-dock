@@ -32,6 +32,12 @@ done
 
 EVIDENCE=$(mktemp -d "${TMPDIR:-/tmp}/macosdock-checks-XXXXXX")
 chmod 700 "$EVIDENCE"
+# Pin the journal cache inside the evidence dir. `journal_load` mktemps only when
+# the variable is unset, and a load that happens inside a command substitution
+# (`shell_start_ms`, the preflight) assigns in a subshell — the parent's cleanup
+# then cannot see the file it made. Two such orphans were found in /tmp, one nine
+# days old, both 0664 and both holding live shell log lines.
+export JOURNAL_CACHE="$EVIDENCE/journal.tsv"
 export TEST_RESULTS_FILE="$EVIDENCE/results.txt"
 : > "$TEST_RESULTS_FILE"
 BASELINE=$(tree_fingerprint)

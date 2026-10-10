@@ -18,6 +18,12 @@
 #      refuses `keynav-*`, and `restore_keys` + `dconf_verify` prove the tree
 #      came back byte-identical.
 set -u
+# Nothing the harness writes is group- or world-readable: the journal cache holds
+# live shell log lines and the dconf snapshots hold this extension's settings, and
+# both used to land in /tmp at 0664 (measured — 2 orphaned journal caches from
+# runs whose cleanup could not see them, one 9 days old). One `umask` covers the
+# whole class instead of a `chmod` at each of the three mktemp sites.
+umask 077
 export LC_ALL=C
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -56,7 +62,11 @@ exit_code_from_results() {
     [ "${nt:-0}" -gt 0 ] && [ "${ne:-0}" = "${nt:-0}" ] && exit 77
     exit 0
 }
-JOURNAL_CACHE=""
+# Respect a path handed down by the runner (`run-all.sh` pins it inside the
+# evidence dir it removes on exit). A bare `=""` here clobbered that, so every
+# tier process mktemp'd its own cache and the cleanup handler could not see the
+# ones made inside a command substitution.
+JOURNAL_CACHE="${JOURNAL_CACHE:-}"
 
 # ---- reporting -------------------------------------------------------------
 
