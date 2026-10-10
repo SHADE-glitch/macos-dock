@@ -18,3 +18,6 @@ jobs:
           node-version: 20
       - run: npm test
       - run: npm run check:log
+      # Coverage reading (not a gate): Node's built-in coverage over the pure
+      # suites. It prints a table; with no threshold it cannot fail the run.
+      - run: npm run test:coverage
