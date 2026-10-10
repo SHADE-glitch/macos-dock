@@ -134,7 +134,12 @@ shell_pid() {
 }
 
 newest_js_mtime() {
-    (cd "$REPO" && git ls-files '*.js' | xargs -r stat -c %Y | sort -n | tail -1)
+    # Exactly what the shell imports — no wider. `git ls-files '*.js'` also matched
+    # `test/*.test.js` and `test/probe-window.js`, which the shell never loads, so
+    # committing a test file would have made this gate certify that the running
+    # shell predates an edit it cannot see (a permanent ENV). `prefs.js` is out for
+    # the same reason: it runs in the prefs process, and tier 3 asserts about the shell.
+    (cd "$REPO" && git ls-files 'extension.js' 'lib/*.js' | xargs -r stat -c %Y | sort -n | tail -1)
 }
 
 # `disable`+`enable` does NOT reimport ES modules, so the running shell may well
@@ -208,19 +213,58 @@ jfield() { # jfield <ERE to select> <sed -nE script that prints ONLY the capture
     awk -F '\t' -v re="$re" '$2 ~ re {print $2; exit}' "$JOURNAL_CACHE" | sed -nE "$sedx"
 }
 
-# Signature of the overview-exit flicker: dodge hides the dock, then a tick
-# inside the overview's ~200 ms exit animation re-reads the shell's transition
-# state, flips `_overviewVisible` back and prints `overview -> show` — the dock
-# pops out and has to hide again. Only ever counted, never printed: the lines it
-# scans are our own, but the helper must stay shape-compatible with the redacted
-# cache. Patterns are hardcoded rather than taken from the caller's regexes so
-# the signature cannot drift when someone edits a report.
-jflicker_count() { # jflicker_count [window_ms=300] -> number of hide->overview-show pairs inside the window
+# Two shapes are counted, and only one of them can prove anything.
+#
+# The *race* (what D-051 removed) is dodge re-showing a dock the shell had just
+# put away: the tick read a stale transition flag, so the shell immediately
+# contradicts it and the dock has to hide again. That is a visible pop-out, and
+# its signature is a show followed within one animation-and-tick window by an
+# unwitnessed hide — jflicker_count.
+#
+# The bare `hide -> overview -> show` pair (jpair_count) is NOT that signature.
+# A dock hiding for overlap and the overview then genuinely opening produces
+# the identical two lines, and nothing in dodge's own logging separates them:
+# `_show("overview")` records the decision, not the state that justified it.
+# Measured on a healthy 2026-10-10 boot: 2 pairs under 300 ms, both genuine
+# entries — one corroborated because the very next `overview -> show` in the
+# same session sat behind an `overlay-key`, and all four rapid pairs sat under
+# 400 ms with a witness 2-15 ms after the show. So the pair count is reported as
+# context only; it must never turn the verdict.
+#
+# Patterns are hardcoded rather than taken from the caller's regexes so the
+# signature cannot drift when someone edits a report. Only ever counted, never
+# printed: the lines it scans are our own, but the helper must stay
+# shape-compatible with the redacted cache.
+jpair_count() { # jpair_count [window_ms=300] -> hide followed by an overview show inside the window
     [ -s "$JOURNAL_CACHE" ] || { echo 0; return; }
     awk -F '\t' -v win="${1:-300}" '
         $2 ~ /\[dodge\] [a-z]+ -> hide/ { h = $1 + 0; next }
         $2 ~ /\[dodge\] overview -> show/ {
             if (h && ($1 + 0) - h >= 0 && ($1 + 0) - h <= win) { c++; h = 0 }
+        }
+        END { print c + 0 }' "$JOURNAL_CACHE"
+}
+
+# An `overview -> show` counts as contradicted when a hide lands within
+# window_ms of it and no entry witness fires in between — the witness being the
+# overlay-key canary or the dock's own Show Apps press, both of which prove the
+# overview really was being opened. Blind spot, stated rather than hidden: an
+# entry through the hot corner or a touchpad gesture emits no witness, so a
+# gesture entry closed again inside the window would be counted here. Measured
+# gesture entries on this boot were followed by hides 6.5-56 s later, far outside
+# the window, which is why the window is one animation-and-tick long and not a
+# second.
+jflicker_count() { # jflicker_count [window_ms=600] -> overview shows contradicted by an unwitnessed hide
+    [ -s "$JOURNAL_CACHE" ] || { echo 0; return; }
+    awk -F '\t' -v win="${1:-600}" '
+        $2 ~ /\[dodge\] overview -> show/ { s = $1 + 0; w = 0; next }
+        $2 ~ /\[dodge\] canary overlay-key/ || $2 ~ /\[appsbtn\] toggle action=open-grid/ {
+            if (s) w = 1
+            next
+        }
+        $2 ~ /\[dodge\] [a-z]+ -> hide/ {
+            if (s && ($1 + 0) - s >= 0 && ($1 + 0) - s <= win && !w) c++
+            s = 0
         }
         END { print c + 0 }' "$JOURNAL_CACHE"
 }

@@ -42,8 +42,8 @@ if ! [[ ${u_fail:-x} =~ ^[0-9]+$ ]]; then
     report $T unit-suites ENV "could not parse node --test output (node $(node --version))"
 elif [ "$u_fail" != 0 ]; then
     report $T unit-suites FAIL "$u_fail failing assertion(s) — $(printf '%s\n' "$units" | grep -ac '^not ok') not-ok lines"
-elif [ "$u_pass" -lt 95 ] || [ "$u_suites" -lt 24 ]; then
-    report $T unit-suites FAIL "coverage dropped to $u_pass/$u_suites (floor 95/24) — a suite stopped being collected"
+elif [ "$u_pass" -lt 104 ] || [ "$u_suites" -lt 26 ]; then
+    report $T unit-suites FAIL "coverage dropped to $u_pass/$u_suites (floor 104/26) — a suite stopped being collected"
 else
     report $T unit-suites PASS "$u_pass assertions in $u_suites suites, 0 fail"
 fi

@@ -102,18 +102,34 @@ if [ -n "$grace_ms" ]; then
     fi
 fi
 
-# A4b: the overview-exit flicker. `overview -> show` arriving within a few hundred ms
-# of a hide means dodge re-read the shell's transition state mid exit-animation and
-# popped the dock back out — the bug the visibleTarget fix removed. Attributed to the
-# code that actually ran: this boot's journal predates a fix that has not been loaded
-# yet (only a logout loads it), so counting it while the shell is stale must be ENV.
-flick=$(jflicker_count 300)
-if [ "${flick:-0}" = 0 ]; then
-    report $T overview-flicker PASS "no overview re-show within 300ms of a hide this boot"
-elif [ "$STALE" = yes ]; then
-    report $T overview-flicker ENV "$flick flicker signature(s) this boot, produced by code predating the fix — log out, reproduce the Super in/out, then re-run"
+# A4b: the overview-exit flicker — dodge showing the dock while the shell is
+# actually taking it away, so the dock pops out and has to go back. Verdict is on
+# the contradicted-show shape only (an `overview -> show` followed inside one
+# animation-and-tick window by a hide with no entry witness). The bare
+# hide→show pair is reported as context because it cannot prove the race: a dock
+# hiding for overlap and the overview then genuinely opening gives the identical
+# pair, and dodge's log line records the decision, not the state behind it.
+# Attributed to the code that actually ran: this boot's journal predates a fix
+# that has not been loaded yet (only a logout loads it), so counting it while the
+# shell is stale must be ENV.
+flick=$(jflicker_count 600)
+pairs=$(jpair_count 300)
+ovseen=$(jcount '\[dodge\] (overview -> show|canary overlay-key)')
+if [ "${ovseen:-0}" = 0 ]; then
+    # Green here would be a green that could not have been red: the journal query is
+    # `_PID=`-scoped, so a session restart leaves the new shell with a window that
+    # holds no overview activity at all. Measured 2026-10-10 — the session shell
+    # restarted at 11:19:34 and this check reported PASS over a 3-second window.
+    span=$(( ( $(jlast '.') - $(jfirst '.') ) / 1000 ))
+    report $T overview-flicker ENV "no overview entry signal in the sampled window (${span}s of journal) — the check had nothing to grade; open the overview once, then re-run"
+elif [ "${flick:-0}" != 0 ]; then
+    if [ "$STALE" = yes ]; then
+        report $T overview-flicker ENV "$flick contradicted overview show(s) this boot, produced by code predating the fix — log out, reproduce the Super in/out, then re-run"
+    else
+        report $T overview-flicker FAIL "$flick overview show(s) contradicted by an unwitnessed hide within 600ms — dodge is racing the overview exit animation again ($pairs hide→show pair(s), which is context, not evidence)"
+    fi
 else
-    report $T overview-flicker FAIL "$flick overview re-show(s) within 300ms of a hide — dodge is racing the overview exit animation again"
+    report $T overview-flicker PASS "no contradicted overview show, graded over $ovseen overview interaction line(s); $pairs hide→show pair(s) as context only — that shape cannot separate the race from a real entry"
 fi
 
 # A5: privacy tripwire. `hide-trigger` prints real window titles; if it appears,
