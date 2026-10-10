@@ -3,8 +3,6 @@
   "name": "MacOS Dock",
   "settings-schema": "org.gnome.shell.extensions.macosdock",
   "shell-version": [
-    "48",
-    "49",
     "50"
   ],
   "url": "https://github.com/SHADE-glitch/macos-dock",
