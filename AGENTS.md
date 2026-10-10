@@ -167,7 +167,7 @@ exact command and wait — never substitute a workaround that touches the sessio
   covers the MAINTENANCE and README pairs only, so `AGENTS.md` facts rot silently unless they are
   produced by a command. Hand-copied counts, module lists and line numbers do not belong here —
   write the command that prints them, or leave them out.
-- Commit style: an English conventional prefix with a Chinese body (`fix: …`, `docs: …`,
+- Commit style: an English conventional prefix with an **English** body (`fix: …`, `docs: …`,
   `test: …`, `chore: …`). Code in one commit, docs in a separate commit. Stage explicit paths —
   never `git add -A` — and confirm with `git status` that nothing of the user's own was swept in.
 
