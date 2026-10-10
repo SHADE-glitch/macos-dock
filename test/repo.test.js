@@ -71,10 +71,10 @@ const GENIE_LIBS = [
     "lib/genieEngine.js",
     "lib/genieGeometry.js",
 ];
-// The two modules that must stay importable by plain Node. This is the AGENTS.md
+// The modules that must stay importable by plain Node. This is the AGENTS.md
 // hard rule; breaking it does not fail a feature, it fails *every* test run on
 // every machine, including CI-less reviewers who only ever run `npm test`.
-const PURE_LIBS = ["lib/genieGeometry.js", "lib/signalManager.js"];
+const PURE_LIBS = ["lib/genieGeometry.js", "lib/shrinkGeometry.js", "lib/signalManager.js"];
 
 // The only settings keys prefs.js legitimately does not mention: keynav owns
 // them (lib/hotkeyNav.js reads and writes them directly, and a prefs row for a

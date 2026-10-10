@@ -153,6 +153,7 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | 键 | 默认值 | 作用 |
 |---|---|---|
 | `genie-enabled` | `true` | 窗口最小化进/从其 dock 图标还原时播放 macOS genie 动画 |
+| `genie-mode` | `funnel` | 用哪种动画：`funnel` 把窗口"倒"进图标，`shrink` 让真实窗口等比缩向图标并带重力加速。其它值一律回落到 `funnel` |
 | `genie-peek-hidden-dock` | `true` | dock 被避让隐藏时，最小化/还原过程中短暂露出它，好让你看见窗口飞向哪个图标；关掉则飞向 dock 所在屏幕边 |
 | `genie-icon-reaction` | `true` | 窗口落到目标图标（最小化）或离开它（还原）时，图标做一次按压回弹 |
 | `genie-minimize-duration` | `560` | 窗口「灌进」图标所需毫秒数 |
@@ -163,6 +164,10 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | `genie-absorb-depth` | `0.85` | 结尾窗口沉进图标多深（按图标深度比例） |
 | `genie-tail-fade` | `0.08` | 最后一片窄条淡出所占的动画比例 |
 | `genie-mesh-resolution` | `64` | 漏斗方向上的条带上限，实际数量随窗口尺寸自适应（越大曲线越顺） |
+| `shrink-minimize-duration` | `320` | shrink 模式：窗口掉进图标要多久（毫秒） |
+| `shrink-restore-duration` | `300` | shrink 模式：窗口从图标长大还原要多久（毫秒） |
+| `shrink-gravity` | `0.6` | shrink 模式：0 = 匀速，越大越"先憋住再加速掉进图标" |
+| `shrink-peek-hidden-dock` | `false` | shrink 模式：dock 因避让隐藏时是否短暂露出，好让窗口落在真实图标上。关 = 不露出，窗口飞向 dock 所在的屏幕边 |
 
 ## 🛠️ 故障排查
 

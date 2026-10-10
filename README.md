@@ -154,6 +154,7 @@ window for those twelve, by design.
 | Key | Default | What it does |
 |---|---|---|
 | `genie-enabled` | `true` | Play the macOS genie animation when a window minimizes into, or restores out of, its dock icon |
+| `genie-mode` | `funnel` | Which animation plays: `funnel` pours the window into the icon, `shrink` scales the real window uniformly toward it under gravity. Anything else falls back to `funnel` |
 | `genie-peek-hidden-dock` | `true` | When the dock is hidden by dodge, briefly show it during a minimize/restore so the window can be seen flying to its icon. When off, the animation flies to the dock's screen edge instead |
 | `genie-icon-reaction` | `true` | Give the target dock icon a small press-and-rebound as the window lands in it (minimize) or leaves it (restore) |
 | `genie-minimize-duration` | `560` | How long the window takes to pour into its dock icon |
@@ -164,6 +165,10 @@ window for those twelve, by design.
 | `genie-absorb-depth` | `0.85` | How deep into the icon the window sinks at the end (fraction of icon depth) |
 | `genie-tail-fade` | `0.08` | Final fraction of the animation over which the last sliver fades out |
 | `genie-mesh-resolution` | `64` | Upper bound on the number of strips along the funnel; the actual count adapts to the window size (higher = smoother curves) |
+| `shrink-minimize-duration` | `320` | Shrink mode: how long the window takes to fall into its icon (ms) |
+| `shrink-restore-duration` | `300` | Shrink mode: how long the window takes to grow back out (ms) |
+| `shrink-gravity` | `0.6` | Shrink mode: 0 = even speed, higher holds the window back at the start and accelerates it into the icon |
+| `shrink-peek-hidden-dock` | `false` | Shrink mode: whether a dodge-hidden dock briefly peeks so the window lands on its real icon. Off means it stays hidden and the window flies to the dock's screen edge |
 
 ## 🛠️ Troubleshooting
 

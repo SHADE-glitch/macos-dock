@@ -238,6 +238,15 @@
       <summary>Enable genie minimize/restore</summary>
       <description>Play the macOS genie animation when a window minimizes into, or restores out of, its dock icon</description>
     </key>
+    <key name="genie-mode" type="s">
+      <default>'funnel'</default>
+      <summary>Animation mode</summary>
+      <description>funnel keeps the macOS genie pour; shrink scales the real window uniformly toward its icon with a gravity curve. Any other value falls back to funnel</description>
+      <choices>
+        <choice value="funnel"/>
+        <choice value="shrink"/>
+      </choices>
+    </key>
     <key name="genie-peek-hidden-dock" type="b">
       <default>true</default>
       <summary>Peek the hidden dock during the animation</summary>
@@ -295,6 +304,29 @@
       <default>64</default>
       <summary>Maximum mesh resolution</summary>
       <description>Upper bound on the number of strips along the funnel; the actual count adapts to the window size (higher = smoother curves)</description>
+    </key>
+    <key name="shrink-minimize-duration" type="i">
+      <range min="80" max="3000"/>
+      <default>320</default>
+      <summary>Shrink minimize duration (ms)</summary>
+      <description>How long the window takes to shrink into its dock icon in shrink mode</description>
+    </key>
+    <key name="shrink-restore-duration" type="i">
+      <range min="80" max="3000"/>
+      <default>300</default>
+      <summary>Shrink restore duration (ms)</summary>
+      <description>How long the window takes to grow back out of its dock icon in shrink mode</description>
+    </key>
+    <key name="shrink-gravity" type="d">
+      <range min="0.0" max="1.0"/>
+      <default>0.6</default>
+      <summary>Shrink gravity</summary>
+      <description>0 = constant speed; higher values hold the window back at the start and accelerate it into the icon</description>
+    </key>
+    <key name="shrink-peek-hidden-dock" type="b">
+      <default>false</default>
+      <summary>Peek the hidden dock in shrink mode</summary>
+      <description>When off (the default) a dodge-hidden dock stays hidden and the window flies to the dock's screen edge; when on the dock briefly peeks so the window lands on its real icon</description>
     </key>
   </schema>
 </schemalist>

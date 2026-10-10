@@ -490,6 +490,25 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         });
         settings.bind("genie-enabled", genieOnRow, "active", BIND_FLAGS);
         genieGroup.add(genieOnRow);
+        // A string key, so the row cannot use settings.bind(): the index and the
+        // value are mapped by hand, and an unknown stored value shows up as
+        // funnel — the same fallback genieController applies at animation time.
+        const genieModeValues = ["funnel", "shrink"];
+        const genieModeIndex = v => Math.max(0, genieModeValues.indexOf(v));
+        const genieModeModel = new Gtk.StringList({strings: genieModeValues});
+        const genieModeRow = new Adw.ComboRow({
+            title: "Animation mode",
+            subtitle: "Genie pour (funnel), or the real window shrinking into its icon (shrink)",
+            model: genieModeModel,
+            selected: genieModeIndex(settings.get_string("genie-mode")),
+        });
+        genieModeRow.connect("notify::selected", () => {
+            settings.set_string("genie-mode", genieModeValues[genieModeRow.selected]);
+        });
+        this._trackSignal(settings, "changed::genie-mode", () => {
+            genieModeRow.selected = genieModeIndex(settings.get_string("genie-mode"));
+        });
+        genieGroup.add(genieModeRow);
         const geniePeekRow = new Adw.SwitchRow({
             title: "Peek the hidden dock",
             subtitle: "Briefly show a dodge-hidden dock so you can see where the window goes",
@@ -548,6 +567,41 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         });
         settings.bind("genie-mesh-resolution", genieMeshRow, "value", BIND_FLAGS);
         genieGroup.add(genieMeshRow);
+        // Shrink mode. Its own durations: the mode is short by design, so the
+        // row ranges start where the funnel's stop (80ms), and the accessibility
+        // slow-down is applied by the controller, not here.
+        const shrinkMinRow = new Adw.SpinRow({
+            title: "Shrink minimize duration (ms)",
+            subtitle: "How long the window takes to fall into its icon",
+            adjustment: new Gtk.Adjustment({
+                lower: 80,
+                upper: 3000,
+                step_increment: 20,
+                value: settings.get_int("shrink-minimize-duration"),
+            }),
+        });
+        settings.bind("shrink-minimize-duration", shrinkMinRow, "value", BIND_FLAGS);
+        genieGroup.add(shrinkMinRow);
+        const shrinkRestoreRow = new Adw.SpinRow({
+            title: "Shrink restore duration (ms)",
+            subtitle: "How long the window takes to grow back out",
+            adjustment: new Gtk.Adjustment({
+                lower: 80,
+                upper: 3000,
+                step_increment: 20,
+                value: settings.get_int("shrink-restore-duration"),
+            }),
+        });
+        settings.bind("shrink-restore-duration", shrinkRestoreRow, "value", BIND_FLAGS);
+        genieGroup.add(shrinkRestoreRow);
+        genieGroup.add(this._scaleRow(settings, "shrink-gravity",
+            "Shrink gravity", "0 = even speed, higher = hold back then accelerate into the icon"));
+        const shrinkPeekRow = new Adw.SwitchRow({
+            title: "Peek the hidden dock while shrinking",
+            subtitle: "Off (default): a hidden dock stays hidden and the window flies to the screen edge",
+        });
+        settings.bind("shrink-peek-hidden-dock", shrinkPeekRow, "active", BIND_FLAGS);
+        genieGroup.add(shrinkPeekRow);
         // Disconnect all tracked signals when the window is closed.
         window.connect("close-request", () => this._disconnectAll());
     }
