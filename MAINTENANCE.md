@@ -534,6 +534,15 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   therefore refuses to grade a window that contains no overview entry at all (`ENV`, "nothing to
   grade") — measured 2026-10-10, where a 3-second-old shell produced a PASS that could not have
   been a FAIL.
+- The shell flag dodge now trusts has a residual lie, found by reading the installed
+  `ui/overview.js` (static inference only — no runtime sample of a visible pop-out):
+  `_animateNotVisible()` returns early when `_animationInProgress` is true, so a hide requested
+  *during the enter animation* leaves `_visibleTarget` true until `_showDone()` runs. dodge's tick
+  in that interval shows the dock while the shell is on its way out. The state that distinguishes
+  it (`_shown`) is private, and the public getters are only `visible`, `visibleTarget`, `closing`
+  and `animationInProgress`, so it cannot be detected from outside without a shell-private read —
+  which §8 forbids widening. Left open on purpose; the flicker check is what would notice if it
+  ever costs anything visible.
 - Tier 1's counts are floors, so coverage can regress by *renaming* a suite rather than
   breaking it.
 

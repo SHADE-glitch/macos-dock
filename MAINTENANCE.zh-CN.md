@@ -447,6 +447,15 @@ GNOME 更新能拿走的东西，全在这里：
 - 采样窗口按 `_PID=` 收口，所以它的起点是**会话 shell** 的起点而不是机器的起点：同一次开机里
   shell 重启，窗口就跟着新进程重来。于是 A 组拒绝给「窗口里根本没有概览进入」的样本打分（报
   `ENV`：无从判起）—— 2026-10-10 实测到一个 3 秒钟大的 shell 给出了一次不可能变红的 PASS。
+- dodge 现在信任的那个 shell 标志仍有一处残余说谎，这是读安装好的 `ui/overview.js`
+  读出来的（静态推断，没有任何一次运行时观测到可见的弹出）：`_animateNotVisible()` 在
+  `_animationInProgress` 为真时直接 return，所以在**进入动画进行中**发出的 hide 请求会让
+  `_visibleTarget` 一直停在 true，直到 `_showDone()` 才被清掉。这段时间里 dodge 的 tick 会
+  在 shell 正要离开概览时把 dock 显示出来。能区分这个状态的 `_shown` 是私有的，对外只有
+  `visible`、`visibleTarget`、`closing`、`animationInProgress` 四个 getter，从外面不读私有符号
+  就测不到 —— 而 §8 不许把私有依赖再扩大。这一条故意留着不修；真要付出可见代价，概览抖动
+  检查就是用来发现它的。
+
 - 第一层的用例数是下限，所以"改个套件名"也能让覆盖率倒退。
 
 
