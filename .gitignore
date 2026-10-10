@@ -8,6 +8,17 @@
 # Tooling (the tree itself stays dependency-free)
 node_modules/
 
+# Machine-wide runtime ignore list (agent-standards/STANDARD.md §7): Python
+# tooling and stray databases can land beside the extension during testing.
+# Keep them out of `git status`; never commit them.
+.venv/
+venv/
+__pycache__/
+*.db
+*.db-wal
+*.db-shm
+.pytest_cache/
+
 # Phase evidence for this maintenance fork: docs/reports/{STATE,AUDIT,PLAN,VERIFY}.md.
 # This repo is public and these files may quote raw journal lines, window
 # titles or resolved temp paths, so they stay local-only. The pattern has no
