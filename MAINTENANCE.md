@@ -345,7 +345,8 @@ Everything that a GNOME update can take away:
 | `[genie] enabled` (`genieController.js:62`) | `_validate()` accepted this shell build | that an animation looks right | 2, 3A, 3B |
 | `[genie] disabled — missing/changed private APIs: …` (`genieController.js:43`) | a symbol moved; the line names it | a crash — the fallback works | 2, 3A, 3B |
 | `[genie] effect ended without completing mutter:` (`genieController.js:393`) | the exactly-once completion latch was bypassed | — this is the point of it | permanent warning |
-| `[appsbtn] applied (icon=…, label=none, grid=<n>)` (`overviewApps.js:257`) | which `ControlsState` value the grid test resolved **in this shell** — tier 2 compares `<n>` against the number the shell itself reports | that a click lands in the right state (needs a real cursor, tier 3 only) | 2 |
+| `[appsbtn] applied (icon=…, label=none, grid=<n>)` (`overviewApps.js:257`) | which `ControlsState` value the grid test resolved **in this shell** — tier 2 compares `<n>` against the number the shell itself reports; tier 3's `grid-state-loaded` asserts the live session resolved an integer at all (`null` = degraded to the button's `checked`, reported ENV) | that a click lands in the right state (needs a real cursor, tier 3 only) | 2, 3A |
+| `[overviewpatches] enabled (inset=ok band=ok|skipped)` (`overviewPatches.js:76`) | both patches applied on this shell; tier 3's `overview-patches-roundtrip` re-reads the line after a real `disable→enable`, which is the only way to see D-062's revert actually release the shadow | the overview's geometry on the live desktop (that is `overview-band`, tier 2) | 2, 3B |
 | `_dbg` output, `hide-trigger` | nothing: gated by `DODGE_DEBUG=false`, only while hidden, rate-limited to one line per second, and **prints window titles** | — | never an oracle |
 
 ## 10. What cannot be automated here, and why
@@ -505,6 +506,12 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   quiet session, which is the user's to run.
 - Group B's release confirmation depends on the compositor letting the probe window hold
   focus. When it cannot, the check reports ENV. Running it on an idle session answers it.
+- **Group B is unreliable in the first minutes after login.** Measured 2026-10-10 on the
+  same code: `control` took ~3 s and FAILed against a shell 1.5 min old, then 26 ms against
+  the same build 20 min later; autostart churn (window events, `installed-changed` reloads)
+  is what dodge's poll is reacting to. `preflight` now prints the shell's age so a latency
+  verdict can be attributed. Same session, the mutter focus refusal recurred — which is why
+  `flag-control` is gated on B3 instead of reporting FAIL (see D-069).
 - Genie's *visual* correctness is unverifiable here (no screenshots, no injection) and is
   covered only structurally: `_validate()` in headless and live, plus the eight failure logs
   and the permanent `end-without-complete` latch staying silent across real minimize and

@@ -299,7 +299,8 @@ GNOME 更新能拿走的东西，全在这里：
 | `[genie] enabled`（`genieController.js:62`） | `_validate()` 接受了这个 shell 构建 | 动画好不好看 | 2、3A、3B |
 | `[genie] disabled — missing/changed private APIs: …`（`genieController.js:43`） | 某个符号变了；行里会点名 | 崩溃 —— 降级是有效的 | 2、3A、3B |
 | `[genie] effect ended without completing mutter:`（`genieController.js:393`） | 恰好一次的完成闩锁被绕过 | —— 它就是为这件事存在 | 永久警告 |
-| `[appsbtn] applied (icon=…, label=none, grid=<n>)` (`overviewApps.js:257`) | 网格判断在**这台 shell 上**解析到的 `ControlsState` 值 —— 第二层把 `<n>` 与 shell 自己报出的数字比对 | 点击是否落到正确状态（要真实指针，只能第三层） | 2 |
+| `[appsbtn] applied (icon=…, label=none, grid=<n>)` (`overviewApps.js:257`) | 网格判断在**这台 shell 上**解析到的 `ControlsState` 值 —— 第二层把 `<n>` 与 shell 自己报出的数字比对；第三层的 `grid-state-loaded` 断言真实会话确实解析出了一个整数（`null` = 退回按钮的 `checked`，报 ENV） | 点击是否落到正确状态（要真实指针，只能第三层） | 2、3A |
+| `[overviewpatches] enabled (inset=ok band=ok|skipped)` (`overviewPatches.js:76`) | 两个补丁在这台 shell 上都装上了；第三层的 `overview-patches-roundtrip` 在一次真实 `disable→enable` 之后重读这行 —— 这是唯一能看出 D-062 的 revert 真把遮蔽放开的途径 | 真实桌面上概览的几何（那是 `overview-band`，第二层） | 2、3B |
 | `_dbg` 输出、`hide-trigger` | 什么都不是：受 `DODGE_DEBUG=false` 门控、只在隐藏态打、每秒限一条，而且**打印窗口标题** | —— | 永不作为判据 |
 
 ## 10. 本机无法自动化的事情与原因
@@ -425,6 +426,11 @@ GNOME 更新能拿走的东西，全在这里：
   别的活）。真正的基线要在空闲会话上跑 A/B 两条臂，那件事归用户。
 - B 组的释放确认依赖合成器是否让探针窗口持有焦点；拿不到时该检查报 ENV。在空闲会话上跑就能
   得到答案。
+- **登录后头几分钟内 B 组不可信。** 2026-10-10 在同一份代码上实测：对着开机 1.5 分钟的 shell，
+  `control` 花了约 3 秒并 FAIL；20 分钟后对着同一份构建是 26 ms。自启动抖动（窗口事件、
+  `installed-changed` 重载）正是 dodge 轮询在反应的东西。`preflight` 现在把 shell 的存活时长
+  打进结果行，好让延迟判定能被归因。同一次会话里 mutter 拒绝给焦点的情况又出现了一次 —— 这
+  就是 `flag-control` 改为以 B3 为前提、而不是直接报 FAIL 的原因（见 D-069）。
 - genie 的**视觉**正确性在这台机器上不可验证（无截图、无注入），只有结构性覆盖：无头与实时
   各跑一次 `_validate()`，加上真实的两次最小化与两次还原期间八条失败日志和那条永久的
   `end-without-complete` 闩锁全程静默。

@@ -501,3 +501,17 @@ Change   两处都改成命令派生：头部不再留数字，交给这次运�
 Evidence L0 复现命令随文写进 §15（`git rev-list --count a2140d0..HEAD -- extension.js lib/ stylesheet.css`；`gresource list … | grep -cE '^/org/gnome/shell/ui/.*\.js$'`）。抬下限这步做了反向验证：一次性克隆里移走 `test/genieGeometry.test.js` → `FAIL coverage dropped to 52/16 (floor 95/24)`，放回来 → `ok 95 assertions in 24 suites`，克隆已删
 Cost     以后每次加用例都要在同一次改动里把下限一起抬上去，否则"加了但没抬"会让下次真的丢套件时仍然绿。这条是**约定不是守卫**——没有任何检查能发现"下限设得太低"
 Commit   edc7706 e3159da
+
+### D-069 · 2026-10-10 · fix · v1
+Symptom  组 B 的 `flag-control` 无条件运行。B3 因 mutter 不肯把焦点给探针窗口而报 ENV 的那一轮，B4 在**同一个坏焦点环境**里跑 flag-off 臂，拿不到 show 就判 `FAIL still suppressed with the setting off — B3's silence was not the fullscreen branch`——措辞是产品回归，实际是仪器
+Change   记下 B3 的返回码（`B3_RC`），非 0 时 `flag-control` 直接 ENV 并**跳过** flag-off 这一臂，连带不去写 `hide-in-fullscreen`
+Evidence L2 同一天两条路径都真跑过：修复前那次是 `ENV fullscreen-suppresses-show` + `FAIL flag-control`（15 pass / 1 fail）；修复后 rc=6 的那次报 `ENV flag-control — B3 gave no attributable sample (rc=6)`，焦点正常的那次 B3/B4/`fullscreen-reversible` 连成一片 PASS（20 pass / 0 fail / 1 env）
+Cost     B3 失败时不再获得 flag-off 的独立信息（少一条证据，但那条证据本来不可归因）；`control` 的延迟判定另有一处环境噪声见 MAINTENANCE §14（登录后头几分钟）
+Commit   c5972fc
+
+### D-070 · 2026-10-10 · guard · v1
+Symptom  D-061 与 D-062 只有无头层证据：真会话里枚举是否真的解析出来、幂等 revert 之后补丁是否真的重新装上，都没有任何一行日志被断言过
+Change   组 A 加 `grid-state-loaded`（`[appsbtn] applied (… grid=<n>)` 必须是整数；`null` = 退回按钮 `checked` → ENV；缺行 → ENV；形状不对 → FAIL），组 B 加 `overview-patches-roundtrip`（真实 `disable→enable` 后必须重新出现 `enabled (inset=ok band=ok)`，并检查 `band skipped` / `overviewlayout disabled` 两条降级）。`preflight` 顺带打印 shell 存活秒数，提醒语只在 <300 s 时出现
+Evidence L2 真机：`grid-state-loaded PASS (value 2)`、`overview-patches-roundtrip PASS（toggle 后 0 s 重新装上）`。分支覆盖用抽取原文的方式对四份合成 journal 各执行一次，得到 PASS / ENV / ENV / FAIL；preflight 两分支用桩时钟各跑一次
+Cost     `grid-state-loaded` **故意不封顶 0/1/2**——D-061 的存在理由就是不信任字面量，判据不能把它请回来，代价是 shell 把枚举挪到别处时这里只会报形状。第一版 preflight 无条件附上"under ~5 min"的提醒，把 553 s 自己标成可疑，属于检查文案与自己数据打架，已改成条件式
+Commit   c5972fc

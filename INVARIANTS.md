@@ -14,8 +14,8 @@ win and this one is stale.
 | D-053 | disabling restores the overview dash to the shell's default, never to a value captured at enable | L2 | a snapshot taken mid-layout leaves the overview without its dash after the extension is off |
 | D-054 | the overview bottom band is reserved from the dock's occupied height | L1 (`overview-band`) | a dock taller than the theme padding overlaps the window picker / app grid |
 | D-059 | one pointer event resolves the dock monitor **once** | L1 (`motion-monitor-resolve`, red at 2 calls) | re-splits the hottest path in the extension back into two GI array conversions |
-| D-061 | the grid state comes from the shell's `ControlsState`, never the literal `2` | L1 (`grid-state-source`) | a renumbered enum makes grid detection confidently wrong and silent |
-| D-062 | an already-applied patch returns a **real, idempotent** revert | L1 (`patch-revert-idempotent`) | a swallowed revert error strands the patch for the rest of the session |
+| D-061 | the grid state comes from the shell's `ControlsState`, never the literal `2` | L1 (`grid-state-source`) + L2 (`grid-state-loaded`) | a renumbered enum makes grid detection confidently wrong and silent |
+| D-062 | an already-applied patch returns a **real, idempotent** revert | L1 (`patch-revert-idempotent`) + L2 (`overview-patches-roundtrip`) | a swallowed revert error strands the patch for the rest of the session |
 | D-063 | the magnification tick is single-pass | L1 (`tick-geometry-reads`, 12 → 6 reads/frame) | double allocation traffic on the hover path |
 | D-064 | `dash._dashSpacer` stays although it is inert on 50.1 | L0 + untested on 48/49 | deleting it is an unverified behaviour change on a declared-supported major |
 
