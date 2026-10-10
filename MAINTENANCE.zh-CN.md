@@ -12,7 +12,7 @@
 | 跑完所有可无人值守的检查 | `npm run test:static`，再 `npm run test:live` |
 | 跑私有的一次性合成器 | `npm run test:headless`（约 60 秒） |
 | 跑会开真实窗口的实时 A/B | `npm run test:live-trigger`（需要空闲会话） |
-| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 108/27**，不需要桌面 |
+| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 129/32**，不需要桌面 |
 | 支配一切的那条事实 | `disable`+`enable` **不会**重新加载改过的 JS，只有注销再登录才会 |
 | 代码在哪 | 全在 `lib/` —— 数字用 `wc -l lib/*.js` 现取；无构建步骤、无依赖 |
 
@@ -61,7 +61,7 @@
 | 匹配 `*.test.js` 的文件不得导入 GI；GI 探针保持自己的文件名 | `npm test` 必须能用纯 Node 跑 | 把 `probe-window.js` 改名进 glob 会毁掉每一次运行 |
 | `package.json` 无依赖、无 `node_modules` | "无构建步骤"这条故事线 | 测试不再能离线运行 |
 
-shell 侧：工具链存在性（缺失 → ENV）、单测下限（108 断言 / 27 套件 —— 是下限，加测试永远不会失败；每
+shell 侧：工具链存在性（缺失 → ENV）、单测下限（129 断言 / 32 套件 —— 是下限，加测试永远不会失败；每
 次加用例时在同一次改动里把下限一起抬上去，这样"某个套件不再被收集"会直接报红）、对**全部** tracked `.js` 跑 `node --check`、对 harness 跑 `bash -n`、
 `glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟、`docs/reports/`
 确被忽略且其中没有任何文件被跟踪，最后断言这一轮没有把工作树弄脏。
@@ -464,6 +464,50 @@ harness 自己也是隐私面。`test/common.sh` 里设了 `umask 077`，`test/r
   检查就是用来发现它的。
 
 - 第一层的用例数是下限，所以"改个套件名"也能让覆盖率倒退。
+- **第二层开头那句声明有一半已经被证伪，但暂时留着。** `test/headless-checks.sh:9-14` 说无头壳
+  证明不了任何动画路径，理由是"mutter 在这里从不跑动画"。shell 确实永远不会**发起**一次动画，
+  但私有合成器照常驱动 Clutter timeline（实测：600 ms 的 timeline 跑了 37 帧），而且接受真实的
+  Wayland 客户端——把窗口开到那个一次性 socket 上，最小化就会完整走 mutter → `shellwm` →
+  `_onMinimize`，拿到真的窗口 actor 和真的快照。本节所有帧级数字都是这么取的。要不要改这句
+  注释、以及要不要把其中任何一条固化成第二层断言，都属于动 harness，由车主决定，不是顺手改。
+- **`ExtensionManager.disableExtension()` 不在沙箱里，验拆解放要用 `stateObj.disable()`。**
+  2026-10-10 在私有合成器实测：那个调用会让 shell 去删
+  `/run/user/$UID/gnome-shell-disable-extensions` —— 这是**整个会话共用**的哨兵文件。本机它本来
+  不存在（所以这次什么都没丢），但这次写入跑出了清洁室，违反隔离契约里"$T2 之外只有两个被允许的
+  写入"那一条。另外它报告的状态是在**函数返回之后**才翻的（实测 7 → 2，用了 10 ms），所以在那一
+  瞬间取样的"还剩一个容器"其实根本不存在，属于仪器错觉。同一个一次性 shell 里改走
+  `stateObj.disable()` / `enable()` 就完全是同步的、也不碰沙箱外任何东西：一次漏斗动画被确证正在跑
+  （`containers=1 registered=1`）时调 `disable()`，返回后 `containers=0`、`scale_x=1`、
+  `opacity=255`、`pivot=(0,0)`，引擎把这次收尾记成 `reason=finishAll`。记下来是为了下一个 agent
+  不再犯同样的方法错误；harness 自己仍然只走安全路径。
+- **genie 解析图标兜底用的是 `primaryMonitor`，dodge 的阈值不是。** `_dockEdgeCenterRect()`、
+  `_dockEdgeAt()`、`_shrinkEdgeRect()` 都按合并进来的上游那句"dock 只在主屏"（requirement 7）
+  落在 `Main.layoutManager.primaryMonitor` 上，而 D-052 已经把 dodge 的边缘判据和轮询阈值搬到
+  dock 真正所在的那块屏。dock 挂在副屏时两边会分叉：收起/显示都对，但解析不到应用图标的那次
+  最小化会朝主屏倾倒。本机只有一块屏，这条没有实测。
+- **漏斗"还没落到图标就提前消失"已经量到帧级，但没有复现。** 数字取自私有合成器里一个真
+  `MetaWindowActor`（L1；真会话仍要确认同样这三列）：`finish reason=completed p=1.0000` ——
+  没有任何一次被提前截断，没有走看门狗，没有容器早拆。从 p=0.17 到 p=0.80 的每一帧都是
+  `stripsOpacity=255..255`，只有 p=1.0000 那一帧才出现 `0..255`，也就是说 `genie-tail-fade` 0.08
+  只吃掉 560 ms 最小化的最后约 30 ms，构不成"提前消失"。快照是一份拷贝（`shared=0`，
+  `Clutter_TextureContent tex=648x429`），而且尽管从第 0 帧起 `actorVisible=0 actorMapped=0`，
+  这个尺寸在**每一帧**都没变 —— 提前 `_fireComplete()` 确实把真 actor 藏掉了，但条带照旧画得出来，
+  候选 (a) 在真实窗口缓冲上被排除。**能**复现的是目标问题不是淡化问题：解析不到应用图标时兜底是
+  一块 **64×12** 补丁（`_dockCenterRect` / `_dockEdgeAt`），而 `sink = absorb × iconDepth` 会把
+  整扇窗口压进那 12 px —— 实测兜底时 `sink=10.2`，换成真实 54 px 图标盒是 `sink=45.9`。倒在一条
+  12 px 窄带上，看起来正好就是"还没落到图标就没了"。没有修：R2 把兜底链钉死原样，而能判断车主
+  桌面属于哪一种情况的 `icon=` / `peek=` / 每帧 `pixels=` 三列，只有注销之后才存在。打印它们的
+  `TEMP-DIAGNOSTIC` 块留在 `lib/genieEngine.js` 与 `lib/genieController.js` 里，读完就删。
+- **shrink 还原方向的第一帧尺度是 0。** 时间镜像把 p=0 映到 q=1，而塌缩段
+  `sEnd × (1 − (q−0.88)/0.12)` 在那一点正是 0 —— 实测到第 5 帧是 `wantScale=0.0008`
+  （648×429 的 actor 上 0.7×0.4 px）。之后的每一帧都被画出、都可见、都已映射
+  （`actorVisible=1 actorMapped=1 actorOpacity=255`，两个方向共 38 个采样帧上 want 与 actor 自报的
+  尺度和位置完全相等），所以 0<p<1 的硬判据成立。要不要让它"从图标尺寸长出来"而不是"从虚无里
+  冒出来"是规格问题，该车主拍板，不该我悄悄改公式。
+- **shrink 最小化结束后把 actor 留在塌缩后的位置上**（实测：起点 y=204 的窗口收尾停在 553，
+  尺度已恢复成 1）。看不出来：mutter 会在 p=1 那次 complete 里把 actor 隐藏，而下一次还原在开始前
+  就用 `get_buffer_rect()` 重写过位置。记下来是因为动画进行中 `disable()` 不会还原它 ——
+  `ShrinkManager` 的拆除只恢复尺度与 pivot，从不恢复位置。
 
 
 ## 15. GNOME 兼容矩阵

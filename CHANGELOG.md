@@ -27,526 +27,526 @@ Animation *feel* is `taste`, not `fix`: those entries are the ones an upgrade ma
 ---
 
 ### D-001 · 2026-09-22 · revert · v1
-Symptom  接管初期做的性能优化与启动时序改动范围超出"冻结维护"该承担的面
-Change   整体回退那批改动，按冻结维护标准收紧范围
+Symptom  The early performance optimizations and startup-timing changes went beyond what "frozen maintenance" should own
+Change   Reverted that batch wholesale, tightening scope to frozen-maintenance standards
 Evidence L?
-Cost     **本仓的范围定论**：后续所有改动都按这条划线。重提同类优化先读 MAINTENANCE §11
+Cost     **The scope ruling for this repo**: every later change is measured against this line. Before re-proposing similar optimizations, read MAINTENANCE §11
 Commit   c35f763
 
 ### D-002 · 2026-09-22 · fix · v1
-Symptom  登录后整排 dock 图标闪烁
-Change   恢复 `_started` 启动守卫
+Symptom  After login the whole row of dock icons flickers
+Change   Restored the `_started` startup guard
 Evidence L?
-Cost     与 D-011 / D-022 同一条启动揭示链
+Cost     Same startup-reveal chain as D-011 / D-022
 Commit   85138ac
 
 ### D-003 · 2026-09-23 · fix · v1
-Symptom  显隐逻辑分散在两处；另有五项启动期与泄漏小问题
-Change   合并 dodge 显隐逻辑并修那五项
+Symptom  Show/hide logic was split across two places; plus five small startup-time and leak issues
+Change   Merged the dodge show/hide logic and fixed those five
 Evidence L?
-Cost     这是一个 wip 提交，内含多件事；单独回滚任何一项都要重新读 diff
+Cost     This is a wip commit bundling several things; rolling back any one item means re-reading the diff
 Commit   1c7e613
 
 ### D-004 · 2026-09-23 · perf · v1
-Symptom  P2-8：动画阻塞期 dodge 的 hide 日志连刷
-Change   把 hide 日志移到 `_hide()` 守卫之后
+Symptom  P2-8: dodge's hide log spams during animation-blocked periods
+Change   Moved the hide log behind the `_hide()` guard
 Evidence L?
-Cost     日志面，不改行为；但它同时是"动画被阻塞"的读数来源
+Cost     Logging surface, no behavior change; but it is also the readout source for "animation blocked"
 Commit   bc924ad
 
 ### D-005 · 2026-09-23 · fix · v1
-Symptom  P2-7：dodge 的 `stop()` / `_refreshDodge()` 强制把 opacity 设成 255，打断启动淡入
-Change   尊重启动淡入，不再强制赋值
+Symptom  P2-7: dodge's `stop()` / `_refreshDodge()` force opacity to 255, interrupting the startup fade-in
+Change   Respect the startup fade-in, no longer force the value
 Evidence L?
-Cost     与 D-002 同属启动期互相覆盖的一类；两处都要守
+Cost     Same class as D-002 — startup-phase mutual overwrite; both must be guarded
 Commit   f32f185
 
 ### D-006 · 2026-09-23 · fix · v1
-Symptom  P2-6：magnification 轮询与 dockManager 在容器已销毁后继续执行
-Change   增加容器销毁门卫（仿 dodge 的写法）
+Symptom  P2-6: magnification polling and dockManager keep running after the container is destroyed
+Change   Added a container-destroyed guard (mirroring dodge's approach)
 Evidence L?
-Cost     门卫模式在三个模块里各有一份，改一处要看另两处
+Cost     The guard pattern exists once in each of three modules; changing one means checking the other two
 Commit   8dc784c
 
 ### D-007 · 2026-09-23 · fix · v1
-Symptom  P2-9：`_doWindowChange` 淡出的 `onComplete` 回调触碰已销毁 actor
-Change   回调里加已销毁守卫
+Symptom  P2-9: the fade-out `onComplete` callback of `_doWindowChange` touches an already-destroyed actor
+Change   Added a destroyed-guard in the callback
 Evidence L?
-Cost     只在动画被打断时触发，静态 tier 测不到
+Cost     Only triggers when the animation is interrupted; the static tier can't catch it
 Commit   9c24e55
 
 ### D-008 · 2026-09-23 · chore · v1
-Symptom  P2-12：iconFix 用裸数字判断窗口类型
-Change   改用 `Meta.WindowType` 符号（行为不变）
-Evidence L0 本轮重跑 `test/static-checks.sh`（19 个 js 全部解析、schema 编译一致）
-Cost     无行为变化；可读性改动，升级时既无义务保住也无损失
+Symptom  P2-12: iconFix uses a bare number to test the window type
+Change   Switched to the `Meta.WindowType` symbol (no behavior change)
+Evidence L0 Re-ran `test/static-checks.sh` this round (all 19 js files parse, schema compiles identically)
+Cost     No behavior change; a readability edit that an upgrade is neither obliged to keep nor loses anything by dropping
 Commit   e68a6e2
 
 ### D-009 · 2026-09-23 · fix · v1
-Symptom  P1-1：`installed-changed` / `favorite-apps` 一律走全量重建，settle 之外可见闪烁
-Change   全部改走增量同步
+Symptom  P1-1: `installed-changed` / `favorite-apps` always trigger a full rebuild, with flicker visible outside settle
+Change   All switched to incremental sync
 Evidence L?
-Cost     增量的正确性依赖 D-014 的 `_enforceOrder` 不误报；两条是一对
+Cost     Incremental correctness depends on D-014's `_enforceOrder` not false-positive; the two are a pair
 Commit   0a40055
 
 ### D-010 · 2026-09-23 · fix · v1
-Symptom  P1-3：预览弹窗不跟随悬停应用切换，或在不该复用时复用
-Change   同 app 才复用，退场动画中可复活
+Symptom  P1-3: the preview popup doesn't follow hovered-app switching, or reuses when it shouldn't
+Change   Reuse only for the same app; can revive during the exit animation
 Evidence L?
-Cost     与概览状态互相引用，改这里要看 D-050
+Cost     Cross-references the overview state; changing this means looking at D-050
 Commit   cd4d56b
 
 ### D-011 · 2026-09-23 · perf · v1
-Symptom  P1-2：magnification 以 60Hz 常驻唤醒，空闲时也在跑
-Change   空闲停表、靠近时重启
+Symptom  P1-2: magnification wakes at a constant 60Hz, running even when idle
+Change   Stop the timer when idle, restart when approaching
 Evidence L?
-Cost     停表后"靠近"的唤醒通路只有一条时会在 Dock 显现时失灵——正是 D-033 补的第二条
+Cost     After stopping the timer, "approach" has only one wake path, which fails when the Dock appears — exactly the second path D-033 adds
 Commit   35e7b59
 
 ### D-012 · 2026-09-23 · perf · v1
-Symptom  P1-5：dodge 固定 500ms 轮询，隐藏且贴近边缘时响应迟钝
-Change   自适应降频：隐藏近边缘 120ms，其余 500ms 心跳
+Symptom  P1-5: dodge polls at a fixed 500ms, sluggish when hidden and close to the edge
+Change   Adaptive rate: 120ms when hidden near the edge, otherwise a 500ms heartbeat
 Evidence L?
-Cost     两个周期值都是折中，不是最优；改动要重新量
+Cost     Both period values are compromises, not optimal; changes need re-measuring
 Commit   1b6c0a7
 
 ### D-013 · 2026-09-23 · fix · v1
-Symptom  P1-4 方案 A：stock 快捷键 schema 被上游改动打崩时整个扩展起不来
-Change   加崩溃自愈 sentinel（自有 schema 存备份 + dirty 标记）
-Evidence L0 本轮重跑 `test/static-checks.sh`（schema-valid / compiled-fresh：55 keys 三方一致）
-Cost     **哨兵类修复**：判据是"能否人为制造一次 dirty"，不是"跑绿"
+Symptom  P1-4 option A: when the stock shortcut schema is broken by an upstream change, the whole extension won't start
+Change   Added a crash self-heal sentinel (own schema stores a backup + dirty flag)
+Evidence L0 Re-ran `test/static-checks.sh` this round (schema-valid / compiled-fresh: 55 keys agree across three sides)
+Cost     **A sentinel-class fix**: the criterion is "can a dirty state be induced on purpose", not "runs green"
 Commit   2d12d57
 
 ### D-014 · 2026-09-23 · fix · v1
-Symptom  `_enforceOrder` 误报：索引比较把 separator 与 button 也算进位次
-Change   索引比较剔除 separator/button，稳态零移动
+Symptom  `_enforceOrder` false-positive: index comparison counts separators and buttons as positions
+Change   Index comparison excludes separator/button; zero movement in steady state
 Evidence L?
-Cost     误报会把增量同步（D-009）拖回全量重建
+Cost     A false-positive drags incremental sync (D-009) back to a full rebuild
 Commit   b553792
 
 ### D-015 · 2026-09-23 · guard · v1
-Symptom  分隔线显隐异常无法定位，缺少计数与触发源
-Change   分隔线增删打点日志（favs/running 计数 + 触发源）
+Symptom  Separator show/hide anomalies can't be located, lacking counts and a trigger source
+Change   Added instrumented logging on separator add/remove (favs/running counts + trigger source)
 Evidence L?
-Cost     纯观测；它被删掉后那类显隐问题会重新变成只能靠猜
+Cost     Pure observation; once removed, that class of show/hide problem goes back to guesswork
 Commit   148ba0f
 
 ### D-016 · 2026-09-23 · perf · v1
-Symptom  grace 期固定上限，开机后 dock 揭示被无谓拖长
-Change   条件化提前结束（floor 400ms + 静默 500ms，cap 1200ms **只早不晚**）
+Symptom  The grace period has a fixed cap, needlessly prolonging the dock reveal after boot
+Change   Conditional early finish (floor 400ms + 500ms silence, cap 1200ms **early only, never late**)
 Evidence L?
-Cost     "只早不晚"是这条的约束方向；放宽成可晚会重新引入闪烁
+Cost     "Early only, never late" is this entry's constraint direction; relaxing it to allow lateness reintroduces flicker
 Commit   868d2b9
 
 ### D-017 · 2026-09-23 · fix · v1
-Symptom  分隔线删线与图标淡出不齐：淡出中的图标没被计入，结算时机过早
-Change   计入淡出中图标，fade-complete 再结算
+Symptom  Separator-line removal and icon fade-out are misaligned: fading icons aren't counted, settlement happens too early
+Change   Count fading icons, settle on fade-complete
 Evidence L?
-Cost     `freeze-2026-09-23` 标签就落在这笔上；它不是覆盖边界（见表头）
+Cost     The `freeze-2026-09-23` tag lands on this one; it is not a coverage boundary (see header)
 Commit   85eb488
 
 ### D-018 · 2026-09-24 · perf · v1
-Symptom  dock 首帧被 grace 拖住，完全不透明要到 T0+1440ms
-Change   首帧即揭示，grace 收尾改走增量（T0+1440ms → T0+250ms）
+Symptom  The dock's first frame is held back by grace; fully opaque only at T0+1440ms
+Change   Reveal on the first frame; grace finish goes incremental (T0+1440ms → T0+250ms)
 Evidence L?
-Cost     与 D-016 / D-002 同一条启动揭示链，数字是当时实测
+Cost     Same startup-reveal chain as D-016 / D-002; the numbers are measured-at-the-time
 Commit   3c0f611
 
 ### D-019 · 2026-09-24 · taste · v1
-Symptom  上游没有 genie 最小化动画
-Change   引入 genie 动画引擎与几何模块（GPL-2.0-or-later，许可见 LICENSES.md）
-Evidence L0 本轮重跑 `test/static-checks.sh`；`genieGeometry.test.js` 覆盖几何纯函数
-Cost     **本仓最大的一块外来血统**：许可证是 GPL-2.0-or-later 而非上游的 GPL-3，改这块要先读 LICENSES.md
+Symptom  Upstream has no genie minimize animation
+Change   Introduced the genie animation engine and geometry module (GPL-2.0-or-later, see LICENSES.md)
+Evidence L0 Re-ran `test/static-checks.sh` this round; `genieGeometry.test.js` covers the pure geometry functions
+Cost     **This repo's largest piece of foreign lineage**: the license is GPL-2.0-or-later rather than upstream's GPL-3; read LICENSES.md before touching this
 Commit   c372a51
 
 ### D-020 · 2026-09-24 · taste · v1
-Symptom  genie 需要"图标方块"而非整个按钮的矩形
-Change   新增图标矩形解析器（复用 appId→图标 actor 映射）
+Symptom  genie needs the "icon square" rather than the whole button's rectangle
+Change   Added an icon-rectangle resolver (reusing the appId→icon-actor map)
 Evidence L?
-Cost     依赖 appId 映射的稳定性，上游改名会静默退化
+Cost     Depends on the stability of the appId map; an upstream rename degrades silently
 Commit   9ff76f4
 
 ### D-021 · 2026-09-24 · taste · v1
-Symptom  genie 未接进最小化/还原，且完成回调不止一次触发
-Change   接入最小化/还原，回调恰好一次
+Symptom  genie wasn't wired into minimize/restore, and the completion callback fired more than once
+Change   Wired into minimize/restore, callback fires exactly once
 Evidence L?
-Cost     "恰好一次"是停放恢复（D-026）的前提
+Cost     "Exactly once" is the premise for park-and-restore (D-026)
 Commit   dc54ac0
 
 ### D-022 · 2026-09-24 · taste · v1
-Symptom  dodge 在动画期间收不到探头请求；探头时长还会被更短的后续请求提前收起
-Change   支持动画期间探头（可关闭），并取最长时长
+Symptom  dodge receives no peek request during animation; a peek duration can also be collapsed early by a shorter later request
+Change   Support peeking during animation (toggleable), and take the longest duration
 Evidence L?
-Cost     开关是偏好；取最长时长是缺陷修正——同一笔提交里的两件事，若日后要拆再拆
+Cost     The toggle is a preference; taking the longest duration is a bug fix — two things in one commit, split later if ever needed
 Commit   4a94512 32f1c3f
 
 ### D-023 · 2026-09-24 · taste · v1
-Symptom  Super+数字触发时 dock 不弹出
-Change   触发时弹出 Dock，独立开关与时长
+Symptom  Super+number triggers don't pop the dock
+Change   Pop the Dock on trigger, with its own toggle and duration
 Evidence L?
-Cost     新增可配置面（schema 键），回退要连 schema 一起退
+Cost     Adds a configurable surface (schema key); reverting must revert the schema too
 Commit   b02cb2c
 
 ### D-024 · 2026-09-24 · taste · v1
-Symptom  genie 的漏斗轴向、缓动曲线、尾部淡出范围、挤压与吸入深度都需要定形
-Change   按 Dock 边推导漏斗轴向；缓动改快起快收；尾部淡出只作用尾段；贴近图标时的挤压/吸入深度定形，收尾改平滑淡出
+Symptom  genie's funnel axis, easing curve, tail fade-out range, squash and suction depth all needed to be pinned down
+Change   Derive the funnel axis from the Dock edge; change easing to fast-in fast-out; tail fade-out applies only to the tail; squash/suction depth near icons pinned, finish changed to a smooth fade
 Evidence L?
-Cost     纯观感，**升级时可整块丢弃**；四笔合为一条是因为它们共同构成"这套动效长什么样"这一个决定
+Cost     Pure look-and-feel, **droppable wholesale on upgrade**; the four commits are merged into one entry because together they constitute the single decision "what this motion looks like"
 Commit   008fe04 70108bd 5a346eb 04a86de
 
 ### D-025 · 2026-09-24 · perf · v1
-Symptom  genie 每帧新建变换对象
-Change   每帧变换零分配
+Symptom  genie allocates a new transform object every frame
+Change   Zero allocation per-frame transform
 Evidence L?
-Cost     与 D-024 的观感调参同批但判据不同
+Cost     Same batch as D-024's look-and-feel tuning but a different criterion
 Commit   7b3f41b
 
 ### D-026 · 2026-09-24 · taste · v1
-Symptom  genie 网格数固定，窗口大小差异下材料密度不一致
-Change   网格数随窗口自适应
+Symptom  genie's grid count is fixed, so material density is inconsistent across window sizes
+Change   Grid count adapts to the window
 Evidence L?
-Cost     观感参数
+Cost     A look-and-feel parameter
 Commit   b19a4d0
 
 ### D-027 · 2026-09-24 · fix · v1
-Symptom  genie 吸收深度的默认值与 schema 声明不一致
-Change   对齐默认值与 schema
-Evidence L0 本轮重跑 `test/static-checks.sh`（compiled-fresh：编译产物 == XML == shell 读到的）
-Cost     schema 与默认值不一致是静默缺陷，只在首次运行暴露
+Symptom  genie's suction-depth default doesn't match the schema declaration
+Change   Aligned the default with the schema
+Evidence L0 Re-ran `test/static-checks.sh` this round (compiled-fresh: compiled artifact == XML == what the shell reads)
+Cost     A schema/default mismatch is a silent defect, exposed only on first run
 Commit   86cee0e
 
 ### D-028 · 2026-09-24 · perf · v1
-Symptom  放大平滑按帧数推进，掉帧时速度突变
-Change   改为时间基
+Symptom  Magnification smoothing advances by frame count, so speed jumps on dropped frames
+Change   Changed to time-based
 Evidence L?
-Cost     与 D-024 同批但判据不同
+Cost     Same batch as D-024 but a different criterion
 Commit   ae1b073
 
 ### D-029 · 2026-09-24 · taste · v1
-Symptom  genie 动画期间放大效果互相干扰
-Change   genie 动画期间暂停放大
+Symptom  Magnification effects interfere with each other during the genie animation
+Change   Pause magnification during the genie animation
 Evidence L?
-Cost     观感决定
+Cost     A look-and-feel decision
 Commit   369e441
 
 ### D-030 · 2026-09-24 · perf · v1
-Symptom  dodge 静止时仍在轮询
-Change   静止时停轮询
+Symptom  dodge still polls when static
+Change   Stop polling when static
 Evidence L?
-Cost     停轮询后需要唤醒通路，见 D-033
+Cost     After stopping the poll a wake path is needed; see D-033
 Commit   19cc16f
 
 ### D-031 · 2026-09-24 · fix · v1
-Symptom  dodge 滑动方向固定，Dock 在左右/上边时轴向错
-Change   滑动轴向跟随 Dock 位置
+Symptom  dodge's slide direction is fixed, so the axis is wrong when the Dock is on the left/right/top edge
+Change   Slide axis follows the Dock position
 Evidence L?
-Cost     多位置配置下才暴露
+Cost     Only exposed under multi-position configs
 Commit   e56c3f7
 
 ### D-032 · 2026-09-24 · perf · v1
-Symptom  genie 还原时源 actor 仍在场景里；还原走逐帧计算
-Change   还原走快照并停放源 actor
+Symptom  On genie restore the source actor is still in the scene; restore runs per-frame
+Change   Restore runs from a snapshot and parks the source actor
 Evidence L?
-Cost     停放与 mutter 计数收支耦合，见 D-035
+Cost     Parking is coupled to mutter's count accounting; see D-035
 Commit   1cf8628
 
 ### D-033 · 2026-09-24 · taste · v1
-Symptom  genie 动画时 dock 图标静止，缺少呼应
-Change   图标轻微下压回弹
+Symptom  During the genie animation dock icons are static, lacking a response
+Change   Icons press down slightly and bounce back
 Evidence L?
-Cost     观感；其存活判定后来被 D-036 补守卫
+Cost     Look-and-feel; its liveness check was later guarded by D-036
 Commit   b6ab9fb
 
 ### D-034 · 2026-09-24 · taste · v1
-Symptom  增量新增的图标直接硬出现
-Change   新增图标淡入
+Symptom  Incrementally added icons just pop in hard
+Change   Fade in new icons
 Evidence L?
-Cost     观感
+Cost     Look-and-feel
 Commit   93998f4
 
 ### D-035 · 2026-09-24 · fix · v1
-Symptom  dodge 捕捉不到窗口拖动与缩放（轮询看不到几何事件）
-Change   改为逐窗口几何监听
+Symptom  dodge misses window drag and resize (polling can't see geometry events)
+Change   Changed to per-window geometry listeners
 Evidence L?
-Cost     监听器生命周期要与 D-006 的销毁门卫配套
+Cost     Listener lifecycle must pair with D-006's destroyed-guard
 Commit   de39891
 
 ### D-036 · 2026-09-24 · fix · v1
-Symptom  genie 接管顺序与停放恢复造成 mutter 的 actor 计数下溢
-Change   修正接管顺序与恢复路径，消除下溢
+Symptom  genie's takeover order and park-and-restore cause mutter actor-count underflow
+Change   Fixed the takeover order and restore path, eliminating the underflow
 Evidence L?
-Cost     计数收支必须成对，判据是"每轮动画后计数回到原值"
+Cost     Count accounting must balance; the criterion is "the count returns to its original value after each animation round"
 Commit   72771bb
 
 ### D-037 · 2026-09-24 · fix · v1
-Symptom  分隔线按未 settled 的图标数判定，产生孤儿分隔线
-Change   改按真实图标数判定
+Symptom  Separators are decided by the un-settled icon count, producing orphan separators
+Change   Decide by the real icon count
 Evidence L?
-Cost     与 D-015 的打点是同一问题的两面
+Cost     Same problem's two faces as D-015's instrumentation
 Commit   b772371
 
 ### D-038 · 2026-09-24 · perf · v1
-Symptom  运行指示点每轮刷新都各自走查窗口
-Change   每轮只做一次窗口走查
+Symptom  Running-indicator dots each walk the windows every refresh round
+Change   Walk the windows only once per round
 Evidence L?
-Cost     走查结果共享后，任何一处的写操作都会影响其他处
+Cost     Once the walk result is shared, a write in any one place affects the others
 Commit   c010ce4
 
 ### D-039 · 2026-09-24 · fix · v1
-Symptom  图标下压的存活判定不容忍 wrapper 已销毁
-Change   容忍 wrapper 已销毁
+Symptom  The icon-press liveness check doesn't tolerate an already-destroyed wrapper
+Change   Tolerate an already-destroyed wrapper
 Evidence L?
-Cost     GJS 里访问已 dispose 对象是运行时错误，不是静默无效
+Cost     In GJS, accessing a disposed object is a runtime error, not a silent no-op
 Commit   1fe7887
 
 ### D-040 · 2026-09-24 · fix · v1
-Symptom  放大轮询停表后，Dock 显现时不再被唤醒（只有一条唤醒通路）
-Change   补第二条唤醒通路（Dock 显现时）
+Symptom  After the magnification poll stops, the Dock isn't woken when it appears (only one wake path)
+Change   Added a second wake path (when the Dock appears)
 Evidence L?
-Cost     通路数量是这类停表逻辑的判据，单通路等于会失灵
+Cost     The number of paths is the criterion for this class of stop-the-timer logic; a single path means it will fail
 Commit   709fe31
 
 ### D-041 · 2026-09-25 · fix · v1
-Symptom  分隔线在淡出图标尚未消失时被撑出来
-Change   按 settled 状态判定，淡出图标不再撑出分隔线
+Symptom  Separators are forced out while a fading icon hasn't yet disappeared
+Change   Decide by settled state; fading icons no longer force out a separator
 Evidence L?
-Cost     与 D-017 / D-037 同一条分隔线判定链，三处一致才对
+Cost     Same separator-decision chain as D-017 / D-037; all three must agree
 Commit   508efea
 
 ### D-042 · 2026-09-25 · perf · v1
-Symptom  dodge 的全屏判定靠猜测，且一直在监听 chrome 窗口
-Change   走 mutter 权威状态判定全屏，停止监听 chrome
+Symptom  dodge's fullscreen test is guesswork and always listens to chrome windows
+Change   Use mutter's authoritative state for fullscreen, stop listening to chrome
 Evidence L?
-Cost     少一类监听也少一类唤醒；回到自判会重新引入误隐藏
+Cost     One fewer listener class is one fewer wake class; going back to self-judging reintroduces false hides
 Commit   161889d
 
 ### D-043 · 2026-09-25 · taste · v1
-Symptom  genie 材料沿轴向均匀堆积，视觉上不像被吸进 dock
-Change   轴向非均匀堆积，材料向图标口收束
+Symptom  genie material piles up uniformly along the axis, visually unlike being sucked into the dock
+Change   Non-uniform axial pile-up, material converges toward the icon mouth
 Evidence L?
-Cost     纯观感，零义务
+Cost     Pure look-and-feel, zero obligation
 Commit   a9b0625
 
 ### D-044 · 2026-09-25 · taste · v1
-Symptom  genie 时长不遵循无障碍的减速设置
-Change   时长遵循 `slow_down_factor`
+Symptom  genie's duration doesn't respect the accessibility slow-down setting
+Change   Duration follows `slow_down_factor`
 Evidence L?
-Cost     这是"观感"与"无障碍合规"的交叉；丢掉它会成为可访问性缺陷而不是偏好问题
+Cost     This is where "look-and-feel" meets "accessibility compliance"; dropping it becomes an accessibility defect, not a preference
 Commit   ec56b03
 
 ### D-045 · 2026-09-25 · chore · v1
-Symptom  genie 调试期留下的临时诊断探针仍在代码里
-Change   清理 genie 临时诊断探针
-Evidence 不适用（无行为变化）
-Cost     探针残留会让下一次读数失真，必须撤干净并回读
+Symptom  Temporary diagnostic probes left over from genie debugging are still in the code
+Change   Cleaned up the temporary genie diagnostic probes
+Evidence Not applicable (no behavior change)
+Cost     Leftover probes distort the next readout; they must be removed cleanly and re-read
 Commit   3051cd9
 
 ### D-046 · 2026-09-25 · fix · v1
-Symptom  隐藏动画期间的显示请求被直接丢弃
-Change   隐藏动画期间的显示请求不再被丢弃
+Symptom  Show requests during the hide animation are simply dropped
+Change   Show requests during the hide animation are no longer dropped
 Evidence L?
-Cost     与 D-005 / D-031 同在显隐状态机上
+Cost     Same show/hide state machine as D-005 / D-031
 Commit   ae2993f
 
 ### D-047 · 2026-09-25 · fix · v1
-Symptom  开机避让用固定 2 秒宽限，机器快慢不同时要么过长要么不够
-Change   改为"窗口静默"判据
+Symptom  Boot avoidance uses a fixed 2-second grace, either too long or too short depending on machine speed
+Change   Changed to a "window silence" criterion
 Evidence L?
-Cost     判据化后依赖 D-015 那类打点才能验证，别再退回常数
+Cost     Once it's a criterion it can only be verified with D-015-style instrumentation; don't fall back to a constant
 Commit   6b66a2a
 
 ### D-048 · 2026-09-25 · chore · v1
-Symptom  需要一次开机现场证据，dodge 日志默认关闭
-Change   临时打开 `DODGE_DEBUG`（仅用于那一次验证）
+Symptom  A boot-scene evidence run is needed; dodge logs are off by default
+Change   Temporarily turned on `DODGE_DEBUG` (only for that one verification)
 Evidence L?
-Cost     **临时**开关；它被 D-049 撤掉，两者必须成对读
+Cost     A **temporary** toggle; it is withdrawn by D-049, the two must be read as a pair
 Commit   f93ef54
 
 ### D-049 · 2026-09-27 · fix · v1
-Symptom  genie 用未 clamp 的 curvature 计算 c1/c2，极端设置下几何崩坏
-Change   用 clamp 后的 curvature 计算，并补上本仓第一个测试套件
-Evidence L0 本轮重跑 `test/static-checks.sh` 与 `npm test`（genieGeometry / signalManager / repo 套件在列）
-Cost     测试与被修的是同一件事，回滚修复会把套件弄红
+Symptom  genie computes c1/c2 with an unclamped curvature, geometry breaks down under extreme settings
+Change   Compute with a clamped curvature, and add this repo's first test suite
+Evidence L0 Re-ran `test/static-checks.sh` and `npm test` this round (genieGeometry / signalManager / repo suites among them)
+Cost     The tests and the fix are the same thing; rolling back the fix turns the suite red
 Commit   f724c38
 
 ### D-050 · 2026-09-28 · revert · v1
-Symptom  D-048 的临时调试开关不应留在树里
-Change   Revert「chore(debug): 临时打开 DODGE_DEBUG」
+Symptom  D-048's temporary debug toggle shouldn't stay in the tree
+Change   Revert "chore(debug): temporarily turn on DODGE_DEBUG"
 Evidence L?
-Cost     与 D-048 成对。记录一次回退比记录十次成功更有用——这条就是那类"当初为什么收紧"的证据
+Cost     Pairs with D-048. Recording one revert is more useful than recording ten successes — this is exactly that "why we tightened it back then" evidence
 Commit   5c84880
 
 ### D-051 · 2026-10-07 · fix · v1
-Symptom  概览退出动画把 dock 弹回（可见性目标未校正）
-Change   概览状态改按 `visibleTarget` 校正
+Symptom  The overview exit animation bounces the dock back (visibility target not corrected)
+Change   Correct the overview state by `visibleTarget`
 Evidence L?
-Cost     判据写在 MAINTENANCE §11；签名是"退出动画结束时的一次回弹"
+Cost     The criterion is written in MAINTENANCE §11; the signature is "a single bounce when the exit animation ends"
 Commit   6863e43
 
 ### D-052 · 2026-10-07 · fix · v1
-Symptom  边缘判定与轮询阈值都假定 primary 显示器，dock 放副屏时失效
-Change   改用 dock 所在显示器的几何
+Symptom  Edge detection and polling thresholds both assume the primary monitor, failing when the dock is on a secondary screen
+Change   Use the geometry of the monitor the dock is on
 Evidence L?
-Cost     多显示器才暴露；单屏验证过的结论对这条不成立
+Cost     Only exposed with multiple monitors; conclusions verified on a single screen don't hold for this
 Commit   c45b46f
 
 ### D-053 · 2026-10-07 · fix · v1
-Symptom  关闭扩展时把 enable 时抓取的概览 dash 值写回，覆盖了用户在会话期间的改动
-Change   关闭时按 shell 默认恢复，不再回写抓取值
+Symptom  On extension disable, writing back the overview dash values captured at enable overwrote the user's changes during the session
+Change   On disable, restore shell defaults instead of writing back the captured values
 Evidence L?
-Cost     与 D-013 的"备份 + dirty"是同一类恢复语义：恢复的基准应该是默认值，不是我见过的值
+Cost     Same recovery semantics as D-013's "backup + dirty": the restore baseline should be the default value, not the value I happened to see
 Commit   cb8a34a
 
 ### D-054 · 2026-10-09 · fix · v1
-Symptom  隐藏自带 dash 使其变空，概览底部预留带随之塌缩到主题内边距（36px），低于本 dock 占用高度，dock 顶边侵入窗口选择器/应用网格
-Change   `_hideDefaultDash` 给被隐藏的 dash 实例遮蔽 `get_preferred_height`，上报 dock 占用高度；`_showDefaultDash` 里 `delete` 还原
+Symptom  Hiding the built-in dash leaves it empty, so the overview's bottom reserved band collapses to the theme's inner padding (36px), below this dock's occupied height, and the dock's top edge intrudes into the window picker / app grid
+Change   `_hideDefaultDash` shadows `get_preferred_height` on the hidden dash instance, reporting the dock's occupied height; `_showDefaultDash` restores via `delete`
 Evidence L1 overview-band
-Cost     GNOME 50 的概览底部预留带是 shell 从自带 dash 的 preferred height 推出来的（`overviewControls.js`），隐藏它会让 dash 变空——**隐藏不等于不参与布局**；`_dashSpacer` 在 GNOME 50 已删，旧写法是死代码
+Cost     In GNOME 50 the overview's bottom reserved band is derived by the shell from the built-in dash's preferred height (`overviewControls.js`); hiding it leaves the dash empty — **hidden does not mean out of layout**; `_dashSpacer` was already removed in GNOME 50, so the old approach is dead code
 Commit   023b739
 
 ### D-055 · 2026-10-09 · fix · v1
-Symptom  `test/headless-checks.sh` 收尾只 `kill` 了 `dbus-run-session`，它 fork 出的私有 dbus-daemon 与 gnome-shell 被 reparent 到 systemd 后继续存活；一天的运行残留 7 个无头 shell + 18 个私有 dbus-daemon（约 580 MB）
-Change   新增 `t2descendants`（先子后父收集，趁 reparent 前 `pgrep -P` 还看得见）与 `t2killtree`（整棵子树 TERM→KILL）；trap 改调 `t2killtree`；`teardown` 由恒 PASS 改为真实断言——快照子树、回收、逐个 `/proc` 证明 pid 已消失
+Symptom  `test/headless-checks.sh`'s teardown only `kill`ed `dbus-run-session`; its forked private dbus-daemon and gnome-shell kept living after being reparented to systemd; one day's runs left 7 headless shells + 18 private dbus-daemons (~580 MB)
+Change   Added `t2descendants` (collect children before parents, while `pgrep -P` can still see them before reparenting) and `t2killtree` (whole subtree TERM→KILL); the trap now calls `t2killtree`; `teardown` changed from a constant PASS to a real assertion — snapshot the subtree, reclaim, prove each pid is gone via `/proc`
 Evidence L1 teardown
-Cost     `dbus-run-session` 的子进程不止命令本身，还有它自己的 dbus-daemon；`kill $INNER` 一个都够不着。**判据必须是"快照过的 pid 全部消失"，不能是 `kill` 的返回码**——上一轮正是被返回码骗过（循环报 gone，`ps` 里 7 个全在）
+Cost     `dbus-run-session`'s children are not just the command itself but also its own dbus-daemon; `kill $INNER` can't reach a single one. **The criterion must be "all snapshotted pids are gone", not the return code of `kill`** — the previous round was fooled by the return code (the loop reported gone while all 7 were in `ps`)
 Commit   1f7d0d3
 
 ### D-056 · 2026-10-09 · chore · v1
-Symptom  被 `SIGKILL` 的 `test/headless-checks.sh` 运行（或主机断电）会把它在 `/tmp/macosdock-t2-*` 的沙箱目录留在原地，之后没有任何东西回收；一次手工清理时已累积 16 个（2.9 MB）
-Change   创建 `$T2` 之前加一次启动清扫：回收 `macosdock-t2-*` 中 mtime 超过一小时的目录，有回收就打印一行非 report 的说明
+Symptom  A `SIGKILL`ed `test/headless-checks.sh` run (or a host power loss) leaves its sandbox dirs under `/tmp/macosdock-t2-*` in place, with nothing reclaiming them afterward; a manual cleanup once accumulated 16 (2.9 MB)
+Change   Before creating `$T2`, add a startup sweep: reclaim `macosdock-t2-*` dirs with mtime over an hour, printing one non-report line if anything was reclaimed
 Evidence L1 sandbox
-Cost     清扫必须带**年龄闸门**——按名字无差别删会误删并发运行的新沙箱（一次运行 ≤150 s）。它是卫生动作而非断言，所以刻意不发 `report` 行，MAINTENANCE 里"断言 16 项"的数字才不用跟着变
+Cost     The sweep must carry an **age gate** — deleting indiscriminately by name would kill a concurrently running fresh sandbox (a run ≤150 s). It is a hygiene action, not an assertion, so it deliberately does not emit a `report` line, and MAINTENANCE's "16 assertions" count doesn't have to change with it
 Commit   b71ace1
 
 ### D-057 · 2026-10-09 · taste · v1
-Symptom  概览里窗口预览探出桌面边缘（左右各 20px、下方 12px），窗口数让内容贴底时最明显（"1 个明显、2 个没有、3 个轻微"）
-Change   新增 `lib/overviewLayout.js`：在原型上包裹 `WorkspaceLayout._getWindowSlots`，把桌面背景 `WorkspaceBackground` 的实测矩形当作槽位区传入；`dockManager` 在 enable 挂载、disable 还原；结构探测缺符号即降级原生
+Symptom  In the overview, window previews poke past the desktop edges (20px left/right, 12px bottom), most visible when the window count pushes content to the bottom ("1 obvious, 2 none, 3 slight")
+Change   Added `lib/overviewLayout.js`: wraps `WorkspaceLayout._getWindowSlots` on the prototype, passing the measured rectangle of the desktop background `WorkspaceBackground` as the slot area; `dockManager` mounts on enable, restores on disable; missing symbols in the structure probe degrade to native
 Evidence L1 overview-window-inset
-Cost     这是 **shell 自身布局**（预览容器占满整个盒子、背景内缩其中），与 dock 无关——dock 开或关都一样，所以上次改 dash 高度（D-054）根本没碰到它。补丁依赖 shell 私有布局，升级改名即降级（一行 warn，不崩）。属视觉偏好：预览可用高度少 12px、宽度少 40px，会整体缩放一点点
+Cost     This is **the shell's own layout** (the preview container fills the whole box, the background insets within it), unrelated to the dock — the same whether the dock is on or off, so last time's dash-height change (D-054) never touched it. The patch depends on the shell's private layout; an upgrade rename degrades (one warn line, no crash). A visual preference: previews lose 12px of usable height and 40px of width, scaling everything down a touch
 Commit   980c4db
 
 ### D-058 · 2026-10-09 · chore · v1
-Symptom  四类非 dock 关注点（概览布局补丁、genie 窗口动画、全局快捷键、Show Apps 按钮补丁）与 dock 本体混在一起：概览补丁（D-054/D-057）常开且硬编码在 `dockManager` 里，Show Apps 按钮补丁搭在 `icons-fix-enabled` 下——既关不掉、也说不清边界
-Change   概览布局补丁抽进新 `lib/overviewPatches.js`（`overview-patches-enabled` 开关；dock 高度经注入的 `getBandMetrics()` 读取，模块不再反向 import DockManager）；Show Apps 按钮补丁从 `iconFix`/`icons-fix-enabled` 解耦为 `apps-button-fix-enabled`（stop 触发 IconManager reload 以恢复原装按钮）；genie/keynav 补边界头注释（本已有独立开关）。每个非 dock 关注点 = 一个模块 + 一个 `*-enabled` + 真 start/stop + 探测→warn-once→降级
+Symptom  Four non-dock concerns (overview layout patch, genie window animation, global shortcut, Show Apps button patch) are mixed with the dock proper: the overview patches (D-054/D-057) are always on and hardcoded in `dockManager`, and the Show Apps button patch rides under `icons-fix-enabled` — neither can be turned off nor has a clear boundary
+Change   The overview layout patch is extracted into a new `lib/overviewPatches.js` (`overview-patches-enabled` toggle; dock height read via an injected `getBandMetrics()`, so the module no longer imports DockManager back); the Show Apps button patch is decoupled from `iconFix`/`icons-fix-enabled` into `apps-button-fix-enabled` (stop triggers an IconManager reload to restore the stock button); genie/keynav get boundary header comments (each already had its own toggle). Every non-dock concern = one module + one `*-enabled` + real start/stop + probe→warn-once→degrade
 Evidence L1 overview-patches, apps-button
-Cost     **就地隔离而非拆扩展**：这些件与 dock 有真实耦合（genie 要图标矩形、keynav 要图标顺序、按钮补丁要 dock 的按钮），硬拆要造跨扩展接口、反而更贵。**不要**再把它们捆回 dock 自己的开关下。新增 schema 键必须同步 prefs（repo.test.js 守卫）；`overviewApps` 的 stop 会有一次 dock 重建/闪动（改设置很少见）
+Cost     **In-place isolation, not splitting the extension**: these pieces genuinely couple to the dock (genie needs icon rectangles, keynav needs icon order, the button patch needs the dock's button), and hard-splitting would require cross-extension interfaces, which is more expensive. Do **not** bundle them back under the dock's own toggles. New schema keys must sync prefs (guarded by repo.test.js); `overviewApps`'s stop causes one dock rebuild/flicker (rare, as settings changes are)
 Commit   0e15fff
 
 ### D-059 · 2026-10-09 · perf · v1
-Symptom  一次 motion 事件把 dock 所在显示器解析两遍：`_onPointer` 自己 `_dockMonitor()` 一次，随后 `_pointerFarFromEdge(px,py)` 内部又解析一次；每次都要把 `Main.layoutManager.monitors` 转成新的 JS 数组并线性扫描
-Change   `_pointerFarFromEdge(px, py, monitor = null)` —— 已解析出 monitor 的调用方直接传入，不传时走原来的自解析路径；`_shouldPark` 那条不带坐标的调用与 H13 几何用例行为不变
-Evidence L1 motion-monitor-resolve（对修复前的代码实测 `calls=2` 红，修复后 `calls=1` 绿）
-Cost     调用图上的去重，**没有 L2 毫秒数**：本机注入不了指针。仍值得做的理由是这条路径不限流、且正是"跟手"的判定路径；量化收益继续挂在 §10 的人工清单上
+Symptom  One motion event resolves the dock's monitor twice: `_onPointer` calls `_dockMonitor()` once, then `_pointerFarFromEdge(px,py)` resolves again internally; each time converts `Main.layoutManager.monitors` into a fresh JS array and scans it linearly
+Change   `_pointerFarFromEdge(px, py, monitor = null)` — callers that already resolved the monitor pass it in, and when omitted it takes the original self-resolving path; the coordinate-less `_shouldPark` call and the H13 geometry cases are behaviorally unchanged
+Evidence L1 motion-monitor-resolve (measured `calls=2` red on pre-fix code, `calls=1` green post-fix)
+Cost     Deduplication on the call graph, **no L2 millisecond figure**: this machine can't inject a pointer. Still worth doing because this path isn't rate-limited and is exactly the "follows the hand" decision path; quantifying the gain stays on §10's manual checklist
 Commit   73c2f55
 
 ### D-060 · 2026-10-09 · guard · v1
-Symptom  两件事无人断言：motion 路径的重复解析（D-059 修的正是它），以及"禁用之后我们的 chrome actor 是否还留在 `layoutManager._trackedActors` 里"——后者原本只是审计里一条**静态推断**
-Change   `test/headless-checks.sh` 加两项：`motion-monitor-resolve`（直接调 `_onPointer` 并统计 `_dockMonitor()` 次数）、`chrome-untracked`（销毁容器 → `disable()` → 问注册表）。破坏性探针必须排在最后——第一次跑时后面的探针拿到 ENV "no dodge instance"，那是仪器问题不是代码问题
+Symptom  Two things had no assertion: the motion path's duplicate resolution (exactly what D-059 fixed), and "after disable, is our chrome actor still in `layoutManager._trackedActors`" — the latter was only a **static inference** in the audit
+Change   `test/headless-checks.sh` gains two: `motion-monitor-resolve` (calls `_onPointer` directly and counts `_dockMonitor()` calls), `chrome-untracked` (destroy container → `disable()` → ask the registry). The destructive probe must run last — on the first run the later probes got ENV "no dodge instance", which was an instrumentation problem, not a code problem
 Evidence L1 chrome-untracked
-Cost     审计里那条"禁用后泄漏 chrome 注册"的 P1 结论**撤回**：实测无残留，原因在 shell 一侧（`Layout._trackActor()` 把 actor 的 `destroy` 连到 `_untrackActor`，已登记 MAINTENANCE §8）。`chrome-untracked` 留作哨兵——哪天 shell 去掉那条自动连接，`dockManager.js:287` 拿 `_container` 是否存活来决定要不要 `removeChrome` 就重新变成真泄漏
+Cost     The audit's P1 conclusion "chrome registration leaks after disable" is **withdrawn**: no residue measured, the reason being on the shell side (`Layout._trackActor()` connects the actor's `destroy` to `_untrackActor`, already recorded in MAINTENANCE §8). `chrome-untracked` stays as a sentinel — if the shell ever drops that automatic connection, `dockManager.js:287` deciding whether to `removeChrome` based on `_container` liveness becomes a real leak again
 Commit   75f034c
 
 ### D-061 · 2026-10-09 · fix · v1
-Symptom  Show Apps 按钮判断"我在不在应用网格里"用的是裸数字 `v === 2`（shell 的 `ControlsState.APP_GRID`）。改名会降级，**重排**则让它自信地答错且不打一行日志；而它的兜底 `showAppsButton.checked` 正是同文件注释里写明"不再信任"的过期来源
-Change   模块加载时从 `ui/overviewControls.js` 解析一次 `ControlsState.APP_GRID`；解析不到就 warn-once 并显式走兜底。`applied` 日志加 `grid=<n>`，把"用的哪个值"变成可读的判据
-Evidence L1 grid-state-source（对修复前红：那行日志没有 `grid=`；修复后绿，且与同一轮 shell 自己报出的枚举值相等）
-Cost     新增一条对 shell 模块的 import（`overviewControls.js`），属公开导出而非私有字段。日志行格式变了——第三层若有按 `applied (` 取的断言要一起看
+Symptom  The Show Apps button tests "am I in the app grid" with a bare number `v === 2` (the shell's `ControlsState.APP_GRID`). A rename degrades, but a **reorder** makes it confidently answer wrong without a single log line; and its fallback `showAppsButton.checked` is exactly the stale source the same file's comment says is "no longer trusted"
+Change   At module load, resolve `ControlsState.APP_GRID` once from `ui/overviewControls.js`; if it can't be resolved, warn-once and explicitly take the fallback. The `applied` log gains `grid=<n>`, turning "which value was used" into a readable criterion
+Evidence L1 grid-state-source (red pre-fix: the log line had no `grid=`; green post-fix, equal to the enum value the same shell run reported)
+Cost     Adds an import of a shell module (`overviewControls.js`), which is a public export rather than a private field. The log line format changed — if the third layer has assertions matching `applied (`, they must be checked too
 Commit   18c4d8b
 
 ### D-062 · 2026-10-09 · fix · v1
-Symptom  两处概览补丁在检测到自己标志位已置时返回 **noop revert**。该分支只在"上一次 revert 抛错被调用方吞掉"时到达，一旦走到，遮蔽的 `get_preferred_height` 与原型上的 `_getWindowSlots` 包装在剩余会话里再也撤不掉——禁用扩展也不撤
-Change   把 revert 提到早退之前构造并两个分支共用（它无状态：删自有属性即还原原型方法）；`overviewLayout` 把原始方法存到原型 `_dockOverviewLayoutOrig`，免得已应用时把自家包装当"原始"存回去。另补一条 warn-once：`WorkspaceLayout._container` 被改名时 `_previewArea()` 只返回 null 静静退回原生布局，而模块头写着"任何缺失都 warn-once"——兑现自己许下的承诺
-Evidence L1 patch-revert-idempotent（修复前红：`shadowStillInstalled=true`、`insetStillApplied=true`；修复后绿，且探针收尾重新 apply 成功）
-Cost     正常开关路径本来到不了这条分支（`dockManager._startOverviewPatches` 持有 revert 就早退），所以这是**纵深防御**而非当前缺陷；`noop` 变量在两条路径里仍有别的用途
+Symptom  Two overview patches return a **noop revert** when they detect their own flag already set. That branch is only reached when "the previous revert threw and the caller swallowed it"; once taken, the shadowed `get_preferred_height` and the prototype's `_getWindowSlots` wrapper can never be removed for the rest of the session — not even by disabling the extension
+Change   Construct the revert before the early return and share it across both branches (it's stateless: deleting its own property restores the prototype method); `overviewLayout` stores the original method on the prototype as `_dockOverviewLayoutOrig`, so that when already applied it doesn't store its own wrapper back as "original". Also added one warn-once: when `WorkspaceLayout._container` is renamed, `_previewArea()` only returns null and quietly falls back to the native layout, while the module header says "any missing piece warns once" — honoring the promise it made
+Evidence L1 patch-revert-idempotent (red pre-fix: `shadowStillInstalled=true`, `insetStillApplied=true`; green post-fix, and the probe's teardown re-applies successfully)
+Cost     The normal toggle path can't reach this branch anyway (`dockManager._startOverviewPatches` early-returns while holding the revert), so this is **defense in depth**, not a current defect; the `noop` variable still serves other purposes in both paths
 Commit   0380cf9
 
 ### D-063 · 2026-10-09 · perf · v1
-Symptom  hover tick 每个图标每帧读两遍几何：算 minDist 一趟 `get_position()+get_size()`，缩放又一趟；pivot 校正里 `get_pivot_point()` 为取 [0] 和 [1] 各调一次；`smooth` 闭包每帧新建。实测一帧 6 个图标 = **12 次** position 读取，每次都是一个新 GI 数组
-Change   单趟几何 pass 把圆心写进复用的 `_centers` 配对数组，其后两趟只读普通数字；`smooth` 提到模块作用域。pivot 仍在本帧设置、far-away 早退的判据与阈值一字未动
-Evidence L1 tick-geometry-reads（修复前红 12/6，修复后绿 6/6）。仪器说明：本机 `global.set_pointer` 不存在，改成遮蔽 `global.get_pointer()` 恰好一帧，并在 `finally` 里还原
-Cost   只覆盖"图标数变化时数组残留旧尾巴"这一处语义差异——多出来的数字不会被读到（循环按 children.length bound）。人眼感受仍属 §10 无法自动化的部分
+Symptom  The hover tick reads each icon's geometry twice per frame: one pass of `get_position()+get_size()` to compute minDist, another for scaling; in pivot correction `get_pivot_point()` is called once each for [0] and [1]; the `smooth` closure is recreated every frame. Measured: 6 icons in one frame = **12** position reads, each a new GI array
+Change   A single geometry pass writes centers into a reused `_centers` pair array, after which the two passes read plain numbers; `smooth` is hoisted to module scope. Pivot is still set this frame, and the far-away early-return criterion and threshold are untouched
+Evidence L1 tick-geometry-reads (red pre-fix 12/6, green post-fix 6/6). Instrumentation note: `global.set_pointer` doesn't exist here, so it shadows `global.get_pointer()` for exactly one frame and restores it in a `finally`
+Cost     Only covers one semantic difference — "the array keeps an old tail when the icon count changes" — and the extra numbers aren't read (the loop is bounded by children.length). The human-perceived part remains on §10's list of what can't be automated
 Commit   259fe4f
 
 ### D-064 · 2026-10-09 · chore · v1
-Symptom  审计把 `dash._dashSpacer` 分支列为"死代码，删"
-Change   删前先核：本机 shell 的 `ui/*.js` 里搜不到这个名字（50.1 确实没有），但 `metadata.json` 还声明 48/49，这两个 major 在本机无法运行、无法验证字段是否存在。于是**保留分支**并把事实边界写在代码里：此处惰性，删除需要真机验证过再动
-Evidence L0（grep 本机 shell 源）；48/49 一侧为"需人工确认"
-Cost     反过来也成立：直接删等于对未验证的 major 做行为改动，违反"稳定性优先"。这条记录的作用是阻止下一轮把同一个"死代码"再删一次
+Symptom  The audit lists the `dash._dashSpacer` branch as "dead code, delete"
+Change   Verified before deleting: the name isn't found in this machine's shell `ui/*.js` (50.1 indeed lacks it), but `metadata.json` still declares 48/49, two majors that can't run here and whose fields can't be verified. So the **branch is kept** and the fact boundary written into the code: it is inert here, and removing it needs real-machine verification first
+Evidence L0 (grep of the local shell source); the 48/49 side is "needs manual confirmation"
+Cost     The converse also holds: deleting outright would be a behavior change to an unverified major, violating "stability first". This entry's purpose is to stop the next round from deleting the same "dead code" again
 Commit   e067e5c
 
 ### D-065 · 2026-10-09 · guard · v1
-Symptom  D-061/D-062/D-063 三件事在修之前都没有任何检查能发现
-Change   第二层加 `grid-state-source`、`patch-revert-idempotent`、`tick-geometry-reads` 三项；顺带把该层全部 `H` 序号按文件出现顺序重排（此前 H18 排在 H17 前面，且新插入的块撞过号）
-Evidence L1 三项各自红→绿见 D-061/D-062/D-063
-Cost     `tick-geometry-reads` 依赖遮蔽 `global.get_pointer`——一次只罩一帧、`finally` 还原；留着它会让后续探针读到假指针
+Symptom  D-061/D-062/D-063 were all invisible to any check before being fixed
+Change   Added three to the second layer: `grid-state-source`, `patch-revert-idempotent`, `tick-geometry-reads`; also renumbered all the layer's `H` indices in file order (previously H18 came before H17, and newly inserted blocks collided)
+Evidence L1 the three each red→green, see D-061/D-062/D-063
+Cost     `tick-geometry-reads` depends on shadowing `global.get_pointer` — one frame at a time, restored in a `finally`; leaving it in place would let later probes read a fake pointer
 Commit   2498a28
 
 ### D-066 · 2026-10-09 · guard · v1
-Symptom  57 个 schema 键里 README 只点名 2 个；往 schema 加一键不会有任何东西提示文档落后。另：阶段证据目录此前叫 `reports/`（仓库根），与同工作区其它仓的 `docs/reports/` 不一致
-Change   第一层新增 `README documents every settings key`——双语 README 各需为每个键写一行（键名以反引号形式出现），先跑红再补表；`reports/` 迁为 `docs/reports/`（忽略规则仍是不带前导斜杠的 `reports/`，任何层级生效；`listFiles()` 按 basename 跳过，一处覆盖两处）；S8 探测路径随之改到 `docs/reports/`，并把"已跟踪计数"这半**挪到**"忽略规则存在"之前——实测 `git check-ignore` 对已在 index 里的路径直接答"未被忽略"，原顺序会把"证据已被 add"误报成"规则缺失"
-Evidence L0/L1 红→绿各两次：guard 在表写出前红（`README documents no row for: icon-size, magnification-enabled, …`），写后 75 assertions / 21 suites 绿；S8 在一次性克隆里跑过四态——无规则=红(规则缺失)、有规则=绿、`git add -f docs/reports/STATE.md`=红("1 file(s) … tracked")、撤销 staging=绿
-Cost     schema 每加一键要动三处（README 双语各一行；这一半由守卫兜住，描述写没写对兜不住）。README 键表与 `prefs.js` 的 subtitle 是两处并行文案，会分叉——这一点在拍板时已知并选择
+Symptom  Of 57 schema keys, README names only 2; adding a key to the schema gives no hint that docs are behind. Also: the stage evidence directory was previously `reports/` (repo root), inconsistent with `docs/reports/` in other repos of the same workspace
+Change   First layer gains `README documents every settings key` — each bilingual README must have a line per key (key name appearing in backticks), run red first then fill the table; `reports/` moves to `docs/reports/` (the ignore rule is still `reports/` without a leading slash, effective at any level; `listFiles()` skips by basename, one place covers both); the S8 probe path moves to `docs/reports/` accordingly, and the "tracked count" half is **moved** before "ignore rule exists" — measured `git check-ignore` answers "not ignored" directly for a path already in the index, so the original order misreported "evidence already added" as "rule missing"
+Evidence L0/L1 red→green twice each: the guard is red before the table is written (`README documents no row for: icon-size, magnification-enabled, …`), green after with 75 assertions / 21 suites; S8 ran four states in a throwaway clone — no rule=red (rule missing), rule present=green, `git add -f docs/reports/STATE.md`=red ("1 file(s) … tracked"), unstage=green
+Cost     Each added schema key touches three places (one line in each bilingual README; this half is guarded, but whether the description is correct isn't). The README key table and `prefs.js`'s subtitle are two parallel copy surfaces and will diverge — known and chosen at decision time
 Commit   a6a17a1
 
 ### D-067 · 2026-10-09 · guard · v1
-Symptom  INVARIANTS.md 是人写的指针表：条目被删、检查被改名、或把 `taste` 当成"不得回退"，它都会**继续显示为一张正常的表**。AGENTS.md 规定它"不抄正文"，但没人能机械判断它有没有开始抄
-Change   新增 `test/invariants.mjs`（纯 Node）承载规则 6.0–6.7：表非空、四格齐全且无占位符、id 解析到真实条目、自上而下严格递增、`taste` 不得列为不变量、证据列以 L0/L1/L2/L? 开头、证据列里反引号包住的连字符 token 必须是 harness 仍在报告的检查名、正文不得从 CHANGELOG 整段照抄。两个消费者共用同一份实现与同一个条目正则：`check-log.mjs` 作为第 6 项（`--invariants` 单跑它，纯文档改动不必走一遍 commit 窗口），`repo.test.js` 在 `npm test` 里跑同一次校验，所以第一层与 CI 都会抓到过期行
-Evidence L0/L1 逐条打红：`test/invariants.test.js` 对每条规则各造一个违规表并断言报出的正是那条规则，另有一个绿色控制组（格式正确的表零报告，`visible`/`lib/dodge.js`/`test:live-trigger` 不被误认成检查名）。真表在一次性克隆里被四种破坏各打红一次——改名后的检查名(6.6)、指向不存在的条目(6.2 连带 6.3)、把 D-057 这个 taste 条目当不变量(6.4)、从 CHANGELOG 整段复制 336 字符(6.7)，每次都恢复并复验绿；`repo.test.js` 走第一层路径同样红 1 / 绿 0
-Cost     一条**真红**从这里暴露：6.6 的初版只匹配小写，`tick-geometry-reads` 半改名成 `tick-geometry-readX` 会静默通过，改成大小写与下划线都收。反过来它是有意的宽松——证据列里若把非检查名的词用反引号包住（形如 `some-phrase`），会得到一次假红，代价只是去掉那对反引号。文档里"12 个键没有偏好行"这句话现在由 `EXPECTED_UNBOUND.length === 12` 撑着
+Symptom  INVARIANTS.md is a hand-written pointer table: if an entry is deleted, a check renamed, or `taste` treated as "must not revert", it will **still display as a normal table**. AGENTS.md says it "doesn't copy the body text", but no one can mechanically judge whether it has started to
+Change   Added `test/invariants.mjs` (pure Node) carrying rules 6.0–6.7: the table is non-empty, all four cells present with no placeholders, ids resolve to real entries, strictly increasing top-down, `taste` must not be listed as an invariant, the evidence column starts with L0/L1/L2/L?, hyphenated tokens in backticks in the evidence column must be check names the harness still reports, and the body must not copy a whole passage from the CHANGELOG. Two consumers share one implementation and one entry regex: `check-log.mjs` as the 6th item (`--invariants` runs it alone, so a docs-only change needn't go through a commit window), and `repo.test.js` runs the same validation under `npm test`, so both the first layer and CI catch stale rows
+Evidence L0/L1 each rule reddened individually: `test/invariants.test.js` builds one violating table per rule and asserts the rule reported is exactly that one, plus a green control (a correctly formatted table reports zero, and `visible`/`lib/dodge.js`/`test:live-trigger` aren't mistaken for check names). The real table was reddened once each by four kinds of corruption in a throwaway clone — a renamed check (6.6), an id pointing to a nonexistent entry (6.2 with 6.3), treating the taste entry D-057 as an invariant (6.4), copying a 336-char passage from the CHANGELOG (6.7) — each time restored and re-verified green; `repo.test.js` via the first-layer path likewise red 1 / green 0
+Cost     One **true red** surfaced here: 6.6's first version matched only lowercase, so renaming `tick-geometry-reads` to `tick-geometry-readX` passed silently; changed to accept both cases and underscores. Conversely it is deliberately lenient — if a non-check-name word is wrapped in backticks in the evidence column (shaped like `some-phrase`), you get a false red, and the cost is just removing those backticks. The doc line "12 keys have no preference row" is now backed by `EXPECTED_UNBOUND.length === 12`
 Commit   c425a44
 
 ### D-068 · 2026-10-09 · chore · v1
-Symptom  两处抄进文档的聚合数已经和真实值分叉：`test/check-log.mjs` 头部写"57 个改代码的 commit"（实际 65，且每提交一次就变），`MAINTENANCE.md` §0 写"72 assertions, 20 suites"（实际 95/24，读起来像刚测过的数）。同一类问题本轮已经第二次撞上
-Change   两处都改成命令派生：头部不再留数字，交给这次运行打印；§0 改成"`npm test` 自己打印，第一层守下限"。顺带把第一层下限从 72/20 **抬到 95/24**——下限的设计是"加测试不会红"，但长期低于实际值等于给"某个套件不再被收集"留下 23 个断言的容身空间
-Evidence L0 复现命令随文写进 §15（`git rev-list --count a2140d0..HEAD -- extension.js lib/ stylesheet.css`；`gresource list … | grep -cE '^/org/gnome/shell/ui/.*\.js$'`）。抬下限这步做了反向验证：一次性克隆里移走 `test/genieGeometry.test.js` → `FAIL coverage dropped to 52/16 (floor 95/24)`，放回来 → `ok 95 assertions in 24 suites`，克隆已删
-Cost     以后每次加用例都要在同一次改动里把下限一起抬上去，否则"加了但没抬"会让下次真的丢套件时仍然绿。这条是**约定不是守卫**——没有任何检查能发现"下限设得太低"
+Symptom  Two aggregate numbers copied into docs had already diverged from reality: `test/check-log.mjs`'s header said "57 commits that change code" (actually 65, and it changes with every commit), and `MAINTENANCE.md` §0 said "72 assertions, 20 suites" (actually 95/24, reading like a freshly tested number). The same class of problem has now been hit twice this round
+Change   Both changed to command-derived: the header keeps no number, leaving it to this run to print; §0 changes to "`npm test` prints it itself, the first layer guards a floor". Also raised the first-layer floor from 72/20 **to 95/24** — the floor is designed so "adding tests won't go red", but staying below the real value long-term leaves room for 23 assertions' worth of "some suite is no longer collected"
+Evidence L0 the reproduction commands are written into §15 (`git rev-list --count a2140d0..HEAD -- extension.js lib/ stylesheet.css`; `gresource list … | grep -cE '^/org/gnome/shell/ui/.*\.js$'`). Raising the floor was reverse-verified: in a throwaway clone, removing `test/genieGeometry.test.js` → `FAIL coverage dropped to 52/16 (floor 95/24)`, putting it back → `ok 95 assertions in 24 suites`, clone deleted
+Cost     From now on every added case must raise the floor in the same change, otherwise "added but not raised" means the next real suite loss still passes green. This is a **convention, not a guard** — no check can detect "the floor is set too low"
 Commit   edc7706 e3159da
 
 ### D-069 · 2026-10-10 · fix · v1
-Symptom  组 B 的 `flag-control` 无条件运行。B3 因 mutter 不肯把焦点给探针窗口而报 ENV 的那一轮，B4 在**同一个坏焦点环境**里跑 flag-off 臂，拿不到 show 就判 `FAIL still suppressed with the setting off — B3's silence was not the fullscreen branch`——措辞是产品回归，实际是仪器
-Change   记下 B3 的返回码（`B3_RC`），非 0 时 `flag-control` 直接 ENV 并**跳过** flag-off 这一臂，连带不去写 `hide-in-fullscreen`
-Evidence L2 同一天两条路径都真跑过：修复前那次是 `ENV fullscreen-suppresses-show` + `FAIL flag-control`（15 pass / 1 fail）；修复后 rc=6 的那次报 `ENV flag-control — B3 gave no attributable sample (rc=6)`，焦点正常的那次 B3/B4/`fullscreen-reversible` 连成一片 PASS（20 pass / 0 fail / 1 env）
-Cost     B3 失败时不再获得 flag-off 的独立信息（少一条证据，但那条证据本来不可归因）；`control` 的延迟判定另有一处环境噪声见 MAINTENANCE §14（登录后头几分钟）
+Symptom  Group B's `flag-control` runs unconditionally. In the round where B3 reported ENV because mutter wouldn't give focus to the probe window, B4 ran the flag-off arm in the **same broken-focus environment**, got no show, and judged `FAIL still suppressed with the setting off — B3's silence was not the fullscreen branch` — worded as a product regression but actually instrumentation
+Change   Record B3's return code (`B3_RC`); when non-zero, `flag-control` goes straight to ENV and **skips** the flag-off arm, and correspondingly doesn't write `hide-in-fullscreen`
+Evidence L2 both paths really ran the same day: the pre-fix run was `ENV fullscreen-suppresses-show` + `FAIL flag-control` (15 pass / 1 fail); the post-fix rc=6 run reported `ENV flag-control — B3 gave no attributable sample (rc=6)`, and the normal-focus run had B3/B4/`fullscreen-reversible` in one PASS (20 pass / 0 fail / 1 env)
+Cost     On B3 failure the flag-off independent information is no longer obtained (one less piece of evidence, but that evidence was unattributable anyway); `control`'s latency decision has another environmental noise source, see MAINTENANCE §14 (the first few minutes after login)
 Commit   c5972fc
 
 ### D-070 · 2026-10-10 · guard · v1
-Symptom  D-061 与 D-062 只有无头层证据：真会话里枚举是否真的解析出来、幂等 revert 之后补丁是否真的重新装上，都没有任何一行日志被断言过
-Change   组 A 加 `grid-state-loaded`（`[appsbtn] applied (… grid=<n>)` 必须是整数；`null` = 退回按钮 `checked` → ENV；缺行 → ENV；形状不对 → FAIL），组 B 加 `overview-patches-roundtrip`（真实 `disable→enable` 后必须重新出现 `enabled (inset=ok band=ok)`，并检查 `band skipped` / `overviewlayout disabled` 两条降级）。`preflight` 顺带打印 shell 存活秒数，提醒语只在 <300 s 时出现
-Evidence L2 真机：`grid-state-loaded PASS (value 2)`、`overview-patches-roundtrip PASS（toggle 后 0 s 重新装上）`。分支覆盖用抽取原文的方式对四份合成 journal 各执行一次，得到 PASS / ENV / ENV / FAIL；preflight 两分支用桩时钟各跑一次
-Cost     `grid-state-loaded` **故意不封顶 0/1/2**——D-061 的存在理由就是不信任字面量，判据不能把它请回来，代价是 shell 把枚举挪到别处时这里只会报形状。第一版 preflight 无条件附上"under ~5 min"的提醒，把 553 s 自己标成可疑，属于检查文案与自己数据打架，已改成条件式
+Symptom  D-061 and D-062 had only headless-layer evidence: whether the enum really resolves in a live session, and whether the patch really re-installs after an idempotent revert, were never asserted by any log line
+Change   Group A gains `grid-state-loaded` (`[appsbtn] applied (… grid=<n>)` must be an integer; `null` = fell back to the button's `checked` → ENV; missing line → ENV; wrong shape → FAIL), group B gains `overview-patches-roundtrip` (after a real `disable→enable` the `enabled (inset=ok band=ok)` must reappear, and the two degradations `band skipped` / `overviewlayout disabled` are checked). `preflight` also prints shell uptime seconds, with the reminder appearing only below 300 s
+Evidence L2 real machine: `grid-state-loaded PASS (value 2)`, `overview-patches-roundtrip PASS (reinstalled 0 s after toggle)`. Branch coverage ran each of four synthetic journals once by extracting the source text, yielding PASS / ENV / ENV / FAIL; preflight's two branches each ran once with a stub clock
+Cost     `grid-state-loaded` **deliberately doesn't cap 0/1/2** — D-061's reason for existing is distrusting the literal, and the criterion can't invite it back; the cost is that when the shell moves the enum elsewhere this only reports the shape. The first preflight version unconditionally appended an "under ~5 min" reminder, flagging its own 553 s as suspect — the check's text contradicting its own data — now made conditional
 Commit   c5972fc
 
 ### D-071 · 2026-10-10 · chore · v1
-Symptom  §16 的 witness 步骤规定"每轮记下工作确实做了的证据"，给的证据是扩展自己的日志行（`[dodge] … -> …`、`enable() total`）。关闭的那条臂按构造不打任何标签日志 —— 照这条规则，每一条对照臂都会被自动判成废样，A/B 永远无法完成。规则自己不可执行
-Change   见证改为 harness **自己驱动并独立计数**的活动（探针窗口映射/撤销、发出的最小化/还原请求）加上该窗口的 `load1`；扩展日志从此是被测对象，不是见证。§16 的"两条臂"段同时补上"做测量的 agent 也不能在跑"这条前提
-Evidence L1 第一次六臂 A/B 实测（同一份代码，`pid=3147`）：A/B 各约 25.6–29.7 s CPU / 60 s，配对差 −1191 / +1020 / −1171 ms（变号），一对臂 RSS +40264 kB 与 dock 无关，6 条臂中 4 条见证为 0 → 按规则**全部丢弃**。`final state=ACTIVE enabled=Yes`，收尾 trap 生效，扩展没被留在关闭状态
-Cost     空闲基线仍然不存在，因此 §16 只有流程没有带宽，任何数字都不是阈值；并且 (a) 这项采样**不能由 agent 在会话内部完成**——我一运行就在污染它，只有你在 agent 停下的时候能取。旧样式的 §14 说法（"归用户在空闲会话上跑"）不足以解释为什么这次跑了还是不算，已改写
+Symptom  §16's witness step requires "each round, record evidence that the work was actually done", with the evidence being the extension's own log lines (`[dodge] … -> …`, `enable() total`). The off arm by construction emits no tagged log line — by this rule every control arm is automatically judged invalid, and A/B can never complete. The rule is unexecutable
+Change   The witness changes to activity the harness **drives itself and counts independently** (probe-window mapping/unmapping, minimize/restore requests issued) plus the window's `load1`; extension logs are from then on the subject under test, not the witness. §16's "two arms" section also gains the premise that "the agent doing the measurement must not be running"
+Evidence L1 the first six-arm A/B measurement (same code, `pid=3147`): each of A/B used about 25.6–29.7 s CPU / 60 s, paired diffs −1191 / +1020 / −1171 ms (sign-flipping), one pair's RSS +40264 kB unrelated to the dock, and 4 of 6 arms witnessed 0 → **all discarded** per the rule. `final state=ACTIVE enabled=Yes`, the teardown trap fired, and the extension wasn't left disabled
+Cost     An idle baseline still doesn't exist, so §16 has process but no bandwidth, and no number is a threshold; and (a) this sampling **can't be done by the agent inside a session** — the moment I run I'm polluting it, only you can take it while the agent is stopped. The old-style §14 wording ("leave it for the user to run on an idle session") was insufficient to explain why this run still doesn't count, so it was rewritten
 Commit   2b9cd8a
 
 ### D-072 · 2026-10-10 · guard · v1
-Symptom  A 组把「一次 hide 之后 300ms 内出现 `overview -> show`」当成退出动画抢占的签名并据此判 FAIL。这个形状不是抖动的充分条件：dock 因遮挡收起、概览紧接着经非键盘路径真的打开，写出的正是同样两行 —— dodge 那行日志记的是决定，不是支撑决定的状态。本次会话的 journal 里就有 2 个这样的对，都是真实进入，检查报红
-Change   判决只看一种形状：`overview -> show` 在 600ms 内被一次 hide 推翻，且两者之间没有任何进入见证（`canary overlay-key`、Show Apps 的 open-grid）。实测的每一次真实进入都在 show 之后 2–15ms 收到见证，缺陷形状一次都没有。旧的「对」形状保留为独立计数、只作上下文打印，不参与判决。另加空白保护：采样窗口按 `_PID=` 收口，会话 shell 重启后窗口内没有概览进入时判 ENV 而不是 PASS
-Evidence L1 新增 `test/flicker.test.js` 9 例，形状全部取自实测（缺陷链 / 快速连击 / 无见证真实进入 / 600 与 601ms 边界 / open-grid 与 close 的差别 / 空缓存）；`live-checks.sh` 里原样抽出的代码块在合成缓存上逐条逼出 ENV、FAIL、PASS 三条分支；同一批形状新旧对比 —— 缺陷形状两套都是 2，真实进入形状旧判 1、新判 0。当天三层实测 9/9、24/24、9/9，`check:log` PASS。空白保护的动因是实测：shell 于 11:19:34 重启后，本检查在 3 秒钟大的窗口上给出了一个不可能变红的 PASS
-Cost     盲区已写进 helper 注释而没有藏：热角或触控板手势进入概览不产生任何见证，若在同一次 600ms 内被关闭，本检查会误判为抖动；实测的这类进入其后的 hide 落在 1.7–56 s 之后，远在窗口外。收窄不改动历史结论 —— 40→0 那条旧开机的原始样本不可复现，本次没有重测
+Symptom  Group A treated "`overview -> show` appearing within 300ms after a hide" as the signature of exit-animation preemption and judged FAIL on it. This shape is not sufficient for flicker: the dock collapses due to occlusion and the overview then genuinely opens via a non-keyboard path, writing exactly the same two lines — dodge's log line records the decision, not the state backing it. This session's journal had 2 such pairs, both genuine entries, and the check reported red
+Change   The verdict looks at only one shape: `overview -> show` overturned by a hide within 600ms, with no entry witness between them (`canary overlay-key`, Show Apps' open-grid). Every measured genuine entry received a witness 2–15ms after show; the defect shape occurred zero times. The old "pair" shape is kept as an independent count, printed only as context, and doesn't enter the verdict. Also added a blank guard: the sampling window is closed by `_PID=`, and if the session shell restarts with no overview entry in the window it's ENV rather than PASS
+Evidence L1 added `test/flicker.test.js` with 9 cases, all shapes taken from measurement (defect chain / rapid double-hit / genuine entry without witness / 600 and 601ms boundary / difference between open-grid and close / empty cache); the code block extracted verbatim in `live-checks.sh` forced out ENV, FAIL, PASS branches one by one on synthetic caches; the same shapes compared old vs new — the defect shape is 2 under both, the genuine-entry shape old-judged 1 and new-judged 0. That day's three layers measured 9/9, 24/24, 9/9, `check:log` PASS. The blank guard's motivation was measured: after the shell restarted at 11:19:34, this check gave an impossible-to-go-red PASS on a 3-second window
+Cost     The blind spot is written into the helper comment rather than hidden: entering the overview via hot corner or trackpad gesture produces no witness, and if closed within the same 600ms this check misjudges it as flicker; measured, such entries' subsequent hides fell 1.7–56 s later, far outside the window. Narrowing doesn't change historical conclusions — the original sample of that old boot, 40→0, is not reproducible, and wasn't re-measured this time
 Commit   50ad4f0
 
 ### D-073 · 2026-10-10 · guard · v1
-Symptom  stale 闸门比较 shell 进程的启动时间与 `git ls-files '*.js'` 里最新的 mtime。这个 glob 把测试目录下的 js 也算进来，而 shell 从不加载它们：按提交后的状态计入一个新测试文件，闸门就会永久报「运行中的代码比磁盘旧」，把 A 组整体降成一条不代表任何风险的 ENV
-Change   范围收到 `extension.js` 与 `lib/*.js`，即 shell 真正 import 的集合；`prefs.js` 一并排除 —— 它运行在 prefs 进程，而 A 组断言的是 shell
-Evidence L1 同一天两次实测：旧集合（按提交后状态计入新测试文件）最新 mtime 11:29:54 晚于 shell 启动 11:19:34 → 判 STALE（假警报）；新集合最新 mtime 17:54:12（前一天）早于 shell 启动 → 判 fresh。新集合的算术在 started = newest±1 两侧分别得到 STALE / fresh，闸门仍能真的变红。新集合覆盖 16 个文件，被剔除 7 个
-Cost     编辑 prefs 页或测试文件后 A 组不再提示 stale，这是正确行为，但意味着「prefs 进程里的代码是否已加载」不在 A 组的保证范围内
+Symptom  The stale gate compares the shell process's start time against the newest mtime among `git ls-files '*.js'`. This glob includes js under the test directory, which the shell never loads: counting a new test file by post-commit state makes the gate permanently report "running code is older than disk", downgrading group A as a whole to an ENV that represents no risk
+Change   Narrowed to `extension.js` and `lib/*.js`, i.e. the set the shell actually imports; `prefs.js` is excluded too — it runs in the prefs process, whereas group A asserts about the shell
+Evidence L1 measured twice the same day: the old set (counting a new test file by post-commit state) had newest mtime 11:29:54 later than the shell start 11:19:34 → judged STALE (false alarm); the new set's newest mtime 17:54:12 (previous day) earlier than the shell start → judged fresh. The new set's arithmetic yields STALE / fresh on either side of started = newest±1, so the gate can still truly go red. The new set covers 16 files, 7 excluded
+Cost     After editing the prefs page or a test file, group A no longer warns stale — correct behavior, but it means "is the code in the prefs process loaded" is outside group A's guarantee
 Commit   50ad4f0
 
 ### D-074 · 2026-10-10 · guard · v1
-Symptom  tier 3 的 journal 缓存里是真实 shell 日志行，落到 /tmp 时却是 0664，而且没人保证被回收：`common.sh` 在 source 时把 `JOURNAL_CACHE` 置空，覆盖了 runner 钉好的路径 → 每个 tier 进程各挑一个 mktemp 名字；而 `shell_start_ms()` 与 preflight 在命令替换里调 `journal_load`，赋值只活在子 shell，父进程的 cleanup 看不见那个文件
-Change   三处一起收：`common.sh` 顶部 `umask 077`（一条覆盖三个 mktemp 点与 `> "$JOURNAL_CACHE.part"` 这条重定向，比逐点 chmod 更难漏）；`JOURNAL_CACHE='${JOURNAL_CACHE:-}'` 尊重继承值；`run-all.sh` 把缓存钉进退出时 `rm -rf` 的 evidence 目录
-Evidence L1 一次清扫清出 83 个 `/tmp/macosdock-*`（最老 2026-10-01，模式 0664），改后三层各跑一遍剩 0。新增 `test/temp-hygiene.test.js` 4 例；前三条在 `git show HEAD:test/common.sh` 的原文件上分别红（umask 0002 / 写-移链后 664 / 钉好的路径被清空），新代码上 4/4 绿；第四条是控制（无人钉时必须为空）。下限重导出 108/27，tier 1 9/9、tier 2 24/24、tier 3 9/9
-Cost     harness 进程此后所有建文件都是 0700/0600 —— 目前它只写自己的临时文件；将来若某项检查要产出用户可读的报告，必须显式改模式。缓存在一次 run 内跨 tier 共用一份路径，这正是回收成立的前提
+Symptom  Tier 3's journal cache holds real shell log lines but lands in /tmp as 0664, with nothing guaranteeing reclamation: `common.sh` blanks `JOURNAL_CACHE` on source, overriding the path the runner pinned → each tier process picks its own mktemp name; and `shell_start_ms()` and preflight call `journal_load` inside command substitution, so the assignment lives only in the subshell and the parent's cleanup can't see the file
+Change   Fixed all three together: `umask 077` at the top of `common.sh` (one line covering the three mktemp points and the `> "$JOURNAL_CACHE.part"` redirection, harder to miss than per-point chmod); `JOURNAL_CACHE='${JOURNAL_CACHE:-}'` respects an inherited value; `run-all.sh` pins the cache into the evidence dir it `rm -rf`s on exit
+Evidence L1 one sweep cleared 83 `/tmp/macosdock-*` (oldest 2026-10-01, mode 0664), and after the fix each of the three layers left 0. Added `test/temp-hygiene.test.js` with 4 cases; the first three are red on the original file from `git show HEAD:test/common.sh` (umask 0002 / 664 after the write-move chain / the pinned path blanked) and 4/4 green on the new code; the fourth is a control (must be empty when nothing is pinned). Floor re-exported 108/27, tier 1 9/9, tier 2 24/24, tier 3 9/9
+Cost     The harness process henceforth creates all files as 0700/0600 — currently it only writes its own temp files; if a future check must produce a user-readable report, the mode must be changed explicitly. The cache shares one path across tiers within a run, which is exactly what makes reclamation work
 Commit   9932da2
 
 ### D-075 · 2026-10-10 · guard · v1
-Symptom  隐私守卫在运行时现取身份指纹（`os.userInfo().username`、`os.homedir()`、hostname）再拿去扫全部跟踪文本。在托管 runner 上这三个值属于跑批机而不是任何人：用户名就是 `runner`、home 就是 `/home/runner`。于是文档里出现"test runner"这个普通词就判红（CI run 38023874826 实测，三处命中：`CHANGELOG.md`、`test/common.sh`、`test/temp-hygiene.test.js`），而那台机器本来无从知道开发者的真实指纹 —— 这条检查在 CI 上是负的、在本地才是正的
-Change   只跳过已知构建账号 `^runner\d*$`，且只跳过由它派生的两条（user 与 home）；host、个人邮箱域名表、解析出来的 `/tmp` 与 wayland 槽位这些模式在任何环境照旧；自建 runner 用真人账号登录时仍全程生效。不是把整条检查挂到 `CI` 环境变量上 —— 那才是真的自废
-Evidence L1 本地实测：`isBuildAccount=false`（真实用户名不是 runner），两条谓词对一个伪造的含用户名/含 home 的 body 仍分别命中 → 收窄没有把本地能力打掉；`npm test` 108/108。红的一半由 CI 那次真实失败提供（同一份代码、同一断言、托管环境），绿的一半是下一次 CI
-Cost     托管环境不再检查"有没有写出开发者用户名/home"—— 它以前也没检查过（它不知道要查什么），现在只是不再因此误报；这道防线实际落在本地 tier 1 与提交前那次 `npm test` 上
+Symptom  The privacy guard takes an identity fingerprint at runtime (`os.userInfo().username`, `os.homedir()`, hostname) and scans all tracked text with it. On a hosted runner these three values belong to the batch machine, not to any person: the username is literally `runner` and home is `/home/runner`. So the ordinary word "test runner" in the docs triggers red (measured on CI run 38023874826, three hits: `CHANGELOG.md`, `test/common.sh`, `test/temp-hygiene.test.js`), while that machine had no way to know the developer's real fingerprint — this check is negative on CI and positive only locally
+Change   Skip only the known build account `^runner\d*$`, and only the two derived from it (user and home); host, the personal email domain table, the resolved `/tmp` and wayland slots, and other patterns stay as before in any environment; a self-hosted runner logged in with a real account still takes effect throughout. It is not hanging the whole check on the `CI` env var — that would truly disable itself
+Evidence L1 measured locally: `isBuildAccount=false` (the real username isn't runner), and the two predicates still each hit on a forged body containing the username/home → the narrowing didn't kill local capability; `npm test` 108/108. The red half is provided by that real CI failure (same code, same assertion, hosted environment), the green half is the next CI
+Cost     The hosted environment no longer checks "did you write out the developer username/home" — it never did (it didn't know what to look for), and now merely stops false-positives; that line of defense actually rests on local tier 1 and the pre-commit `npm test`
 Commit   e8f3605

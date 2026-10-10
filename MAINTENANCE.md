@@ -13,7 +13,7 @@ change is safe). Nothing here duplicates a rule.
 | Run everything that is safe unattended | `npm run test:static` then `npm run test:live` |
 | Run the private throwaway compositor | `npm run test:headless` (~60 s) |
 | Run the live A/B that opens windows | `npm run test:live-trigger` (needs an idle session) |
-| Pure unit coverage | `npm test` — it prints the counts (`# tests`, `# suites`); tier 1 keeps a **floor** of 108/27, no desktop needed |
+| Pure unit coverage | `npm test` — it prints the counts (`# tests`, `# suites`); tier 1 keeps a **floor** of 129/32, no desktop needed |
 | The fact that governs everything | `disable`+`enable` does **not** reload edited JS; only log out / log in does |
 | Where the code lives | everything is in `lib/` — print `wc -l lib/*.js`; no build step, no dependencies |
 
@@ -67,7 +67,7 @@ is invisible to every other check:
 | nothing matching `*.test.js` imports GI; the GI probe keeps its name | `npm test` stays runnable under plain Node | renaming `probe-window.js` into the glob breaks every run |
 | `package.json` has no dependencies and no `node_modules` | the no-build-step story | tests stop being offline-runnable |
 
-Shell side: toolchain presence (missing → ENV), unit floors (108 assertions / 27 suites —
+Shell side: toolchain presence (missing → ENV), unit floors (129 assertions / 32 suites —
 floors, so adding tests never fails; they are raised in the same change that adds
 a suite, so a suite that stops being collected goes red), `node --check` over **every** tracked `.js`, `bash -n`
 over the harness, `glib-compile-schemas --strict --dry-run`, compiled-binary freshness,
@@ -554,6 +554,63 @@ holds all three properties, and each of them was red against the pre-fix `common
   ever costs anything visible.
 - Tier 1's counts are floors, so coverage can regress by *renaming* a suite rather than
   breaking it.
+- **Tier 2's header claim is half-falsified and still stands.** `test/headless-checks.sh:9-14`
+  says headless proves nothing about the animation paths because "mutter never runs those here".
+  The shell does indeed never *trigger* one — but the private compositor runs Clutter timelines
+  normally (measured: 37 frames for a 600 ms one) and accepts real Wayland clients, so a window
+  opened against the throwaway socket goes through mutter → `shellwm` → `_onMinimize` with a real
+  snapshot and a real actor. That is how every frame-level number in this section was taken.
+  Correcting the comment (and deciding whether any of it deserves a tier-2 assertion) is a harness
+  change, so it is the owner's call, not a drive-by edit.
+- **`ExtensionManager.disableExtension()` is not sandbox-safe — use `stateObj.disable()`.** Measured
+  2026-10-10 in the private compositor: that call makes the shell remove
+  `/run/user/$UID/gnome-shell-disable-extensions`, a **session-wide** sentinel the real session
+  shares — it happens to be absent here, so nothing was lost, but the write escapes the clean room
+  and breaks the isolation contract's "exactly two sanctioned writes outside `$T2`". Also note the
+  state it reports flips *after* the call returns (measured 7 → 2 over 10 ms), so a container
+  sampled at that instant reads as a leftover that never existed. Driving `stateObj.disable()` /
+  `enable()` in the same throwaway shell is fully synchronous and touches nothing outside it: with
+  a funnel animation verifiably in flight (`containers=1 registered=1`), `disable()` returned with
+  `containers=0`, `scale_x=1`, `opacity=255`, `pivot=(0,0)`, and the engine logged the teardown as
+  `reason=finishAll`. Record this so the next agent does not repeat the mistake; the harness itself
+  still uses only the safe path.
+- **Genie's icon-rect fallbacks anchor on `primaryMonitor`, dodge's thresholds do not.**
+  `_dockEdgeCenterRect()`, `_dockEdgeAt()` and `_shrinkEdgeRect()` resolve against
+  `Main.layoutManager.primaryMonitor` because the merged upstream assumed the dock lives on the
+  primary screen ("requirement 7"), while D-052 moved dodge's edges and poll thresholds onto the
+  monitor the dock is actually on. With the dock on a secondary monitor the two disagree: dodge
+  hides and shows correctly, but a minimize whose app icon cannot be resolved pours toward the
+  primary screen. Unmeasured here — this box has one monitor.
+- **The funnel's "the window is gone before it reaches the icon" is measured, not reproduced.**
+  Frame numbers, private compositor, driven against a real `MetaWindowActor` opened inside it (L1;
+  the live session still has to confirm the same three columns): `finish reason=completed
+  p=1.0000` — nothing is cut short, no watchdog, no early container teardown.
+  `stripsOpacity=255..255` at every sampled frame from p=0.17 to p=0.80, reaching `0..255` only on
+  the frame at p=1.0000, so `genie-tail-fade` 0.08 eats the tail inside the last ~30 ms of a 560 ms
+  minimize and cannot be an early disappearance. The snapshot is a copy (`shared=0`,
+  `Clutter_TextureContent tex=648x429`) and that size holds on **every** frame even though
+  `actorVisible=0 actorMapped=0` from frame 0 — the early `_fireComplete()` does hide the real
+  actor, and the strips keep painting anyway, so candidate (a) is excluded on a real window buffer.
+  What *is* reproducible is a target problem, not a fade problem: when no app icon resolves, the
+  fallback is a **64×12 patch** (`_dockCenterRect` / `_dockEdgeAt`) and `sink = absorb × iconDepth`
+  then collapses the whole window into a 12 px band — measured `sink=10.2` on the fallback against
+  `sink=45.9` with a real 54 px icon box. A pour ending in a 12 px sliver reads exactly as
+  "vanished before landing". Not fixed: R2 pins the fallback chain as it is, and the live `icon=` /
+  `peek=` / per-frame `pixels=` columns — the ones that say which case the owner's desktop is in —
+  only exist after a logout. The `TEMP-DIAGNOSTIC` block printing them sits in `lib/genieEngine.js`
+  and `lib/genieController.js` and is deleted once that read is done.
+- **The shrink restore's first frame is at scale 0.** The time mirror maps p=0 to q=1 and the
+  collapse segment gives `sEnd × (1 − (q−0.88)/0.12)`, which is 0 there — measured
+  `wantScale=0.0008` by the 5th frame (0.7×0.4 px of a 648×429 actor). Every frame after it is
+  painted, visible and mapped (`actorVisible=1 actorMapped=1 actorOpacity=255`, want ==
+  actor-reported for scale *and* position at all 38 sampled frames of both directions), so the
+  hard criterion holds for 0<p<1. Whether the window should emerge at icon size instead of out of
+  nothing is a spec question for the owner, not a bug to fix silently.
+- **A shrink minimize leaves the actor at the collapsed layout position** (measured: an actor that
+  starts at y=204 is left there with scale restored to 1). Nothing sees it — mutter unmaps the
+  actor as part of the completion fired at p=1, and the next restore rewrites the position from
+  `get_buffer_rect()` before it starts. Recorded because `disable()` mid-animation would not
+  restore it: `ShrinkManager`'s teardown restores scale and pivot only, never position.
 
 
 ## 15. GNOME compatibility matrix
