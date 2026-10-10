@@ -273,6 +273,15 @@ describe("no machine-specific or personal data is committed", () => {
     const home = os.homedir();
     const host = os.hostname();
     const user = os.userInfo().username;
+    // On a hosted runner the identity this discovers belongs to the build farm, not
+    // to a person: user `runner`, home `/home/runner`, an ephemeral host. Matching
+    // those turns ordinary English into a violation — the run that produced this
+    // comment failed because prose said the *test runner* pins a path, while the
+    // check stayed blind to the developer fingerprint it exists to catch (a hosted
+    // job can never know it). So: skip exactly these build accounts, for exactly the
+    // two identity strings derived from them. A self-hosted runner logged in as a
+    // person is still checked, and every other pattern below stays live everywhere.
+    const isBuildAccount = /^runner\d*$/.test(user);
     // Only addresses that can only ever be a person's. Extension UUIDs look
     // similar (`macos-genie@thuongvo.dev` is one, in README) so a naive email
     // regex would fight legitimate content forever.
@@ -288,11 +297,11 @@ describe("no machine-specific or personal data is committed", () => {
             } catch (e) {
                 continue;
             }
-            if (home && body.includes(home))
+            if (!isBuildAccount && home && body.includes(home))
                 offenders.push(`${rel} contains the home path`);
             if (host && body.includes(host))
                 offenders.push(`${rel} contains the host name`);
-            if (user && new RegExp(`\\b${user}\\b`).test(body))
+            if (!isBuildAccount && user && new RegExp(`\\b${user}\\b`).test(body))
                 offenders.push(`${rel} contains the login name as a standalone word`);
             // Only *resolved* per-run names are fingerprints: a mktemp template
             // (`…-XXXXXX`) and ordinary words (`macosdock`, `display`) are code
