@@ -4,7 +4,7 @@
 
 带放大、动画、避让、键盘导航与 Genie 最小化/还原动画的 macOS 风格 GNOME Shell Dock。
 
-![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-48--50-blue)
+![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-50-blue)
 ![License: MIT + GPL-2.0-or-later](https://img.shields.io/badge/license-MIT%20%2B%20GPL--2.0--or--later-green)
 ![Based on: MacOSDock + macos-genie](https://img.shields.io/badge/based%20on-MacOSDock%20%2B%20macos--genie-orange)
 [![Repository](https://img.shields.io/badge/repository-GitHub-black?logo=github)](https://github.com/SHADE-glitch/macos-dock)
@@ -33,7 +33,7 @@
 | 依赖 | 说明 |
 |---|---|
 | 系统 | Ubuntu（已在 Ubuntu 26.04 验证） |
-| GNOME Shell | 48 – 50 |
+| GNOME Shell | 50 |
 | 构建工具 | `glib-compile-schemas` |
 
 ## 📥 安装

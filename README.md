@@ -4,7 +4,7 @@
 
 A macOS-style dock for GNOME Shell with magnification, animations, dodge, keyboard navigation and a genie minimize/restore animation.
 
-![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-48--50-blue)
+![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-50-blue)
 ![License: MIT + GPL-2.0-or-later](https://img.shields.io/badge/license-MIT%20%2B%20GPL--2.0--or--later-green)
 ![Based on: MacOSDock + macos-genie](https://img.shields.io/badge/based%20on-MacOSDock%20%2B%20macos--genie-orange)
 [![Repository](https://img.shields.io/badge/repository-GitHub-black?logo=github)](https://github.com/SHADE-glitch/macos-dock)
@@ -33,7 +33,7 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 | Requirement | Details |
 |---|---|
 | OS | Ubuntu (verified on Ubuntu 26.04) |
-| GNOME Shell | 48 – 50 |
+| GNOME Shell | 50 |
 | Build tools | `glib-compile-schemas` |
 
 ## 📥 Installation
