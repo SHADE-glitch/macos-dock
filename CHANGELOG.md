@@ -578,3 +578,28 @@ Change   Added the seven missing entries under a labeled block citing STANDARD �
 Evidence L0: `git check-ignore -v .venv/x __pycache__/x.py foo.db .pytest_cache/x` now names `.gitignore` for all four paths (before the change none resolved); `node --test test/repo.test.js` 26/26; `npm run check:log` PASS
 Cost     The block is a rule, not a check — only `reports/` is pinned by `test/repo.test.js`, so the full list can still drift (the very gap this closes for this repo). No `.venv` or `*.db` is produced by this extension's tooling, so the entries are prophylactic
 Commit   db46b64
+
+### D-080 · 2026-10-13 · guard · v1
+Symptom  `CONVENTIONS.md` (machine-wide) asks a dimension-A repository's `AGENTS.md` to name its
+         dimension. This one pointed at `STANDARD.md` for the rules and never said which dimension
+         they were, so a reader could not tell A was a floor rather than a shared list. Nothing
+         asserted the finalized root-file layer either: `LICENSE`, the manifest, the `MAINTENANCE`
+         pair, `docs/` and `.github/workflows/` could each be deleted and the whole suite would
+         stay green
+Change   `AGENTS.md` gains one blockquote naming dimension A and pointing at `CONVENTIONS.md` (the
+         "Shared standard" block below it untouched, no rule text restated). New
+         `test/conventions.test.js`, four cases: the root-file layer present at the root, exactly
+         one manifest and it is `package.json`, no `AGENTS.zh-CN.md` (dimension B's shape), the
+         dimension pointer present with none of the standard's own section headings reproduced, and
+         the `STANDARD.md` §7 ignore list in `.gitignore` with no tracked runtime file and nothing
+         tracked under `reports/` or `docs/reports/`. Failures name the file and where it goes
+Evidence L0: `npm test` **134/134** (4 from the new file); `npm run check:log` PASS. Negative run:
+         `git mv LICENSE /tmp/opencode/provoked-LICENSE`, then the suite — red with `- LICENSE:
+         create this file at the repository root`; restored, `git status --porcelain LICENSE` empty
+Cost     The `node --test test/*.test.js` glob picks the file up, so no CI change. The tiered
+         `test/run-all.sh` Tier 1 already asserts the `reports/` rule and is left in place: that one
+         checks the ignore rule, this one checks the ignore list and the tracked state, and the
+         overlap is deliberate rather than deduplicated. Reads the working tree, so an uncommitted
+         file passes. Presence only, not content. No network and no read of agent-standards — a
+         private repository this CI cannot see
+Commit   d622aa3
