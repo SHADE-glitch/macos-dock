@@ -3,20 +3,12 @@
 Guidance for agents working inside `macos-dock@local` — a local maintenance
 fork of MacOSDock (v9) with the macOS Genie animation merged in.
 
-> **Dimension.** This repository is dimension **A — open source, strict** in the machine-wide
-> `CONVENTIONS.md` (outside this repository); the shared rules live in `STANDARD.md` and the
-> dimension-A detail in `~/.agents/standards/dimensions/a.md`.
->
-> **Shared standard.** Root file names, the process-draft location (`docs/reports/`), the
-> `CHANGELOG` entry format and the runtime ignore list are defined once in the machine-wide
-> `STANDARD.md` (outside this repository); the dimension-A rules — the language policy, CI
-> version pinning and entry commands, and the test entry command — live in
+> **Dimension.** A — open source (strict), per `CONVENTIONS.md` §0; the shared rules live once in
+> `~/.agents/standards/STANDARD.md` (§1 root files, §2 process drafts, §3 CHANGELOG entries,
+> §4 runtime ignore list, §6 remotes/pushing, §8 profile listing) and the dimension-A detail in
 > `~/.agents/standards/dimensions/a.md`. Neither is restated here.
->
-> **Push over SSH, never HTTPS.** Verify `git remote get-url --push origin` starts with `git@`
-> before pushing; if it starts with `https://`, fix it first — never push over HTTPS.
 
-## Critical Rules
+## Hard rules
 - **NEVER run `gnome-extensions install` or `gnome-extensions pack` from within this repo directory.** The install tool follows symlinks and will wipe the source directory contents.
 - **Do not load ESModules via legacy `imports`** (e.g. `imports.ui.main` throws `SyntaxError` in GNOME 45+). Use static `import` or dynamic `await import()`.
 - **Do not reassign ESModule exports directly** (e.g. `Main.notify = ...`). Monkeypatch mutable prototypes instead.
@@ -157,7 +149,7 @@ exact command and wait — never substitute a workaround that touches the sessio
   written for an independent reviewer model, and anything it concedes as unfixed goes into
   `MAINTENANCE.md` §14 rather than staying only in `docs/reports/`.
 
-## Docs & Commits
+## Docs & commits
 - **[`INVARIANTS.md`](INVARIANTS.md) is a pointer list** of fixes that must not be reverted, and
   it restates nothing: the mechanism lives in `CHANGELOG.md`, the reasoning in
   `MAINTENANCE.md` §11. When the three disagree, those two win and INVARIANTS is stale — so add
@@ -182,6 +174,9 @@ exact command and wait — never substitute a workaround that touches the sessio
 - Shipping does not replace the record: behaviour changes still carry a `CHANGELOG.md` `D-###` entry (see Recording conventions).
 
 ## Recording conventions
+
+Common CHANGELOG rules: `STANDARD.md` §3.
+
 - Behaviour changes land in [`CHANGELOG.md`](CHANGELOG.md) as `D-###` entries — kind, evidence
   tier and commit for each. `npm run check:log` proves the record covers every commit in the
   declared window that touched `extension.js`, `lib/` or `stylesheet.css`.
@@ -189,31 +184,19 @@ exact command and wait — never substitute a workaround that touches the sessio
   (see the rule above): this repo's protected-section rule outranks the cross-repo convention that
   other forks got a pointer paragraph in. Division of labour: README = user-facing summary
   (protected), CHANGELOG = machine-checked per-commit index, MAINTENANCE = how to verify.
-- Ids are monotonic and **never reused**; a gap is a failure, not a cleanup. A window with zero
-  entries is a failure too — a check over an empty set proves nothing.
-- `kind` ∈ `fix` | `perf` | `taste` | `guard` | `revert` | `chore`, cut by **who may demand a
-  revert**. Animation *feel* is `taste`: zero obligation, discardable wholesale on an upgrade.
+- Animation *feel* is `taste`: zero obligation, discardable wholesale on an upgrade.
 - An entry is an assertion **as of its commit**, not current state. Never re-verify an old entry;
   never hand-copy an aggregate count into the file — `check:log` and the tier commands print them.
 - Known-but-not-fixed issues stay in `MAINTENANCE.md` §14; they have no commit, so no entry.
-- `Symptom` names the mechanism, never the session: no window titles, no application names from a
-  real desktop.
+- No window titles, no application names from a real desktop.
 - Run `npm run check:log` before committing docs; `test/repo.test.js` keeps the two MAINTENANCE
   files and the two READMEs in section lockstep, so never add a heading to one side alone.
 
 ## Listed on the GitHub profile
 
-This repo is listed on the owner's profile front page (`SHADE-glitch/SHADE-glitch`). That page lives
-in a **separate repository and never updates itself** — when a fact it states about this repo
-changes, update the profile README in the same round. The profile's own `AGENTS.md` is the
-authoritative rulebook; its guard `scripts/check-profile.mjs` must keep passing.
+See `STANDARD.md` §8 for the shared profile-listing triggers. This repo's own additions:
 
-- **Rename / transfer / delete** — the profile link dies; fix the row.
 - **Purpose drift / upstream identity** — the profile's one-line description and its "merges two
   upstreams (MacOSDock + macos-genie)" wording must still be true.
-- **LICENSE change** — the profile's license badge must equal this repo's `LICENSE`.
 - **GNOME target change** — the `GNOME Shell` badge must equal `metadata.json`'s `shell-version`
   (the profile currently says `50`).
-- **Freeze / archive / upstream-frozen** — say so on the profile; never leave a stale "maintained".
-- **Public ↔ private** — a repo that goes private must be **delisted** (only the two whitelisted
-  private apps may stay, and they are not this one).
