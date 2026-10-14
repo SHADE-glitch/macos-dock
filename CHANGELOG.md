@@ -603,3 +603,20 @@ Cost     The `node --test test/*.test.js` glob picks the file up, so no CI chang
          file passes. Presence only, not content. No network and no read of agent-standards — a
          private repository this CI cannot see
 Commit   d622aa3
+
+### D-081 · 2026-10-14 · fix · v1
+Symptom  `test/conventions.test.js` requires a `docs/` directory at the repository root, but nothing
+         under `docs/` was ever tracked: its only content is `docs/reports/`, which the unanchored
+         `reports/` rule ignores. The guard therefore passed on the maintainer's tree (the directory
+         is there on disk) and failed in CI, where a fresh clone has no `docs/` at all — red on
+         every push since the guard landed (`d622aa3`)
+Change   Track `docs/README.md`. It states the layout: `docs/reports/` is per-phase evidence that
+         stays local-only and must never be tracked, and this `README.md` exists because git cannot
+         carry an empty directory. The guard is unchanged — it was right, the tree was incomplete
+Evidence L0: `git ls-files docs` now prints `docs/README.md`; `npm test` **134/134** and `npm run
+         check:log` PASS. On the preceding commit CI was red with `- docs/: create this directory at
+         the repository root`
+Cost     One tracked file. Its text is deliberately link-free and section-free, so the doc gates
+         that walk every tracked `.md` stay silent, and `docs/reports/` stays untracked as the
+         guard's fourth case requires
+Commit   fc1f9c1
