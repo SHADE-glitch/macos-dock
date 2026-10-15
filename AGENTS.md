@@ -135,11 +135,10 @@ exact command and wait — never substitute a workaround that touches the sessio
   verification, waiting between them → **D** run verification and write the maintenance assets.
 - **Stop at the end of every phase and report.** Wait for the user's confirmation before starting the
   next one.
-- Phase output goes in `docs/reports/` — `PROFILE.md`, `AUDIT.md`, `PLAN.md`, `VERIFY.md`,
-  `REVIEW-PACK.md` — plus `docs/reports/STATE.md`, which a new session reads **first** and a
-  session updates **before it ends** (decisions taken, invariants, open items, what the next step
-  is). The ignore pattern is `reports/` with no leading slash, so it also covers `docs/reports/`,
-  and tier 1 S8 proves nothing under it is tracked — the repository is public while phase evidence
+- Phase output goes in `docs/reports/` (the process-draft list and the non-anchored `reports/`
+  rule are `STANDARD.md` §2). A new session reads `docs/reports/STATE.md` **first** and a session
+  updates it **before it ends** (decisions taken, invariants, open items, what the next step is).
+  Tier 1 S8 proves nothing under it is tracked — the repository is public while phase evidence
   quotes raw log lines.
 - **What may be written where**: `docs/reports/` may quote journal lines, window titles and
   resolved paths. Tracked files carry counts and extracted numbers only — never a journal line, a real
