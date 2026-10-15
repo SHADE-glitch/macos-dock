@@ -9,6 +9,14 @@ A macOS-style dock for GNOME Shell with magnification, animations, dodge, keyboa
 ![Based on: MacOSDock + macos-genie](https://img.shields.io/badge/based%20on-MacOSDock%20%2B%20macos--genie-orange)
 [![Repository](https://img.shields.io/badge/repository-GitHub-black?logo=github)](https://github.com/SHADE-glitch/macos-dock)
 
+**What it is** — A macOS-style dock for GNOME Shell with magnification, animations, dodge, keyboard navigation and a genie minimize/restore animation.
+
+**What it solves** — It keeps the upstream feature set while fixing startup flicker, resource leaks, idle power draw and the separator/visibility logic.
+
+**How to run** — Clone into `~/.local/share/gnome-shell/extensions/macos-dock@local`, run `glib-compile-schemas schemas/`, then `gnome-extensions enable macos-dock@local` (log out and back in on Wayland).
+
+**Where to look** — See [AGENTS.md](AGENTS.md) and [MAINTENANCE.md](MAINTENANCE.md).
+
 ## 📖 About
 
 This repository is a **personal maintenance fork** of [**MacOSDock**](https://github.com/vinnytherobot/MacOSDock) by **vinnytherobot** (also on [extensions.gnome.org](https://extensions.gnome.org/extension/10719/macos-dock/) as #10719), frozen at upstream **v9** and maintained locally under the UUID `macos-dock@local`. It also merges the **macOS Genie** minimize/restore animation by **Thuong Vo (SekiroKenjii)**.

@@ -9,6 +9,14 @@
 ![Based on: MacOSDock + macos-genie](https://img.shields.io/badge/based%20on-MacOSDock%20%2B%20macos--genie-orange)
 [![Repository](https://img.shields.io/badge/repository-GitHub-black?logo=github)](https://github.com/SHADE-glitch/macos-dock)
 
+**是什么** — 带放大、动画、避让、键盘导航与 Genie 最小化/还原动画的 macOS 风格 GNOME Shell Dock。
+
+**解决什么** — 保留上游功能集的同时，修复启动闪烁、资源泄漏、空闲功耗以及分隔线/显隐逻辑。
+
+**怎么跑** — 克隆到 `~/.local/share/gnome-shell/extensions/macos-dock@local`，运行 `glib-compile-schemas schemas/`，再 `gnome-extensions enable macos-dock@local`（Wayland 下需注销重登）。
+
+**去哪看** — 见 [AGENTS.md](AGENTS.md) 与 [MAINTENANCE.md](MAINTENANCE.md)。
+
 ## 📖 项目说明
 
 本仓库是 **vinnytherobot** 的 [**MacOSDock**](https://github.com/vinnytherobot/MacOSDock)（也在 [extensions.gnome.org](https://extensions.gnome.org/extension/10719/macos-dock/)，编号 #10719）的**个人维护分支**，冻结在上游 **v9**，以 UUID `macos-dock@local` 在本地维护。同时合并了 **Thuong Vo（SekiroKenjii）** 的 **macOS Genie** 最小化/还原动画。
