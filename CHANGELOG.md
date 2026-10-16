@@ -620,3 +620,15 @@ Cost     One tracked file. Its text is deliberately link-free and section-free, 
          that walk every tracked `.md` stay silent, and `docs/reports/` stays untracked as the
          guard's fourth case requires
 Commit   fc1f9c1
+
+### D-082 · 2026-10-16 · chore · v1
+Symptom  The pointer in AGENTS.md is followed only by an agent that chooses to; nothing made the
+         standard reach the context, and the section list had drifted — §5 (the conflict rule) was
+         missing.
+Change   End the pointer block with two bare `@` imports (`@~/.agents/standards/STANDARD.md`,
+         `@~/.agents/standards/dimensions/a.md`) and add `opencode.json` naming the same two files in
+         its `instructions` array; add `§5 conflict rule`. Local overlay only — no upstream file moved.
+Evidence 2026-10-16: CodeBuddy CLI with every tool disabled printed the tokens the imports carried;
+         opencode `run` printed the token its `instructions` named, with no tool call.
+Cost     Both hooks name `~/.agents`, absent in another clone, so they are skipped there.
+Commit   8715062
