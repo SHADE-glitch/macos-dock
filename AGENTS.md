@@ -82,7 +82,7 @@ fork of MacOSDock (v9) with the macOS Genie animation merged in.
 
 ## CI
 - `.github/workflows/ci.yml` runs on every `push` and `pull_request`, and **must stay green**.
-- It runs exactly two offline commands: `npm test` (the pure suites) and `npm run check:log` (recording coverage). Checkout uses `fetch-depth: 0` because `check:log` resolves the frozen-upstream anchor and walks `anchor..HEAD`, which a shallow clone lacks.
+- It runs two gate commands — `npm test` (the pure suites) and `npm run check:log` (recording coverage) — plus a non-gating `npm run test:coverage` read. Checkout uses `fetch-depth: 0` because `check:log` resolves the frozen-upstream anchor and walks `anchor..HEAD`, which a shallow clone lacks.
 - CI covers the offline tier only. `test:headless` and `test:live` need a private compositor / the running session, so they are never run there — a green CI run does not stand in for them.
 - Reproduce CI locally with the same two commands; a red CI run is a real regression, not an environment gap.
 - **Keep CI in step with the code.** Update `.github/workflows/ci.yml` in the *same change* that
@@ -141,7 +141,7 @@ exact command and wait — never substitute a workaround that touches the sessio
 - **Stop at the end of every phase and report.** Wait for the user's confirmation before starting the
   next one.
 - Phase output goes in `docs/reports/` (the process-draft list and the non-anchored `reports/`
-  rule are `STANDARD.md` §2). A new session reads `docs/reports/STATE.md` **first** and a session
+  rule are `~/.agents/standards/STANDARD.md` §2). A new session reads `docs/reports/STATE.md` **first** and a session
   updates it **before it ends** (decisions taken, invariants, open items, what the next step is).
   Tier 1 S8 proves nothing under it is tracked — the repository is public while phase evidence
   quotes raw log lines.
@@ -179,7 +179,7 @@ exact command and wait — never substitute a workaround that touches the sessio
 
 ## Recording conventions
 
-Common CHANGELOG rules: `STANDARD.md` §3.
+Common CHANGELOG rules: `~/.agents/standards/STANDARD.md` §3.
 
 - Behaviour changes land in [`CHANGELOG.md`](CHANGELOG.md) as `D-###` entries — kind, evidence
   tier and commit for each. `npm run check:log` proves the record covers every commit in the
@@ -198,7 +198,7 @@ Common CHANGELOG rules: `STANDARD.md` §3.
 
 ## Listed on the GitHub profile
 
-See `STANDARD.md` §8 for the shared profile-listing triggers. This repo's own additions:
+See `~/.agents/standards/STANDARD.md` §8 for the shared profile-listing triggers. This repo's own additions:
 
 - **Purpose drift / upstream identity** — the profile's one-line description and its "merges two
   upstreams (MacOSDock + macos-genie)" wording must still be true.
