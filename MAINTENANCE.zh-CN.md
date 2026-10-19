@@ -300,7 +300,7 @@ GNOME 更新能拿走的东西，全在这里：
 | `[genie] disabled — missing/changed private APIs: …`（`genieController.js:43`） | 某个符号变了；行里会点名 | 崩溃 —— 降级是有效的 | 2、3A、3B |
 | `[genie] effect ended without completing mutter:`（`genieController.js:393`） | 恰好一次的完成闩锁被绕过 | —— 它就是为这件事存在 | 永久警告 |
 | `[appsbtn] applied (icon=…, label=none, grid=<n>)` (`overviewApps.js:257`) | 网格判断在**这台 shell 上**解析到的 `ControlsState` 值 —— 第二层把 `<n>` 与 shell 自己报出的数字比对；第三层的 `grid-state-loaded` 断言真实会话确实解析出了一个整数（`null` = 退回按钮的 `checked`，报 ENV） | 点击是否落到正确状态（要真实指针，只能第三层） | 2、3A |
-| `[overviewpatches] enabled (inset=ok band=ok|skipped)` (`overviewPatches.js:76`) | 两个补丁在这台 shell 上都装上了；第三层的 `overview-patches-roundtrip` 在一次真实 `disable→enable` 之后重读这行 —— 这是唯一能看出 D-062 的 revert 真把遮蔽放开的途径 | 真实桌面上概览的几何（那是 `overview-band`，第二层） | 2、3B |
+| `[overviewpatches] enabled (inset=ok band=ok\|skipped)` (`overviewPatches.js:76`) | 两个补丁在这台 shell 上都装上了；第三层的 `overview-patches-roundtrip` 在一次真实 `disable→enable` 之后重读这行 —— 这是唯一能看出 D-062 的 revert 真把遮蔽放开的途径 | 真实桌面上概览的几何（那是 `overview-band`，第二层） | 2、3B |
 | `_dbg` 输出、`hide-trigger` | 什么都不是：受 `DODGE_DEBUG=false` 门控、只在隐藏态打、每秒限一条，而且**打印窗口标题** | —— | 永不作为判据 |
 
 ## 10. 本机无法自动化的事情与原因
@@ -519,8 +519,7 @@ harness 自己也是隐私面。`test/common.sh` 里设了 `umask 077`，`test/r
 |---|---|---|---|
 | 45–47 | 否 | 否 | 不支持。ES 模块改写、`Meta.get_window_actors()` 形状、`St`/`Clutter` 版本都在 48 之前动过，这里没有任何东西面向它们。 |
 | 48、49 | **是** | **否** | 未测。已知的一处差异是 `dash._dashSpacer`：50.1 里不存在（所以 `dockManager.js` 那个分支在本机是惰性的），而 48/49 上有没有该字段**无法验证** —— 这正是 D-064 保留分支而不是删掉它的原因。除这条之外，关于 48/49 的一切说法都只是从 50.1 出发的推断。 |
-| 50.1（mutter-18、gjs 1.88） | 是 | **是，出货目标** | `Main.overview.visibleTarget` 存在（dodge 的概览校正读它，并留 `visible` 兜底）。`ControlsState = {HIDDEN:0, WINDOW_PICKER:1, APP_GRID:2}`，且 fork 现在从模块解析它而不再硬编码 `2`（D-061）。`dash._dashSpacer` 不存在。`Layout._trackActor()` 在 `destroy` 时自动摘除登记（`layout.js:962-965`），见 §8。概览把 dash 夹在 `box.height * DASH_MAX_HEIGHT_RATIO` = 0.16 内（`overviewControls.js:23,174-178`）。`Main.uiGroup` 是官方写明向后兼容的别名。shell 的 JS 以 GResource 存在 `/usr/lib/gnome-shell/libshell-18.so` 里（111 个 `ui/*.js`，重取命令：
-`gresource list /usr/lib/gnome-shell/libshell-18.so | grep -cE '^/org/gnome/shell/ui/.*\.js$'`），**不在** `/usr/share/gnome-shell`。 |
+| 50.1（mutter-18、gjs 1.88） | 是 | **是，出货目标** | `Main.overview.visibleTarget` 存在（dodge 的概览校正读它，并留 `visible` 兜底）。`ControlsState = {HIDDEN:0, WINDOW_PICKER:1, APP_GRID:2}`，且 fork 现在从模块解析它而不再硬编码 `2`（D-061）。`dash._dashSpacer` 不存在。`Layout._trackActor()` 在 `destroy` 时自动摘除登记（`layout.js:962-965`），见 §8。概览把 dash 夹在 `box.height * DASH_MAX_HEIGHT_RATIO` = 0.16 内（`overviewControls.js:23,174-178`）。`Main.uiGroup` 是官方写明向后兼容的别名。shell 的 JS 以 GResource 存在 `/usr/lib/gnome-shell/libshell-18.so` 里（111 个 `ui/*.js`，重取命令：`gresource list /usr/lib/gnome-shell/libshell-18.so \| grep -cE '^/org/gnome/shell/ui/.*\.js$'`），**不在** `/usr/share/gnome-shell`。 |
 | 51 及以后 | — | — | 见下面的流程。预期库名会变（`libshell-19.so`），那会让本文件里所有查源码的命令失效。 |
 
 **新 major 出现时**（完整流程在 §7，这里是与版本相关的部分）：
