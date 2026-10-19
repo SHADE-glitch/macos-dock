@@ -643,3 +643,19 @@ Change   The sentence now names two gates plus the non-gating coverage read; bar
 Evidence 2026-10-19: .github/workflows/ci.yml has three run: steps, one commented "not a gate".
 Cost     None; wording only.
 Commit   cbbf936
+
+### D-084 · 2026-10-19 · fix
+
+Symptom  Two rows of the maintenance record broke their table. The `50.1` row was split across
+         three lines, and the `[overviewpatches]` row carried an unescaped `|` inside a code
+         span (`band=ok|skipped`). GFM reads a bare pipe as a cell separator, so both rows
+         rendered with extra cells; the Chinese file had the same two defects.
+Change   Both rows are single lines again, and the two pipes that are content — `band=ok\|skipped`
+         and the `gresource list … \| grep` command — are escaped, which renders as a literal
+         pipe inside the code span. Nothing else in either row changed.
+Evidence 2026-10-19: every table block in MAINTENANCE.md and MAINTENANCE.zh-CN.md has a uniform
+         pipe count; `npm test` — 134 passed; `npm run check:log` — PASS.
+Cost     None; no test or CI file was touched.
+
+Commit   f74d51c
+
