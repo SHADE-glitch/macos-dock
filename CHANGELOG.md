@@ -768,3 +768,22 @@ Evidence L0: `npm test` 134/134, `npm run test:static` 9/9, `npm run check:log` 
 Cost     None.
 Commit   d22d821
 
+### D-092 · 2026-10-27 · fix
+
+Symptom  The app label was anchored to the icon's pre-magnification top edge, so it sat over
+         the enlarged icon instead of above it. Worst on the first reveal after the dock had
+         hidden, where the entry slide put it lower still.
+Change   The label is now placed from geometry that has already settled: the dock's resting
+         rect, plus `(magnification-scale - 1) * slotHeight * pivotY` above the resting top,
+         minus the label's own height and a fixed 8px gap. The pivot comes from the same switch
+         in `_applyDockPosition` that feeds `Magnification`, so a top or side dock measures the
+         edge its icons actually keep. Also restores the app button's label, which the previous
+         change left calling `get_id()` on a string.
+Evidence L0: `npm test` 134/134, `npm run test:static` 9/9, `npm run test:headless` tier 2
+         24/24, `npm run check:log` resolves this SHA. The pixel result was not observed here --
+         tier 2 forbids animation assertions and the trigger is a pointer entering during the
+         entry ease.
+Cost     None at rest: the label is placed once per show, and once per dock move while it is
+         visible.
+Commit   83e022e
+
