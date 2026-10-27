@@ -202,5 +202,8 @@ See `~/.agents/standards/STANDARD.md` §8 for the shared profile-listing trigger
 
 - **Purpose drift / upstream identity** — the profile's one-line description and its "merges two
   upstreams (MacOSDock + macos-genie)" wording must still be true.
+- **Frozen status in the GitHub description** — the repository's About text must carry
+  `· frozen at upstream v9`, in step with the README's frozen marker and the profile row; change
+  them together.
 - **GNOME target change** — the `GNOME Shell` badge must equal `metadata.json`'s `shell-version`
   (the profile currently says `50`).
