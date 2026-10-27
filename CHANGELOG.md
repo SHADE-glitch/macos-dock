@@ -693,3 +693,21 @@ Evidence L? The failure path needs `enable()` to throw, which no harness provoke
 Cost     None on the success path; a failed enable now logs a second line if the cleanup itself
          throws.
 Commit   f7928ca
+### D-087 · 2026-10-27 · fix
+
+Symptom  D-085 wired `icon-quality` into every `St.Icon`, the app button's brand icon
+         included. That icon sits in a `St.BoxLayout`, which allocates the child's preferred
+         size, so the doubled `icon_size` was given a doubled cell and the `1/quality` scale
+         painted the brand icon into that cell's top-left corner instead of filling the button.
+Change   The app button's icon keeps the logical size (`set_icon_size`) and is left unscaled.
+         The multiplier also bought nothing there: the brand icon is the symbolic
+         `start-here-symbolic` SVG, which St rasterises at any requested edge.
+         `_applyIconTexture` now documents that it requires a `Clutter.FixedLayout` parent,
+         which is what makes the dock icons' scaled paint fill their wrapper exactly.
+Evidence L0: `npm run test:static` — tier 1 9/9, including 134 unit assertions and the 27-file
+         syntax pass; `npm run check:log` resolves this SHA. The button's on-screen geometry was
+         not observed on a live session — that needs a logout.
+Cost     The brand icon is rasterised at 1x like it was before D-085; at `icon-quality=1` the
+         two paths are identical.
+Commit   eb71b31
+
