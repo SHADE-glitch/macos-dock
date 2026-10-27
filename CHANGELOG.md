@@ -757,3 +757,14 @@ Cost     One `get_transformed_position()` + `set_position()` per frame while a l
          and the dock is moving; the label is hidden the rest of the time.
 Commit   ad3c596
 
+### D-091 · 2026-10-27 · taste
+
+Symptom  With the label no longer parked mid-slide (D-090), its 40px offset read as too far
+         above the icon.
+Change   Offset lowered to 34px.
+Evidence L0: `npm test` 134/134, `npm run test:static` 9/9, `npm run check:log` resolves this
+         SHA. The value was chosen by eye on the live session; no automated check covers label
+         placement.
+Cost     None.
+Commit   d22d821
+
