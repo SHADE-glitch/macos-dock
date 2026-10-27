@@ -739,3 +739,21 @@ Evidence L0: `npm test` 134/134, `npm run test:static` 9/9, `npm run check:log` 
 Cost     Icons lose the macOS-style drop shadow; nothing else referenced that class.
 Commit   1e0ff41
 
+### D-090 · 2026-10-27 · fix
+
+Symptom  After the dock was hidden and the pointer brought it back for the first time, the app
+         label sat inside the bar instead of above the icon, about 20px low, and stayed there
+         until the pointer moved to another icon.
+Change   `_showTooltip()` positioned the label from `actor.get_transformed_position()` once and
+         never updated it. The dock enters from 20px below its resting rect over
+         `animation-duration` (200ms), and the pointer is already over an icon while that runs,
+         so the label was anchored to a mid-slide position. It now follows the container's
+         `notify::x`/`notify::y` while visible, through `_positionTooltip()`.
+Evidence L0: `npm test` 134/134, `npm run test:static` 9/9, `npm run test:headless` tier 2
+         24/24, `npm run check:log` resolves this SHA. Tier 2 cannot assert this itself -- it
+         forbids animation assertions, and the trigger is a pointer entering during the entry
+         ease -- so the on-screen result was not observed here.
+Cost     One `get_transformed_position()` + `set_position()` per frame while a label is visible
+         and the dock is moving; the label is hidden the rest of the time.
+Commit   ad3c596
+
