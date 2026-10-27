@@ -659,3 +659,37 @@ Cost     None; no test or CI file was touched.
 
 Commit   f74d51c
 
+
+### D-085 · 2026-10-27 · fix
+
+Symptom  The icon-quality preference did nothing. `IconManager`'s constructor took the value and
+         dropped it, `setQuality()` re-applied the unchanged icon size, and every icon was built
+         with `icon_size: this._iconSize` -- the logical edge. The schema key, the preferences row
+         and the `changed::icon-quality` handler were all present, so the setting looked live.
+Change   Store the multiplier, ask St for a texture that many times the logical edge and scale the
+         actor back to the logical size (`_textureSize()` / `_applyIconTexture()`), at both icon
+         creation sites and in `_applyIconSize()`. Wrapper geometry, layout and magnification are
+         untouched. This is the shape upstream settled on for v1.2.7.
+Evidence L? No test reaches the rendering path: the modules import `gi://` and the suite covers
+         only GI-free files. `node --check` on the file; `npm test` 134/134; `npm run test:static`
+         9/9 including `syntax-all-js` (27 files).
+Cost     One extra texture per icon at `quality` times the edge: at the default 2 that is four
+         times the pixels, at 4 it is sixteen. Icons are rebuilt on every quality change, which is
+         a preferences action, not a hot path.
+
+Commit   db045d8
+
+### D-086 · 2026-10-27 · fix
+
+Symptom  When `DockManager.enable()` threw, the catch block only dropped the reference. By then
+         the container was mounted in `Main.layoutManager`, the settings handlers were connected
+         and the debounce timer was running, so the dock stayed on screen and `disable()` could
+         never undo any of it -- only a logout cleared it.
+Change   Call `this._dockManager?.disable()` before nulling the field, and keep a failure in that
+         cleanup inside the catch block. `disable()` already null-checks every component it
+         touches, so it is safe against a partially enabled manager.
+Evidence L? The failure path needs `enable()` to throw, which no harness provokes. `node --check`;
+         `npm test` 134/134; `npm run test:static` 9/9.
+Cost     None on the success path; a failed enable now logs a second line if the cleanup itself
+         throws.
+Commit   f7928ca
