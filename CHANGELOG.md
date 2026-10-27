@@ -711,3 +711,31 @@ Cost     The brand icon is rasterised at 1x like it was before D-085; at `icon-q
          two paths are identical.
 Commit   eb71b31
 
+### D-088 · 2026-10-27 · fix
+
+Symptom  After the dock's first peek it stayed about 20px below its resting position: the app
+         label sat inside the bar instead of above it, and the icons' bottoms were cut by the
+         screen edge. Moving the pointer along the dock brought it back.
+Change   `_show()` and `_hide()` take their animation endpoint from
+         `DockManager.getRestingContainerRect()` instead of reading the live container position,
+         and the animation watchdog now applies the transition's end state (position,
+         visibility, opacity) when an interrupted ease never fires its onComplete.
+Evidence L0: `npm test` 134/134 and `npm run test:static` tier 1 9/9 (including the 27-file
+         syntax pass); `npm run check:log` resolves this SHA. L1: `npm run test:headless` still
+         reports the dock enabling and building its icons. The 20px offset itself was not
+         reproduced live -- that needs a logout, and its trigger is an interrupted ease.
+Cost     One extra rect computation per show and per hide; `_computeContainerRect()` is pure
+         arithmetic over the monitor and the icon count.
+Commit   f6d8efd
+
+### D-089 · 2026-10-27 · taste
+
+Symptom  Once `icon-quality` took effect, dock icons carried a dark rim rather than a shadow:
+         the 2px/3px `icon-shadow` was painted on the oversized texture and scaled down with it,
+         so it collapsed to about half a pixel.
+Change   Removed the rule. The dock's icons now render flat, the way the app grid's do.
+Evidence L0: `npm test` 134/134, `npm run test:static` 9/9, `npm run check:log` resolves this
+         SHA. The result was not observed on screen -- it needs a logout.
+Cost     Icons lose the macOS-style drop shadow; nothing else referenced that class.
+Commit   1e0ff41
+
