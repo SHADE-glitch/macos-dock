@@ -33,10 +33,12 @@
 
 /* Tooltip */
 .macos-dock-tooltip {
-  background-color: rgba(30, 30, 30, 0.9);
+  background-color: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
-  border-radius: 6px;
+  border-radius: 999px;
   padding: 6px 12px;
+  text-align: center;
 }
 
 /* Popup Menu */
@@ -59,7 +61,7 @@
 
 /* Separator */
 .macos-dock-separator {
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.1);
   margin: 0 4px;
 }
 
@@ -75,6 +77,33 @@
 
 .macos-dock-app-button-icon {
   color: white;
+}
+
+/* Trash Button */
+.macos-dock-trash {
+  background: transparent;
+}
+
+.macos-dock-trash:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.macos-dock-trash-icon {
+  color: white;
+}
+
+/* Drag and drop */
+.macos-dock-drag-placeholder {
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+}
+
+/* The applications button while a pinned icon is over it (drop = unpin) */
+.macos-dock-app-button.macos-dock-drop-target {
+  background-color: rgba(255, 255, 255, 0.24);
+  border-radius: 8px;
 }
 
 /* Window Preview Popup */

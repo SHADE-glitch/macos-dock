@@ -87,6 +87,40 @@
       <summary>Show applications button</summary>
       <description>Show a button to access all installed applications</description>
     </key>
+    <key name="show-trash" type="b">
+      <default>true</default>
+      <summary>Show trash button</summary>
+      <description>Show a Trash button next to the applications button</description>
+    </key>
+    <key name="dock-dnd-enabled" type="b">
+      <default>true</default>
+      <summary>Drag pinned icons</summary>
+      <description>Press and hold a pinned icon to reorder it, drop an application from the app grid onto the dock to pin it, and drop a pinned icon on the applications button to unpin it</description>
+    </key>
+    <key name="tooltip-gap-px" type="i">
+      <range min="0" max="30"/>
+      <default>6</default>
+      <summary>Icon label distance</summary>
+      <description>Gap in pixels between an icon and its name label (0-30)</description>
+    </key>
+    <key name="tooltip-delay-ms" type="i">
+      <range min="0" max="2000"/>
+      <default>300</default>
+      <summary>Icon label delay</summary>
+      <description>How long the pointer must rest on an icon before its name appears, in milliseconds</description>
+    </key>
+    <key name="max-indicator-dots" type="i">
+      <range min="1" max="10"/>
+      <default>4</default>
+      <summary>Maximum running dots</summary>
+      <description>Maximum number of window dots shown under one icon; extra windows are not drawn</description>
+    </key>
+    <key name="drag-hold-ms" type="i">
+      <range min="100" max="1000"/>
+      <default>200</default>
+      <summary>Drag press-and-hold time</summary>
+      <description>How long an icon must be held before a drag begins, in milliseconds</description>
+    </key>
     <key name="apps-button-fix-enabled" type="b">
       <default>true</default>
       <summary>Fix the Show Apps button</summary>
@@ -95,7 +129,7 @@
     <key name="window-previews" type="b">
       <default>true</default>
       <summary>Window previews</summary>
-      <description>Show live thumbnail previews of app windows on hover</description>
+      <description>Show live thumbnail previews of app windows on hover, and the window picker a click opens on an app with several windows</description>
     </key>
     <key name="preview-scale" type="i">
       <default>200</default>

@@ -7,17 +7,55 @@ export default class MacosDockPreferences extends ExtensionPreferences {
     _signalConnections = [];
     async fillPreferencesWindow(window) {
         const settings = this.getSettings();
-        const page = new Adw.PreferencesPage({
-            title: "General",
+        // One page per category. AdwPreferencesWindow turns several pages into the
+        // sidebar the eye lands on first, which is the whole point: a single page of
+        // fourteen groups is a scroll, not a set of categories.
+        const dockPage = new Adw.PreferencesPage({
+            title: "Dock",
+            icon_name: "preferences-desktop-appearance-symbolic",
+        });
+        window.add(dockPage);
+        const behaviorPage = new Adw.PreferencesPage({
+            title: "Behavior",
+            icon_name: "preferences-desktop-apps-symbolic",
+        });
+        window.add(behaviorPage);
+        const lookPage = new Adw.PreferencesPage({
+            title: "Magnification",
+            icon_name: "applications-graphics-symbolic",
+        });
+        window.add(lookPage);
+        const hidePage = new Adw.PreferencesPage({
+            title: "Auto-hide",
+            icon_name: "view-conceal-symbolic",
+        });
+        window.add(hidePage);
+        const geniePage = new Adw.PreferencesPage({
+            title: "Genie Animation",
+            icon_name: "media-playback-start-symbolic",
+        });
+        window.add(geniePage);
+        const keysPage = new Adw.PreferencesPage({
+            title: "Keyboard",
+            icon_name: "input-keyboard-symbolic",
+        });
+        window.add(keysPage);
+        const systemPage = new Adw.PreferencesPage({
+            title: "System",
             icon_name: "preferences-system-symbolic",
         });
-        window.add(page);
-        // Appearance group
-        const appearanceGroup = new Adw.PreferencesGroup({
-            title: "Appearance",
-            description: "Visual look of the dock",
+        window.add(systemPage);
+        const perfPage = new Adw.PreferencesPage({
+            title: "Performance",
+            icon_name: "preferences-system-details-symbolic",
         });
-        page.add(appearanceGroup);
+        window.add(perfPage);
+        // Size group
+        const iconSizeGroup = new Adw.PreferencesGroup({
+            title: "Size",
+            description: "How big the dock's icons are",
+        });
+        dockPage.add(iconSizeGroup);
         const iconSizeRow = new Adw.SpinRow({
             title: "Icon size",
             subtitle: "Pixel size of dock icons",
@@ -30,13 +68,13 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             }),
         });
         settings.bind("icon-size", iconSizeRow, "value", BIND_FLAGS);
-        appearanceGroup.add(iconSizeRow);
+        iconSizeGroup.add(iconSizeRow);
         // Position group
         const positionGroup = new Adw.PreferencesGroup({
             title: "Position",
-            description: "Where the dock appears on screen",
+            description: "Where the dock attaches on screen",
         });
-        page.add(positionGroup);
+        dockPage.add(positionGroup);
         const positionModel = new Gtk.StringList({
             strings: ["Bottom", "Left", "Right", "Top"],
         });
@@ -56,9 +94,9 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         // Background group
         const bgGroup = new Adw.PreferencesGroup({
             title: "Background",
-            description: "Customize the dock background",
+            description: "The capsule behind the icons: how solid, how round, how frosted",
         });
-        page.add(bgGroup);
+        dockPage.add(bgGroup);
         const opacityRow = new Adw.SpinRow({
             title: "Opacity",
             subtitle: "Dock background opacity (0-100%)",
@@ -122,17 +160,18 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         colorRow.add_suffix(colorButton);
         colorRow.activatable_widget = colorButton;
         bgGroup.add(colorRow);
-        // Behavior group
-        const behaviorGroup = new Adw.PreferencesGroup({
-            title: "Behavior",
+        // Launch group
+        const launchGroup = new Adw.PreferencesGroup({
+            title: "Launch & Animation",
+            description: "What the dock does when an app starts, and how fast it moves",
         });
-        page.add(behaviorGroup);
+        behaviorPage.add(launchGroup);
         const bounceRow = new Adw.SwitchRow({
             title: "Bounce on launch",
             subtitle: "Animate the dock icon when an app starts",
         });
         settings.bind("bounce-on-launch", bounceRow, "active", BIND_FLAGS);
-        behaviorGroup.add(bounceRow);
+        launchGroup.add(bounceRow);
         const animDurationRow = new Adw.SpinRow({
             title: "Animation duration",
             subtitle: "Show/hide animation time in milliseconds (0 = instant)",
@@ -145,38 +184,61 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             }),
         });
         settings.bind("animation-duration", animDurationRow, "value", BIND_FLAGS);
-        behaviorGroup.add(animDurationRow);
-        const showThresholdRow = new Adw.SpinRow({
-            title: "Show threshold",
-            subtitle: "Distance in pixels from screen edge to trigger dock show",
-            adjustment: new Gtk.Adjustment({
-                lower: 5,
-                upper: 100,
-                step_increment: 5,
-                page_increment: 10,
-                value: settings.get_int("show-threshold"),
-            }),
+        launchGroup.add(animDurationRow);
+        // The show-threshold row belongs to Auto-hide, where the rest of the
+        // reveal-by-pointer rules live; it is not a behaviour of the dock itself.
+        const buttonsGroup = new Adw.PreferencesGroup({
+            title: "Dock Buttons",
+            description: "The buttons that sit after the favourites",
         });
-        settings.bind("show-threshold", showThresholdRow, "value", BIND_FLAGS);
-        behaviorGroup.add(showThresholdRow);
+        behaviorPage.add(buttonsGroup);
         const appButtonRow = new Adw.SwitchRow({
             title: "Show applications button",
             subtitle: "Show a grid icon to access all apps",
         });
         settings.bind("show-applications-button", appButtonRow, "active", BIND_FLAGS);
-        behaviorGroup.add(appButtonRow);
-        const appsButtonFixRow = new Adw.SwitchRow({
-            title: "Fix the Show Apps button",
-            subtitle: "Open the app grid from the overview and use the brand icon instead of hiding the overview",
+        buttonsGroup.add(appButtonRow);
+        const showTrashRow = new Adw.SwitchRow({
+            title: "Show Trash",
+            subtitle: "Show a Trash button next to the applications button",
         });
-        settings.bind("apps-button-fix-enabled", appsButtonFixRow, "active", BIND_FLAGS);
-        behaviorGroup.add(appsButtonFixRow);
+        settings.bind("show-trash", showTrashRow, "active", BIND_FLAGS);
+        buttonsGroup.add(showTrashRow);
+        const dndGroup = new Adw.PreferencesGroup({
+            title: "Drag and Drop",
+            description: "Rearrange the dock with the pointer, and pin or unpin by dragging",
+        });
+        behaviorPage.add(dndGroup);
+        const dndRow = new Adw.SwitchRow({
+            title: "Drag pinned icons",
+            subtitle: "Reorder pinned icons, drop apps from the grid to pin them, drop on the applications button to unpin",
+        });
+        settings.bind("dock-dnd-enabled", dndRow, "active", BIND_FLAGS);
+        dndGroup.add(dndRow);
+        const dragHoldRow = new Adw.SpinRow({
+            title: "Press-and-hold time",
+            subtitle: "How long an icon must be held before the drag starts, in milliseconds",
+            adjustment: new Gtk.Adjustment({
+                lower: 100,
+                upper: 1000,
+                step_increment: 25,
+                page_increment: 50,
+                value: settings.get_int("drag-hold-ms"),
+            }),
+        });
+        settings.bind("drag-hold-ms", dragHoldRow, "value", BIND_FLAGS);
+        dndGroup.add(dragHoldRow);
+        const runningGroup = new Adw.PreferencesGroup({
+            title: "Running Applications",
+            description: "Apps that are running but not pinned",
+        });
+        behaviorPage.add(runningGroup);
         const showRunningAppsRow = new Adw.SwitchRow({
             title: "Show running applications",
             subtitle: "Show non-favorite running apps in the dock",
         });
         settings.bind("show-running-apps", showRunningAppsRow, "active", BIND_FLAGS);
-        behaviorGroup.add(showRunningAppsRow);
+        runningGroup.add(showRunningAppsRow);
         const workspaceModeModel = new Gtk.StringList({
             strings: ["All workspaces", "Current workspace only"],
         });
@@ -192,13 +254,18 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         this._trackSignal(settings, "changed::dock-workspace-mode", () => {
             workspaceModeRow.selected = settings.get_int("dock-workspace-mode");
         });
-        behaviorGroup.add(workspaceModeRow);
+        runningGroup.add(workspaceModeRow);
+        const previewsGroup = new Adw.PreferencesGroup({
+            title: "Window Previews",
+            description: "What hovering or clicking a running icon shows",
+        });
+        behaviorPage.add(previewsGroup);
         const windowPreviewsRow = new Adw.SwitchRow({
             title: "Window previews",
-            subtitle: "Show live thumbnail previews of open windows on hover",
+            subtitle: "Show live thumbnail previews of open windows on hover, and the window picker a click opens on an app with several windows",
         });
         settings.bind("window-previews", windowPreviewsRow, "active", BIND_FLAGS);
-        behaviorGroup.add(windowPreviewsRow);
+        previewsGroup.add(windowPreviewsRow);
         const previewScaleRow = new Adw.SpinRow({
             title: "Preview thumbnail width",
             subtitle: "Width of each preview thumbnail in pixels",
@@ -211,13 +278,13 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             }),
         });
         settings.bind("preview-scale", previewScaleRow, "value", BIND_FLAGS);
-        behaviorGroup.add(previewScaleRow);
+        previewsGroup.add(previewScaleRow);
         // Magnification group
         const magGroup = new Adw.PreferencesGroup({
             title: "Magnification",
-            description: "Icon grows when the pointer is near it",
+            description: "Icons grow as the pointer comes near them",
         });
-        page.add(magGroup);
+        lookPage.add(magGroup);
         const magEnabledRow = new Adw.SwitchRow({
             title: "Enable magnification",
         });
@@ -264,11 +331,45 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             magFalloffAdj.set_value(settings.get_int("magnification-falloff"));
         });
         magGroup.add(magFalloffRow);
+        // Labels group. The distance is measured from the height the hovered icon
+        // actually settles at, so the number is the visual gap, not a guess about it.
+        const labelGroup = new Adw.PreferencesGroup({
+            title: "Icon Labels",
+            description: "The name bubble that appears above a hovered icon",
+        });
+        lookPage.add(labelGroup);
+        const tooltipGapRow = new Adw.SpinRow({
+            title: "Label distance",
+            subtitle: "Gap between an icon and its name label, in pixels",
+            adjustment: new Gtk.Adjustment({
+                lower: 0,
+                upper: 30,
+                step_increment: 1,
+                page_increment: 2,
+                value: settings.get_int("tooltip-gap-px"),
+            }),
+        });
+        settings.bind("tooltip-gap-px", tooltipGapRow, "value", BIND_FLAGS);
+        labelGroup.add(tooltipGapRow);
+        const tooltipDelayRow = new Adw.SpinRow({
+            title: "Label delay",
+            subtitle: "How long the pointer must rest on an icon before its label appears (0 = instant)",
+            adjustment: new Gtk.Adjustment({
+                lower: 0,
+                upper: 2000,
+                step_increment: 50,
+                page_increment: 100,
+                value: settings.get_int("tooltip-delay-ms"),
+            }),
+        });
+        settings.bind("tooltip-delay-ms", tooltipDelayRow, "value", BIND_FLAGS);
+        labelGroup.add(tooltipDelayRow);
         // Indicators group
         const indGroup = new Adw.PreferencesGroup({
-            title: "Indicators",
+            title: "Running Indicators",
+            description: "The marks under an icon that say it is running",
         });
-        page.add(indGroup);
+        lookPage.add(indGroup);
         const indicatorsRow = new Adw.SwitchRow({
             title: "Running indicators",
             subtitle: "Show a dot under icons of running apps",
@@ -292,12 +393,24 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             indicatorStyleRow.selected = settings.get_int("running-indicator-style");
         });
         indGroup.add(indicatorStyleRow);
+        const maxDotsRow = new Adw.SpinRow({
+            title: "Maximum dots per icon",
+            subtitle: "Windows beyond this number are not drawn as dots",
+            adjustment: new Gtk.Adjustment({
+                lower: 1,
+                upper: 10,
+                step_increment: 1,
+                value: settings.get_int("max-indicator-dots"),
+            }),
+        });
+        settings.bind("max-indicator-dots", maxDotsRow, "value", BIND_FLAGS);
+        indGroup.add(maxDotsRow);
         // Media group
         const mediaGroup = new Adw.PreferencesGroup({
             title: "Media",
-            description: "Music player integration",
+            description: "What the dock shows for the app that is playing music",
         });
-        page.add(mediaGroup);
+        lookPage.add(mediaGroup);
         const mediaIndicatorRow = new Adw.SwitchRow({
             title: "Media indicator",
             subtitle: "Show a music note on the currently playing app icon",
@@ -312,9 +425,10 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         mediaGroup.add(mediaControlsRow);
         // Performance group
         const perfGroup = new Adw.PreferencesGroup({
-            title: "Performance",
+            title: "Rendering Cost",
+            description: "Sharper icons and smoother magnification both cost CPU — raise these only if the dock looks soft or stutters",
         });
-        page.add(perfGroup);
+        perfPage.add(perfGroup);
         // Icon Quality
         const qualityModel = new Gtk.StringList({ strings: ["x1", "x2", "x4"] });
         const qualityRow = new Adw.ComboRow({
@@ -353,11 +467,26 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             fpsRow.selected = v === 120 ? 2 : v === 60 ? 1 : 0;
         });
         perfGroup.add(fpsRow);
+        // Shell-integration fixes. None of these is a dock feature: they patch
+        // behaviour the shell got wrong, and each one can be turned off to get the
+        // native behaviour back.
+        const appsFixGroup = new Adw.PreferencesGroup({
+            title: "Show Apps Button",
+            description: "The dock's own button, and what the shell does with it",
+        });
+        systemPage.add(appsFixGroup);
+        const appsButtonFixRow = new Adw.SwitchRow({
+            title: "Fix the Show Apps button",
+            subtitle: "Open the app grid from the overview and use the brand icon instead of hiding the overview",
+        });
+        settings.bind("apps-button-fix-enabled", appsButtonFixRow, "active", BIND_FLAGS);
+        appsFixGroup.add(appsButtonFixRow);
         // Running icons fix
         const iconsFixGroup = new Adw.PreferencesGroup({
-            title: "Running icons",
+            title: "Running Icons",
+            description: "Keep apps you did not pin from vanishing out of the dock",
         });
-        page.add(iconsFixGroup);
+        systemPage.add(iconsFixGroup);
         const iconsFixRow = new Adw.SwitchRow({
             title: "Keep running-app icons",
             subtitle: "Keep non-favorite running apps across minimize / workspace switch",
@@ -366,10 +495,10 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         iconsFixGroup.add(iconsFixRow);
         // Overview patches (D-058): shell-layout fixes, independent of the dock.
         const overviewPatchesGroup = new Adw.PreferencesGroup({
-            title: "Overview patches",
+            title: "Overview Patches",
             description: "Shell-layout fixes applied while the dock is on. Independent of the dock; fall back to the native layout if a shell symbol moves.",
         });
-        page.add(overviewPatchesGroup);
+        systemPage.add(overviewPatchesGroup);
         const overviewPatchesRow = new Adw.SwitchRow({
             title: "Inset overview previews & reserve the dock band",
             subtitle: "Pull window previews inside the desktop and stop the dock overlapping the overview",
@@ -381,7 +510,7 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             title: "Dodge",
             description: "Stay visible unless the focused window overlaps the dock",
         });
-        page.add(dodgeGroup);
+        hidePage.add(dodgeGroup);
         const dodgeRow = new Adw.SwitchRow({
             title: "Enable dodge",
             subtitle: "Hide the dock only when the focused window overlaps it",
@@ -396,9 +525,23 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         dodgeGroup.add(dodgeFocusRow);
         // Peek & fullscreen
         const peekGroup = new Adw.PreferencesGroup({
-            title: "Peek & fullscreen",
+            title: "Reveal by Pointer",
+            description: "How hard you have to push the edge to get the dock back",
         });
-        page.add(peekGroup);
+        hidePage.add(peekGroup);
+        const showThresholdRow = new Adw.SpinRow({
+            title: "Show threshold",
+            subtitle: "Distance in pixels from the screen edge that wakes the dock",
+            adjustment: new Gtk.Adjustment({
+                lower: 5,
+                upper: 100,
+                step_increment: 5,
+                page_increment: 10,
+                value: settings.get_int("show-threshold"),
+            }),
+        });
+        settings.bind("show-threshold", showThresholdRow, "value", BIND_FLAGS);
+        peekGroup.add(showThresholdRow);
         const peekZoneRow = new Adw.SpinRow({
             title: "Peek deep zone (px)",
             subtitle: "Push the pointer this close to the edge to reveal the dock",
@@ -431,10 +574,10 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         peekGroup.add(fullscreenRow);
         // Super+number hotkeys
         const keynavGroup = new Adw.PreferencesGroup({
-            title: "Super+number hotkeys",
+            title: "Super+Number Hotkeys",
             description: "Super+1..9 / Super+0 cycles the nth app in the dock: launch, raise, or minimize. While enabled the matching system switch-to-application shortcuts are cleared (restored on disable, self-healed on next enable after a crash).",
         });
-        page.add(keynavGroup);
+        keysPage.add(keynavGroup);
         const keynavOnRow = new Adw.SwitchRow({
             title: "Enable Super+number hotkeys",
             subtitle: "Launch / raise / minimize the nth dock app",
@@ -480,10 +623,10 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         keynavGroup.add(keynavPeekDurationRow);
         // Genie minimize/restore
         const genieGroup = new Adw.PreferencesGroup({
-            title: "Genie animation",
+            title: "Genie Animation",
             description: "Windows pour into, and stream out of, their real dock icon",
         });
-        page.add(genieGroup);
+        geniePage.add(genieGroup);
         const genieOnRow = new Adw.SwitchRow({
             title: "Enable genie minimize/restore",
             subtitle: "Animate minimizing/restoring windows into their dock icon",
@@ -545,15 +688,22 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         });
         settings.bind("genie-restore-duration", genieRestoreRow, "value", BIND_FLAGS);
         genieGroup.add(genieRestoreRow);
-        genieGroup.add(this._scaleRow(settings, "genie-curvature",
+        // Funnel shape. These five are the pour's geometry; they only matter while
+        // the mode is funnel, and the defaults are the tuned macOS look.
+        const funnelGroup = new Adw.PreferencesGroup({
+            title: "Funnel Shape",
+            description: "How the window is poured into the icon. Leave these at their defaults unless the animation looks wrong to you",
+        });
+        geniePage.add(funnelGroup);
+        funnelGroup.add(this._scaleRow(settings, "genie-curvature",
             "Curvature", "0 = gentle macOS S-curve, 1 = tighter gather"));
-        genieGroup.add(this._scaleRow(settings, "genie-lead-fraction",
+        funnelGroup.add(this._scaleRow(settings, "genie-lead-fraction",
             "Leading edge arrival", "When the near edge reaches the icon"));
-        genieGroup.add(this._scaleRow(settings, "genie-trail-fraction",
+        funnelGroup.add(this._scaleRow(settings, "genie-trail-fraction",
             "Trailing edge departure", "When the far edge starts to move"));
-        genieGroup.add(this._scaleRow(settings, "genie-absorb-depth",
+        funnelGroup.add(this._scaleRow(settings, "genie-absorb-depth",
             "Absorb depth", "How deep into the icon the window sinks"));
-        genieGroup.add(this._scaleRow(settings, "genie-tail-fade",
+        funnelGroup.add(this._scaleRow(settings, "genie-tail-fade",
             "Tail fade", "Fade the last sliver as it sinks in"));
         const genieMeshRow = new Adw.SpinRow({
             title: "Mesh resolution",
@@ -566,10 +716,15 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             }),
         });
         settings.bind("genie-mesh-resolution", genieMeshRow, "value", BIND_FLAGS);
-        genieGroup.add(genieMeshRow);
+        funnelGroup.add(genieMeshRow);
         // Shrink mode. Its own durations: the mode is short by design, so the
         // row ranges start where the funnel's stop (80ms), and the accessibility
         // slow-down is applied by the controller, not here.
+        const shrinkGroup = new Adw.PreferencesGroup({
+            title: "Shrink Mode",
+            description: "Only used when Animation mode is set to shrink",
+        });
+        geniePage.add(shrinkGroup);
         const shrinkMinRow = new Adw.SpinRow({
             title: "Shrink minimize duration (ms)",
             subtitle: "How long the window takes to fall into its icon",
@@ -581,7 +736,7 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             }),
         });
         settings.bind("shrink-minimize-duration", shrinkMinRow, "value", BIND_FLAGS);
-        genieGroup.add(shrinkMinRow);
+        shrinkGroup.add(shrinkMinRow);
         const shrinkRestoreRow = new Adw.SpinRow({
             title: "Shrink restore duration (ms)",
             subtitle: "How long the window takes to grow back out",
@@ -593,15 +748,15 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             }),
         });
         settings.bind("shrink-restore-duration", shrinkRestoreRow, "value", BIND_FLAGS);
-        genieGroup.add(shrinkRestoreRow);
-        genieGroup.add(this._scaleRow(settings, "shrink-gravity",
+        shrinkGroup.add(shrinkRestoreRow);
+        shrinkGroup.add(this._scaleRow(settings, "shrink-gravity",
             "Shrink gravity", "0 = even speed, higher = hold back then accelerate into the icon"));
         const shrinkPeekRow = new Adw.SwitchRow({
             title: "Peek the hidden dock while shrinking",
             subtitle: "Off (default): a hidden dock stays hidden and the window flies to the screen edge",
         });
         settings.bind("shrink-peek-hidden-dock", shrinkPeekRow, "active", BIND_FLAGS);
-        genieGroup.add(shrinkPeekRow);
+        shrinkGroup.add(shrinkPeekRow);
         // Disconnect all tracked signals when the window is closed.
         window.connect("close-request", () => this._disconnectAll());
     }

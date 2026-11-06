@@ -546,7 +546,9 @@ else
     fi
 fi
 
-# B6: separator oracle, only meaningful if something non-favorite is running.
+# B6: separator oracle. The line marks the favorites boundary, so it now exists
+# whenever something is pinned -- this round-trip no longer needs a running
+# non-favorite app to be meaningful.
 # Leading `+`/`-` must be escaped: awk's ERE reads a bare `+separator` as an
 # invalid repetition and aborts the whole check.
 if [ "$(jcount '\+separator at=')" != 0 ]; then
@@ -565,7 +567,7 @@ if [ "$(jcount '\+separator at=')" != 0 ]; then
         report $T separator-toggle ENV "did not observe both -separator and +separator (gone=${gone:-0} back=${back:-0}) — depends on what was running"
     fi
 else
-    report $T separator-toggle ENV "no separator existed this boot (nothing running outside favorites)"
+    report $T separator-toggle ENV "no separator existed this boot (nothing pinned to the dock)"
 fi
 
 # B7: proof that the user's configuration is back exactly as it was.
