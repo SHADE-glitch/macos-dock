@@ -74,7 +74,7 @@ const GENIE_LIBS = [
 // The modules that must stay importable by plain Node. This is the AGENTS.md
 // hard rule; breaking it does not fail a feature, it fails *every* test run on
 // every machine, including CI-less reviewers who only ever run `npm test`.
-const PURE_LIBS = ["lib/clickAction.js", "lib/dockDndSlots.js", "lib/genieGeometry.js", "lib/shrinkGeometry.js", "lib/signalManager.js"];
+const PURE_LIBS = ["lib/clickAction.js", "lib/dockDndSlots.js", "lib/genieGeometry.js", "lib/signalManager.js"];
 
 // The only settings keys prefs.js legitimately does not mention: keynav owns
 // them (lib/hotkeyNav.js reads and writes them directly, and a prefs row for a
@@ -103,19 +103,25 @@ describe("pure modules stay Node-importable", () => {
 });
 
 describe("funnel hidden-dock target", () => {
-    it("keeps the resolved icon rect instead of projecting it onto the edge", () => {
+    it("keeps the resolved icon rect and uses only the funnel peek key", () => {
         // The shell-bound controller cannot be imported by Node. Guard the
         // wiring: the funnel must not re-target a hidden dock. The edge
         // projection centres the icon box on the screen edge, so half of it is
         // outside the monitor and the closing footprint is smaller than the
-        // icon. Shrink keeps the projection; the funnel must not.
+        // icon. The resolved rect is kept as-is.
         const src = read("lib/genieController.js");
         assert.ok(!src.includes("_dockEdgeAt"),
             "the funnel must not project a hidden dock's target onto the edge");
+        assert.ok(!src.includes("_shrinkEdgeRect"),
+            "the removed shrink projection must not survive in the controller");
         const resolve = src.match(/_resolveTarget\(metaWindow\) \{([\s\S]*?)\n    \}/);
         assert.ok(resolve, "_resolveTarget(metaWindow) was not found");
-        assert.match(resolve[1], /else if \(shrink\) \{[\s\S]*?_shrinkEdgeRect\(iconRect\)/,
-            "only shrink may keep the edge projection");
+        assert.match(resolve[1], /genie-peek-hidden-dock/,
+            "the hidden dock must be governed by the funnel peek key");
+        assert.ok(!resolve[1].includes("shrink"),
+            "the target resolver must have no animation-mode branch");
+        assert.ok(!src.includes("genie-mode"),
+            "the removed animation-mode key must not survive in the controller");
     });
 });
 
