@@ -1869,3 +1869,155 @@ Evidence L1: the hidden-row state is now a fourth gate inside
          -- the claim is that it prints nothing.
 Cost     One visibility read per check, one signal connection per enable cycle.
 Commit   6b80798
+
+---
+
+### D-132 · 2026-11-06 · fix
+
+Symptom  Four reports of one gesture, and my first three answers were wrong. (1) "移动一个图标到他
+         后面一个应用上面，并不会显示占用位置；移动到后两个应用就正常显示占位" — the cell right of
+         the held icon drew nothing. (2) I fixed that cell; "反方向问题有了" — the left neighbour then
+         drew nothing. (3) I generalised it to "every cell right of self answers one gap further";
+         the owner's verdict was "感觉不行啊，越改越糟糕"，并给出了自己的模型：
+         "移动到前一个图标靠左还是靠右自动显示往靠近方向的地方的占位，唯一的例外就是移动图标的左右
+         两个图标，他们需要显示一个占位就行，因为移动图标原来的占位本身还在，就是没有完成移动，完成
+         移动后才不在"。The pointer wants the nearest edge; the held icon's own slot is what makes the
+         two neighbours different — and they are different from **each other** only because a cell is
+         read from one side.
+Change   The pointer is now read as the nearest **line** between two icons rather than as the cell it
+         happens to sit in. `slotAt`'s proportional partition (dash.js:876-901, one cell per icon,
+         whole cell = "insert before that icon") is replaced by `boundaryAt(coord, slots, rtl)`,
+         which answers `{boundary, cell}` over n+1 lines: the row's outer edge, the midpoint of every
+         gap between two icons, the far outer edge. An icon's left half therefore inserts before it
+         and its right half after it, which is what the hand means and what the shell's cell-sized
+         dead zone refused to say. `offerGapForSlot`'s offset is gone: `offerGapForBoundary` keeps
+         that same nearest line **except** where the line is one of the two that touch the held
+         icon's slot — the held icon is dimmed to 50, not removed (D-111), so both of those lines
+         name the position it already has, and they are spent. Aiming at a spent line from the held
+         icon's own cell is the real no-op and `isSelfPosition` withdraws it (nothing drawn, exactly
+         as the owner asked); aiming at one from a neighbour's cell pushes it to that neighbour's
+         **outer** line, so both neighbours become a swap. The two no-ops are derived from the write
+         semantics rather than special-cased: gap g writes `g > p ? g-1 : g`, and only g = p and
+         g = p+1 leave the list unchanged. RTL stopped being a mirror: `slotAt` mirrored an index and
+         its `extent <= 0` guard meant a row whose starts decrease answered the end of the row for
+         every coordinate; a nearest line is a physical place either way, so only the two **outer**
+         lines consult `rtl` and the interior ones need no direction at all.
+         The write path, `isSelfPosition`, `clampToFavoriteSlots`, the gap geometry and the drop
+         mapping are untouched — an offer correction, not a persistence one.
+Evidence L1: the rule asserted as a table over held position x icon x both halves (16 cells for a row
+         of four), with the expectation written literally, not derived from the implementation.
+         `npm test` **180/180 in 45 suites** (floor 176/45 -> 180/45): the four maps
+         `p=0 [·,·][2,2][2,3][3,4]`, `p=1 [0,0][·,·][3,3][3,4]`, `p=2 [0,1][1,1][·,·][4,4]`,
+         `p=3 [0,1][1,2][2,2][·,·]` (`·` = nothing drawn), the identity for an external drag
+         (`favPos = -1`, which occupies no slot), the "each neighbour gives one line for its whole
+         cell" and "own cell draws nothing, either half" invariants, the clamp for a row with more
+         favourites than icons, the composed writes through `favoriteIndexAtGap` ->
+         `moveInFavoriteList` including the two halves of one far icon being two **different**
+         orders, and the honesty check that `isSelfPosition` fires exactly where the write changes
+         nothing. `restingSlots`' invariance gate now compares `boundaryAt` and additionally asserts
+         the raw live row **does** disagree, so the gate cannot pass by proving nothing.
+         L1: the tier-2 stage inside `drag-slot-partition-gap-invariant` walks the same grid in the
+         real shell with real actors — 6 held positions x 6 icons x 2 halves = **72 cases**, each
+         checked against the expected favourite index AND the actual container index of the gap,
+         with the expectation recomputed from the row's own geometry inside the probe. Green: 32/32
+         with `dock-extent-tracks-row`, `drag-slots-are-icons-only`, the zero-flip partition gate
+         (D-130) and the hidden-gap lifecycle (D-131) all unmoved.
+         Both tiers red against the rejected rule, by mutation (Edit, not a shell copy): the
+         "+1 right of self" offer fails **4 tier-1 tests** and **30 of the 72 tier-2 cases**, and
+         the shapes are the reported symptoms verbatim — `p0k0@0.8 want=null got=2` (a gap drawn
+         where the owner says nothing should be) and `p0k2@0.8 want=3 got=4` (one slot further than
+         the pointer asked).
+         The sandbox still ships eight favourites for six icons, so cell space and favourite space
+         disagree; the stage pins exactly the icons it can see through the in-memory settings
+         backend, asserts they are aligned, and writes the original list back.
+         L2: pending, one logout. Checkable by hand, ten seconds per direction: hold an icon over
+         its left neighbour's left side and its right neighbour's right side — one gap each, on the
+         far side; hover the middle of a far icon and walk across it — the gap must follow the
+         pointer from one side of that icon to the other.
+Cost     One pass over n+1 lines and one over n cells per verdict instead of one division; both are
+         bounded by the row's own length and only run on a drag. The verdict line gained `boundary=`
+         and `cell=` and lost `slot=`, which MAINTENANCE §7 records.
+Commit   ca020d1
+
+---
+
+### D-133 · 2026-11-06 · chore
+
+Symptom  Nothing was broken: the batch since the frozen upstream anchor added six schema keys,
+         a Trash icon, the drag feature family and a settings reorganisation, while the version
+         pair still said it was the import.
+Change   `metadata.json` `version` 1 -> 2 and `package.json` `version` 1.0.0 -> 1.1.0, kept
+         consistent as AGENTS.md requires (the integer is what an updater compares, the semver
+         string is this repo's own). Minor, not patch: new keys and new behaviour, no breakage.
+         Checked first that nothing reads them -- `repo.test.js` only asserts `shell-version`
+         entries are plain majors, and no `extension.js`/`lib/` site reads the version field, so
+         the bump is declarative.
+         `shell-version` stays `['50']`: 48 and 49 have never been run here, which is the owner's
+         call in `MAINTENANCE.md` §13, not something a bump decides.
+Evidence L0: `npm test` 180/180 and `npm run check:log` resolve after the edit; tier 1's
+         `schema-valid`/`compiled-fresh` are unaffected. Whether an updater surface reads the
+         integer is not testable here (this fork is not published to EGO) -- needs-manual.
+Cost     None.
+Commit   ca020d1
+
+---
+
+### D-134 · 2026-11-06 · fix
+
+Symptom  The owner's verdict on the offer work was still "还是不行", and the comparison that came
+         with it named the fix: "能不能模仿从应用网格拖取图标进入dock那样丝滑，并且如果在dock中长按
+         应用图标就不进行不长按的那些动画如放大啊，但是需要有适当的过度动画". Two things happen in
+         an in-dock drag that do not happen in a drag in from the grid: the hover magnification keeps
+         running under the pointer for the whole gesture, and every move of the gap re-flows the row in
+         one allocation, so both neighbours teleport while the gap itself eases.
+         Then the owner tried it: "动画方向不对，能不能如果我往右移动，被代替原来位置的就往左，
+         而不是突然从左边出来" -- the crossed icon was drawn a whole extra slot outward and slid
+         home, so it looked like it appeared out of nowhere. That was my sign: `gapSlide` computed
+         the layout's own delta and `_slideRow` painted it as a translation, which puts the child
+         one slot further out than where it started.
+Change   (1) `Magnification.suspend(ms)` sits next to `pause()`: it stops the pointer poll the same way,
+         but eases every icon back to rest over 150ms instead of snapping. The genie needs resting
+         geometry for its target rect, a drag does not, and a dock collapsing under the pointer the
+         instant it is picked up reads as a glitch. `DockDnd` keeps it suspended for the whole gesture
+         (`_onDragBegin` -> `_suspendMagnification`, `_finishDrag` -> `_resumeMagnification`) and the
+         tick's own smoothing brings the hover scale back, so there is no exit animation to write. The
+         tooltip is hidden at drag begin and `_showTooltip` refuses while `_dragInProgress`, so nothing
+         that belongs to mere hovering appears over a row that is moving. The manager hands the
+         instance over once it exists: `DockDnd` is constructed before `Magnification`.
+         (2) `gapSlide(index, oldGap, newGap, oldWidth, newWidth, spacing)` answers how far a child of
+         the row *as it stood* has to be shifted for the re-flow to be invisible -- positive away from
+         the row's start, the caller flips the sign for RTL. `_relocatePlaceholder` captures the row
+         and the old gap's current width (it may still be growing), inserts the new gap at the index
+         `containerIndexForFavoriteSlot` returns, then paints the shift back on each child's
+         `translation_x`/`translation_y` and eases it out over 180ms. The helper returns the offset
+         to **paint by**, which is the opposite sign of the distance the layout moved the child --
+         its doc says so, because using the layout delta directly is what shipped first and what the
+         owner saw. Translation is a transform, so the layout keeps owning `x` and magnification
+         keeps owning `scale`; a child still mid-slide from a previous move keeps its current
+         translation and the new shift is added to it, so a fast sweep across several icons cannot
+         accumulate error.
+Evidence L1: `npm test` **184/184 in 46 suites** (floor 180/45 -> 184/46). `gapSlide` is asserted two
+         ways: a table of the four shapes (full move right, full move left, first insertion at zero
+         width, half-grown gap replaced) and a property test that rebuilds both rows and requires every
+         moving child to be exactly where it was -- `old position + shift === new position` -- for
+         every possible move of the gap in a six-child row. That is the property the numbers exist
+         for, not a copy of them.
+         L1: tier 2 `drag-slot-partition-gap-invariant` now also holds the gesture's two feel gates on
+         the real row: with a drag begun, `Magnification._pauseCount > 0` and every icon at scale
+         1.00 (the icon was forced to 1.6 first, so the ease has something to undo), and the counter
+         back to 0 after the drop; and after a one-slot gap move the crossed icon carries **+66px**
+         (gap width plus spacing, *toward the row's end*, held at its old place) on its translation,
+         the icon on the other side stays at 0, and the translation is back under 0.5px 320ms later.
+         The first version of this gate checked the magnitude only (`|shift| >= 20`), which is
+         exactly why the sign could ship wrong; it now pins the signed value against the gap width
+         plus spacing read from the row. 32/32 green with the 72-case table, the zero-flip gate and
+         the hidden-gap lifecycle unmoved.
+         Mutation (Edit, not a shell copy): `_slideRow` reduced to an early return turns the gate red
+         with `slideShift: 0`, so the slide assertion is not passing on the placeholder's own grow
+         animation. Negating the helper again turns the property test red (`newPos + shift === oldPos`)
+         and the tier-2 gate red at `slideShift: -66` against `slideExpect: 66`. `_onDragBegin`'s
+         suspend is proven by the counter, which cannot be non-zero without the call.
+         L2: pending, one logout -- this is feel, and only the pointer can judge it.
+Cost     One array copy and one ease per gap move, one eased scale per icon per drag begin; nothing on
+         the idle path. The slide is cosmetic and its catch only guards actors rebuilt mid-gesture.
+Commit   ca020d1

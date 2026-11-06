@@ -12,7 +12,7 @@
 | 跑完所有可无人值守的检查 | `npm run test:static`，再 `npm run test:live` |
 | 跑私有的一次性合成器 | `npm run test:headless`（约 60 秒） |
 | 跑会开真实窗口的实时 A/B | `npm run test:live-trigger`（需要空闲会话） |
-| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 171/44**，不需要桌面 |
+| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 176/45**，不需要桌面 |
 | 支配一切的那条事实 | `disable`+`enable` **不会**重新加载改过的 JS，只有注销再登录才会 |
 | 代码在哪 | 全在 `lib/` —— 数字用 `wc -l lib/*.js` 现取；无构建步骤、无依赖 |
 
@@ -61,7 +61,7 @@
 | 匹配 `*.test.js` 的文件不得导入 GI；GI 探针保持自己的文件名 | `npm test` 必须能用纯 Node 跑 | 把 `probe-window.js` 改名进 glob 会毁掉每一次运行 |
 | `package.json` 无依赖、无 `node_modules` | "无构建步骤"这条故事线 | 测试不再能离线运行 |
 
-shell 侧：工具链存在性（缺失 → ENV）、单测下限（171 断言 / 44 套件 —— 是下限，加测试永远不会失败；每
+shell 侧：工具链存在性（缺失 → ENV）、单测下限（176 断言 / 45 套件 —— 是下限，加测试永远不会失败；每
 次加用例时在同一次改动里把下限一起抬上去，这样"某个套件不再被收集"会直接报红）、对**全部** tracked `.js` 跑 `node --check`、对 harness 跑 `bash -n`、
 `glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟、`docs/reports/`
 确被忽略且其中没有任何文件被跟踪，最后断言这一轮没有把工作树弄脏。
@@ -147,6 +147,19 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
 - `drag-slot-partition-gap-invariant` 把同一个坐标问两次——第二次是在"第一次的回答刚把空位打开、
   容器也重新排过版"之后问的（指针不动时 shell 就是这么反复调用的），要求答案不许搬家；然后它
   **在 dock 隐藏的状态下**清掉一个空位，要求那个 actor 真的离开行、并且动画计数器回到 0。
+- 同一个探针接着会走**整张表**——每个被拖位置 × 每个图标 × 这个图标的左右两半（本沙箱 72 个
+  用例）——对照 `boundaryAt` + `offerGapForBoundary` 应该给出的答案，期望值是从行自己的几何重算
+  出来的，不 import 被测模块。
+  这要求"格子空间"和"收藏空间"对得上，而沙箱里**收藏数比图标数多**，所以这一步改用 tier 2 的
+  **内存 settings 后端**，把眼前这几个图标临时 pin 成对齐的一串（不碰车主的任何 dconf，跑完在
+  本阶段结束前写回原值）。两个空间不对齐时，用收藏下标写出来的期望值毫无意义——这个检查的第一版
+  就是这样"红得不是因为那个原因"的。
+- 同一阶段还在真实的行上守住手势的两个手感门。起一次拖拽后，悬停放大必须处于挂起状态
+  （`Magnification._pauseCount > 0`）、每个图标都必须回到 1.00 倍（探针会先把一个图标撑到 1.6，
+  好让缓动有东西可收），松手后计数必须回到 0；空位挪一格之后，被跨过的那个图标必须把"空位宽度 +
+  spacing"背在 `translation` 上（实测 **+66px**，朝行尾 —— 符号本身是门的一部分：第一版只查幅度，
+  符号错了也能过，图标会先多弹出一格再滑回来），另一侧的图标保持 0，一次缓动之后回到 0.5px 以内。
+  把 `_slideRow` 改成空函数，第二个门会以 `slideShift: 0` 变红；两条都记在 `CHANGELOG.md`。
 - 收尾回收的是**整棵子树**，不只是 `dbus-run-session`。该进程会 fork 出两个子进程——私有的
   `dbus-daemon` 和命令本身（`gnome-shell`）——只杀它会让这两个被 reparent 到 systemd 后继续
   存活：一天的运行留下了 7 个无头 shell + 18 个私有 dbus-daemon（约 580 MB）。`t2killtree`
@@ -317,7 +330,7 @@ GNOME 更新能拿走的东西，全在这里：
 | `[genie] effect ended without completing mutter:`（`genieController.js:393`） | 恰好一次的完成闩锁被绕过 | —— 它就是为这件事存在 | 永久警告 |
 | `[appsbtn] applied (icon=…, label=none, grid=<n>)` (`overviewApps.js:257`) | 网格判断在**这台 shell 上**解析到的 `ControlsState` 值 —— 第二层把 `<n>` 与 shell 自己报出的数字比对；第三层的 `grid-state-loaded` 断言真实会话确实解析出了一个整数（`null` = 退回按钮的 `checked`，报 ENV） | 点击是否落到正确状态（要真实指针，只能第三层） | 2、3A |
 | `[overviewpatches] enabled (inset=ok band=ok\|skipped)` (`overviewPatches.js:76`) | 两个补丁在这台 shell 上都装上了；第三层的 `overview-patches-roundtrip` 在一次真实 `disable→enable` 之后重读这行 —— 这是唯一能看出 D-062 的 revert 真把遮蔽放开的途径 | 真实桌面上概览的几何（那是 `overview-band`，第二层） | 2、3B |
-| `[dnd] over gap@pos=N slot=N favPos=N favs=N` / `over self-slot …` / `over refused by canDrop …`（`dockDnd.js:336,331,318`） | 指针当时压在哪个槽上、被拖项自己的收藏位是多少、这次手势最终拿到哪个判定 —— 这是区分"放回了自己原位（本来就不该写，dash.js:974-976）"与"这次 drop 根本没落到 dock 上"的唯一办法。每次拖拽每个不同判定只打一条 | 排序手感顺不顺（要真指针加人眼） | 3A |
+| `[dnd] over gap@pos=N boundary=N cell=N favPos=N favs=N` / `over self-slot pos=N favPos=N cell=N` / `over refused by canDrop …` | 指针离哪条分界线最近、它当时压在哪个图标上、被拖项自己的收藏位是多少、这次手势最终拿到哪个判定 —— 这是区分"放回了自己原位（本来就不该写，dash.js:974-976）"与"这次 drop 根本没落到 dock 上"的唯一办法。每次拖拽每个不同判定只打一条 | 排序手感顺不顺（要真指针加人眼） | 3A |
 | `[dnd] drop move to fav#N` / `drop pin to fav#N`（`dockDnd.js:385`） | `favorite-apps` 真的写了、写到哪。健康的 2026-11-06 boot 是 `2 drop move + 5 drop pin + 6 drop in place`；这些判定行还没加时那次坏的 boot 有九次拖拽、**一条 drop 都没有** | 行之后有没有重建正确 —— 要看配对的 `[icons] incremental:` | 3A |
 | `[trash] click -> {open-new-window,minimize,restore,activate} (open=N)`（`trashManager.js:192`） | 这一次垃圾桶点击走了哪个分支、当时有几个回收站窗口；"点了没反应"和"它把你看不见的那个窗口最小化了"在屏幕上完全一样。点击之间出现 `open=0 → 1 → 2` 也就是 New Window 真的又开了一个窗口的证据 | 菜单那一行有没有开窗口（菜单行不打日志） | 3A |
 | `[layout] background <len> does not cover the row's <painted> (<n> children, position=<p>)`（`dockManager.js:837`） | 车主拍过两次的那张截图，现在能在真机上被抓到：背景长度与行的**实际绘制范围**在事情稳定后仍然不一致。**不对才说话**——而且行还没被分配时也不说话：登录时它曾把 dock 说成长了 1011px，那是 18 个子元素各自有尺寸却都还没有位置的结果，所以一个主轴长度为 0 的子元素（空位除外，它就是故意 0px 宽）会让它闭嘴。两个方向都在 tier 2 验过（`extent-check-silent-unallocated`）：伪造一个未分配的 child 必须一条都不出，**在 dock 隐藏时改变行的长度也必须一条不出（`hide()` 会把子元素的 allocation 冻住，此时根本没有可对照的绘制结果——之后靠 `notify::visible` 重新排一次检查）**，把一个已分配行的背景说成长 300px 必须恰好出一条 | 拖拽空位动画进行中的状态（故意等 400ms：那期间 request 本来就比 allocation 早一帧） | 3A |
@@ -396,10 +409,10 @@ GNOME 更新能拿走的东西，全在这里：
   现在只管剩下那一种情况：两个尾部按钮都被关掉时，淡出中仍留在 `_icons` 的图标否则会在 dock
   收缩前 200 ms 先撑起一条分隔线。
 - 拖拽的槽位划分排除的是**同一批**子元素（`_slotChildren()`）：空位、分隔线、垃圾桶、显示应用
-  按钮。这个集合就是收藏行，不能有别的，因为槽号是把划分范围的长度**按比例**除出来的——多算一个
-  槽就把范围拉长了尾部按钮那 ~81px，于是"这是你自己的位置 / 放在最后一个收藏之后"的分界线从最后
-  一个图标的右边缘挪进了 padding，而想放在行末的光标正好停在那里。真机测到的是每秒约 5 次"给出
-  空位/撤回空位"来回抖动，持续 7 秒（`drag-slots-are-icons-only`：把尾部按钮加回去它就红）。
+  按钮。这个集合就是收藏行，不能有别的，因为指针读的是两个图标之间**最近的那条分界线**——多算一个
+  槽就多出一条落在尾部按钮像素里、离行末 ~81px 的线，而想放在行末的光标离那条线比离最后一个收藏的
+  外边缘更近，于是答案在"给出空位"和"这是你自己的位置，撤回"之间来回抖。真机测到的是每秒约 5 次
+  这样的抖动，持续 7 秒（`drag-slots-are-icons-only`：把尾部按钮加回去它就红）。
 - SPDX 定为 `GPL-2.0-or-later`：genie 上游自己的 `README.md` 就是这么写的，那是作者的授权
   选择。不要收紧。
 - 已撤回、不要再以"省开销"为由重开：dodge 隐藏态心跳（实测 556 → 524 → 518 ticks，低于噪声），

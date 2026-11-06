@@ -13,7 +13,7 @@ change is safe). Nothing here duplicates a rule.
 | Run everything that is safe unattended | `npm run test:static` then `npm run test:live` |
 | Run the private throwaway compositor | `npm run test:headless` (~60 s) |
 | Run the live A/B that opens windows | `npm run test:live-trigger` (needs an idle session) |
-| Pure unit coverage | `npm test` — it prints the counts (`# tests`, `# suites`); tier 1 keeps a **floor** of 171/44, no desktop needed |
+| Pure unit coverage | `npm test` — it prints the counts (`# tests`, `# suites`); tier 1 keeps a **floor** of 176/45, no desktop needed |
 | The fact that governs everything | `disable`+`enable` does **not** reload edited JS; only log out / log in does |
 | Where the code lives | everything is in `lib/` — print `wc -l lib/*.js`; no build step, no dependencies |
 
@@ -67,7 +67,7 @@ is invisible to every other check:
 | nothing matching `*.test.js` imports GI; the GI probe keeps its name | `npm test` stays runnable under plain Node | renaming `probe-window.js` into the glob breaks every run |
 | `package.json` has no dependencies and no `node_modules` | the no-build-step story | tests stop being offline-runnable |
 
-Shell side: toolchain presence (missing → ENV), unit floors (171 assertions / 44 suites —
+Shell side: toolchain presence (missing → ENV), unit floors (176 assertions / 45 suites —
 floors, so adding tests never fails; they are raised in the same change that adds
 a suite, so a suite that stops being collected goes red), `node --check` over **every** tracked `.js`, `bash -n`
 over the harness, `glib-compile-schemas --strict --dry-run`, compiled-binary freshness,
@@ -175,6 +175,24 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   the first answer just opened still in the row and the container already re-laid-out (that is what
   a still pointer does), and requires the answer not to move; it then clears a gap **while the dock
   is hidden** and requires the actor to leave the row and the animation counter to come back to 0.
+- The same probe then walks the **whole grid** -- every held position x every icon x both halves of
+  it, 72 cases in this sandbox -- against the table `boundaryAt` + `offerGapForBoundary` are supposed
+  to produce, with the expectation recomputed from the row's own geometry rather than imported from
+  the module. This needs cell space and favourite space to agree, and the sandbox ships *more
+  favourites than it has icons*, so the stage pins exactly the icons it can see through the
+  **in-memory settings backend** (nothing of the user's tree is involved, and the original list is
+  written back before the stage ends). Where those two spaces disagree, an expectation written as a
+  favourite index is meaningless -- which is how a first version of this check managed to be red for
+  the wrong reason.
+- The same stage holds the gesture's two feel gates on the real row. With a drag begun, the hover
+  magnification must be suspended (`Magnification._pauseCount > 0`) and every icon at scale 1.00
+  -- the icon is forced to 1.6 first, so the ease has something to undo -- and the counter must be
+  back to 0 after the drop. And after a one-slot gap move the crossed icon must carry the gap plus
+  spacing on its `translation`, **+66px** measured and *toward the row's end* so the icon is held at
+  its old place -- the sign is part of the gate, because a magnitude-only check passed the first
+  version, which drew the icon a slot further out and slid it home -- the icon on the other side
+  must stay at 0, and the translation must be back under 0.5px one ease later. Removing `_slideRow`'s body turns the
+  second gate red with `slideShift: 0`; both are recorded in `CHANGELOG.md`.
 - Teardown reaps the **whole subtree**, not just `dbus-run-session`. That process forks two
   children — a private `dbus-daemon` and the command (`gnome-shell`) — and killing only it
   reparents both to systemd, where they keep running: a day of runs left 7 headless shells +
@@ -367,7 +385,7 @@ Everything that a GNOME update can take away:
 | `[genie] effect ended without completing mutter:` (`genieController.js:393`) | the exactly-once completion latch was bypassed | — this is the point of it | permanent warning |
 | `[appsbtn] applied (icon=…, label=none, grid=<n>)` (`overviewApps.js:257`) | which `ControlsState` value the grid test resolved **in this shell** — tier 2 compares `<n>` against the number the shell itself reports; tier 3's `grid-state-loaded` asserts the live session resolved an integer at all (`null` = degraded to the button's `checked`, reported ENV) | that a click lands in the right state (needs a real cursor, tier 3 only) | 2, 3A |
 | `[overviewpatches] enabled (inset=ok band=ok\|skipped)` (`overviewPatches.js:76`) | both patches applied on this shell; tier 3's `overview-patches-roundtrip` re-reads the line after a real `disable→enable`, which is the only way to see D-062's revert actually release the shadow | the overview's geometry on the live desktop (that is `overview-band`, tier 2) | 2, 3B |
-| `[dnd] over gap@pos=N slot=N favPos=N favs=N` / `over self-slot …` / `over refused by canDrop …` (`dockDnd.js:336,331,318`) | which slot the pointer was over, what the dragged item's own favourite position is, and which verdict the gesture reached — the only way to separate "dropped back on itself, writes nothing" (dash.js:974-976) from "the drop never reached the dock". Throttled to one line per distinct verdict per drag | that the reorder feels smooth (real cursor and eyes) | 3A |
+| `[dnd] over gap@pos=N boundary=N cell=N favPos=N favs=N` / `over self-slot pos=N favPos=N cell=N` / `over refused by canDrop …` | which line the pointer was nearest to, which icon it was on, what the dragged item's own favourite position is, and which verdict the gesture reached — the only way to separate "dropped back on itself, writes nothing" (dash.js:974-976) from "the drop never reached the dock". Throttled to one line per distinct verdict per drag | that the reorder feels smooth (real cursor and eyes) | 3A |
 | `[dnd] drop move to fav#N` / `drop pin to fav#N` (`dockDnd.js:385`) | a `favorite-apps` write actually happened and where it landed. A healthy 2026-11-06 boot scored `2 drop move + 5 drop pin + 6 drop in place`; the broken boot before these verdict lines existed had nine drags and **no drop line at all** | that the row rebuilt correctly afterwards — read the paired `[icons] incremental:` line | 3A |
 | `[trash] click -> {open-new-window,minimize,restore,activate} (open=N)` (`trashManager.js:192`) | which branch a Trash click took and how many trash windows existed then; "nothing happened" and "it minimized a window you could not see" look identical on screen. `open=0 → 1 → 2` across clicks is also the proof that New Window really opens another window | that a *menu* row opened it (the menu rows log nothing) | 3A |
 | `[layout] background <len> does not cover the row's <painted> (<n> children, position=<p>)` (`dockManager.js:837`) | the bug the owner photographed twice, detected live: the background's length disagreeing with the row's painted extent once things have settled. **Silent unless wrong** — and silent also when the row has not been allocated yet: at login it once accused the dock of being 1011px too long because 18 children had sizes of their own but no positions, so a zero-extent child (the gap excepted, it is 0px wide on purpose) keeps it quiet. Proved both ways in tier 2 (`extent-check-silent-unallocated`): a fabricated unallocated child must add no line, **a length change made while the dock is hidden must add no line either (`hide()` freezes the children's allocations, so there is nothing painted to disagree with — `notify::visible` re-arms the check afterwards)**, a laid-out row whose background is claimed 300px longer must add exactly one | anything mid-gap-animation on purpose: the check waits 400ms because the request legitimately runs a frame ahead of the allocation | 3A |
@@ -465,11 +483,12 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   a separator 200 ms before the dock shrinks.
 - The same four children are excluded from the **drag** partition (`_slotChildren()`): the gap,
   the separator, the Trash and the Show Apps button. That set is the favourites row and nothing
-  else, because the slot math is a proportional division of the partition's extent — one extra
-  slot stretches it by the tail button's ~81px and moves the "your own position / drop after the
-  last favourite" boundary off the last icon's right edge into the padding where a pointer aiming
-  at the end of the row parks. Measured live as ~5 gap-offer/withdrawal alternations per second
-  for 7s (`drag-slots-are-icons-only` keeps it red if a tail button is added back).
+  else, because the pointer is read against the nearest **line** between two icons — one extra
+  slot adds a line ~81px out in the tail button's pixels, and a pointer parked at the end of the
+  row is nearer to that than to the last favourite's outer line, so the answer alternates between
+  "gap here" and "that is your own position, gap withdrawn". Measured live as ~5 gap-offer/
+  withdrawal alternations per second for 7s (`drag-slots-are-icons-only` keeps it red if a tail
+  button is added back).
 - SPDX is settled as `GPL-2.0-or-later`: genie upstream's own `README.md` states it, which is
   the author's election. Do not tighten it.
 - Withdrawn, do not re-propose on a saving argument: dodge's hidden-state heartbeat as a CPU

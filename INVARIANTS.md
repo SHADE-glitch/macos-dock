@@ -30,3 +30,5 @@ Two rules about the list itself:
 - **Withdrawn items belong to MAINTENANCE §11, not here.** "Do not re-propose" entries (dodge's
   hidden-state heartbeat as a CPU saving, the genie trailing ease-in) are decisions not to change
   something, which is the opposite kind of claim from "never revert this fix".
+| D-132 | the drop indicator reads the nearest line between icons, and the two lines touching the held icon's slot are spent | L1 (`drag-slot-partition-gap-invariant`) + L2, owner confirmed by hand | the two neighbours stop being swaps and the held cell draws a gap that would write the order it already has |
+| D-134 | a gap move paints the crossed children back by the layout delta's opposite sign, then eases it to zero | L1 (`drag-slot-partition-gap-invariant`), mutation turns it red at `slideShift: 0` | the crossed icon pops a whole slot outward and slides home, which is the "appears out of nowhere" report |
