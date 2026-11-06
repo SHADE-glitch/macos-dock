@@ -2170,3 +2170,24 @@ Cost     Nine defaults move away from upstream; a fresh install starts from the 
          look. The reset cannot be undone and removes every user override except the two keynav
          sentinels.
 Commit   fed3bff
+
+---
+
+### D-143 · 2026-11-06 · taste
+
+Symptom  The two surfaces the owner had just used -- the preferences sidebar and the genie
+         minimize/restore effect -- were still recorded as unconfirmed: D-129 ended in
+         "needs-manual-confirmation until the owner looks at it" and D-137 in "visual feel remains
+         L2". Nothing in the tree recorded that the owner had looked and approved them.
+Change   No code change. Recorded the owner's sign-off: the eight-page sidebar order (Dock,
+         Behavior, Magnification, Auto-hide, Genie Animation, Keyboard, Performance, System) and
+         the D-137 funnel feel (420/460 ms, direction-specific easing, `AXIAL_BUNCH` .45) are the
+         accepted shipped experience. The page order is frozen in MAINTENANCE §11/§12 and listed
+         in both READMEs; the minimize feel sits in §11 with an explicit reopen rule.
+Evidence L2: the owner confirmed both by hand on 2026-11-06 -- the tabs "特别好用，现在体验感
+         很好" and the minimize effect "体验感很好" -- so the manual checks pending in D-129 and
+         D-137 are satisfied for the shipped layout and feel. This entry records the sign-off; it
+         does not rewrite those entries' assertions as of their own commits.
+Cost     None in code. Both surfaces remain taste: an upstream upgrade may still discard them,
+         and the invariant table stays unchanged because taste entries are not invariants.
+Commit   fed3bff

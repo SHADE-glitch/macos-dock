@@ -482,7 +482,16 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   direction-specific `genieEaseProgress()` (minimize amplitude .65; restore raises the forward
   ease to 1.2 before reversing it), and `AXIAL_BUNCH = .45`. An upgrade may discard them together.
   Do not redesign the effect or touch `leadFrac`/`trailFrac` defaults, which were measured; the
-  withdrawn trailing-edge ease-in stays withdrawn.
+  withdrawn trailing-edge ease-in stays withdrawn. The owner confirmed the minimize/restore feel
+  by hand on 2026-11-06 (D-143) and asked for the acceptance to be recorded: these numbers are
+  the shipped feel. Reopen only with a specific symptom and new frame evidence.
+- The preferences sidebar is the accepted surface (owner sign-off, D-143, 2026-11-06): eight pages in
+  the order Dock, Behavior, Magnification, Auto-hide, Genie Animation, Keyboard, Performance,
+  System. System stays last because it holds the shell-integration fixes and Restore Defaults.
+  The owner navigates these tabs as the reference and finds them easy to use; do not reorder,
+  merge or rename pages on a cleanup impulse. A new key goes into the page a user would search,
+  with the group description saying what the default assumes. Reopen only with a concrete
+  "I cannot find setting X" report.
 - Separator marks the **favorites boundary**, not the presence of running non-favorites: it is
   shown whenever something is pinned and there is a tail (a running non-favorite, the Trash or
   the Show Apps button) -- the same rule Ubuntu's dash derives from `nFavorites < nIcons`. The
@@ -529,7 +538,9 @@ Each of these was tested directly and failed. Do not spend time retrying them.
 - The prefs window is **one `Adw.PreferencesPage` per category**, which is what turns the window
   into a sidebar; a category is then split into `Adw.PreferencesGroup`s by what the rows have to
   say to each other, not by the order they were written in. A new key goes into the category the
-  user would look in, with a group description that says what the default assumes.
+  user would look in, with a group description that says what the default assumes. The sidebar
+  order is fixed at Dock, Behavior, Magnification, Auto-hide, Genie Animation, Keyboard,
+  Performance, System (System last); §11 records the owner's sign-off on this layout.
 - **Restore Defaults** lives at the bottom of the System page. It confirms first, then removes
   every user value with `GSettings.reset()`, including the ten `keynav-app-N` slots; only
   `keynav-stock-backup` / `keynav-stock-dirty` are excluded, because they are crash-recovery

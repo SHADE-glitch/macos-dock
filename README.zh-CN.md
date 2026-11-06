@@ -77,7 +77,7 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 
 ## ⚙️ 偏好设置
 
-打开 **GNOME 设置 → 扩展 → MacOS Dock → 设置**，可配置外观与位置、放大效果、预览、避让/自动隐藏、键盘导航（含弹出 Dock）、媒体控制、运行指示器、分隔线、动画时长与 Genie 最小化/还原动画。System 页底部的 **Restore Defaults** 会在确认后重置所有用户可见键；内部的 keynav 崩溃恢复键会保留。
+打开 **GNOME 设置 → 扩展 → MacOS Dock → 设置**，可配置外观与位置、放大效果、预览、避让/自动隐藏、键盘导航（含弹出 Dock）、媒体控制、运行指示器、分隔线、动画时长与 Genie 最小化/还原动画。窗口分成八个侧栏页面：Dock、Behavior、Magnification、Auto-hide、Genie Animation、Keyboard、Performance 和最后的 System。System 页底部的 **Restore Defaults** 会在确认后重置所有用户可见键；内部的 keynav 崩溃恢复键会保留。
 
 ## 📚 设置项说明
 

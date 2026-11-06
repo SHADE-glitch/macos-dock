@@ -77,7 +77,7 @@ Where the gap opens is decided by the pointer, not by the icon it happens to be 
 
 ## ⚙️ Preferences
 
-Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure appearance and position, magnification, previews, dodge/auto-hide, keyboard navigation (including the dock pop-up), media controls, running indicators, separators, animation timing and the genie minimize/restore animation. **Restore default settings** at the bottom of the System page resets every user-facing key after a confirmation; the internal keynav crash-recovery keys are kept.
+Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure appearance and position, magnification, previews, dodge/auto-hide, keyboard navigation (including the dock pop-up), media controls, running indicators, separators, animation timing and the genie minimize/restore animation. The window is split into eight sidebar pages — Dock, Behavior, Magnification, Auto-hide, Genie Animation, Keyboard, Performance and System (last). **Restore default settings** at the bottom of the System page resets every user-facing key after a confirmation; the internal keynav crash-recovery keys are kept.
 
 ## 📚 Settings reference
 

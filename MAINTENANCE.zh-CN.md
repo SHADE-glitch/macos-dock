@@ -409,7 +409,14 @@ GNOME 更新能拿走的东西，全在这里：
 - 漏斗手感现在有三项已记录的口味选择（D-137）：默认时长 420/460 ms、按方向区分的
   `genieEaseProgress()`（最小化幅度 .65；还原先把正向缓动取 1.2 次幂再反向），以及
   `AXIAL_BUNCH = .45`。上游升级可以整体丢弃它们。不要重构效果，也不要动已量过的
-  `leadFrac`/`trailFrac` 默认值；已否决的拖尾 ease-in 仍然不要重新提议。
+  `leadFrac`/`trailFrac` 默认值；已否决的拖尾 ease-in 仍然不要重新提议。车主在 2026-11-06
+  亲手确认了最小化/还原的手感（D-143），并要求把这次认可记录下来：这几组数字就是出厂的观感。
+  只有拿到具体症状和新的帧级证据才能重开，口味冲动不算。
+- 偏好设置的侧栏就是被认可的表面（车主签收，D-143，2026-11-06）：八个页面，顺序为 Dock、Behavior、
+  Magnification、Auto-hide、Genie Animation、Keyboard、Performance、System。System 留在最后，
+  因为 shell 集成修复和 Restore Defaults 都在这里。车主以这组标签为参照在找设置，觉得好用了；
+  不要凭整理冲动重排、合并或改名页面。新键要放进用户会去找的那一页，组说明讲清默认值假设。
+  只有出现具体的"我找不到某个设置"报告才重开。
 - 分隔线标的是**收藏区边界**，不是"有没有运行中的未固定应用"：只要有应用被固定、且尾部还有
   东西（运行中的未固定应用、垃圾桶或 Show Apps 按钮），它就在——与 Ubuntu dash 由
   `nFavorites < nIcons` 推导的是同一条规则。**settled** 图标集（跳过 `_dockRemovalPending`）
@@ -443,7 +450,9 @@ GNOME 更新能拿走的东西，全在这里：
   这个集合差，所以新键不可能悄悄绕过偏好窗口；两份 README 也必须逐键各有一行。
 - 偏好窗口是**每个分类一个 `Adw.PreferencesPage`** —— 侧栏就是这么来的；分类之下再按"这些行
   彼此在说什么"切 `Adw.PreferencesGroup`，而不是按当初写代码的顺序。新键要放进车主会去找的那个
-  分类，并且给所在的组写一句说明，讲清默认值假设了什么。
+  分类，并且给所在的组写一句说明，讲清默认值假设了什么。侧栏顺序固定为 Dock、Behavior、
+  Magnification、Auto-hide、Genie Animation、Keyboard、Performance、System（System 最后）；
+  §11 记录了车主对这个布局的签收。
 - **Restore Defaults** 在 System 页底部。先确认，再用 `GSettings.reset()` 删除所有用户值，包括
   十个 `keynav-app-N` 槽；只排除 `keynav-stock-backup` / `keynav-stock-dirty`，因为它们是
   崩溃恢复状态而不是偏好。重置会触发与手动修改相同的 `changed::` 监听，所以 dock 不需要重载就
