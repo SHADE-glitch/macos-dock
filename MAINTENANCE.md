@@ -672,6 +672,12 @@ holds all three properties, and each of them was red against the pre-fix `common
   still produce that sliver. The peek-off closing shape and the owner's original visual symptom
   remain L2 checks after the new modules are loaded; the old temporary diagnostic blocks are no
   longer present.
+- **The Trash click guard is time-bounded.** `TrashManager.activate()` suppresses a second
+  left-click launch for 2 s, clearing the guard as soon as FileManager1 maps a trash window or
+  `stop()` runs; a launch that returns false releases it immediately. A cold file-manager start
+  slower than the guard can therefore still accept a second launch. The live journal measured the
+  intended sequence (one launch, three coalesced clicks, then a one-window toggle) on 2026-11-06;
+  a slower launch is not reproducible on demand here.
 
 ## 15. GNOME compatibility matrix
 

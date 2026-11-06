@@ -2132,3 +2132,18 @@ Evidence L0: `npm test` 173/173 in 44 suites; tier 1 9/9 with 63 schema keys com
 Cost     The alternate mode is gone and stale dconf values are ignored. The static suite floor drops
          from 174/44 to 173/44 because the deleted suite and pure-lib guard were intentional.
 Commit   02208a1
+
+---
+
+### D-141 · 2026-11-06 · fix
+
+Symptom  The pending-open guard in `TrashManager` treated every launch as successful because
+         `Gio.AppInfo.launch_default_for_uri()` returns FALSE on failure instead of throwing. A
+         failed launch therefore suppressed left-click launches for the full 2 s guard.
+Change   `openNewWindow()` now returns the launch result, and `activate()` clears the guard when it
+         is false. The hidden-target comment is corrected to describe the one-path behaviour.
+Evidence L0: `npm test` 173/173 in 44 suites; tier 1 9/9; the Trash wiring guard now also asserts
+         the launch result is returned. The live journal already shows one launch followed by three
+         coalesced clicks and a one-window toggle; this follow-up only changes the failure branch.
+Cost     One boolean return through the existing launch path; no new state, allocation or source.
+Commit   e30fea8
