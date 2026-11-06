@@ -648,13 +648,12 @@ holds all three properties, and each of them was red against the pre-fix `common
   `containers=0`, `scale_x=1`, `opacity=255`, `pivot=(0,0)`, and the engine logged the teardown as
   `reason=finishAll`. Record this so the next agent does not repeat the mistake; the harness itself
   still uses only the safe path.
-- **Genie's icon-rect fallbacks anchor on `primaryMonitor`, dodge's thresholds do not.**
-  `_dockEdgeCenterRect()`, `_dockEdgeAt()` and `_shrinkEdgeRect()` resolve against
-  `Main.layoutManager.primaryMonitor` because the merged upstream assumed the dock lives on the
-  primary screen ("requirement 7"), while D-052 moved dodge's edges and poll thresholds onto the
-  monitor the dock is actually on. With the dock on a secondary monitor the two disagree: dodge
-  hides and shows correctly, but a minimize whose app icon cannot be resolved pours toward the
-  primary screen. Unmeasured here — this box has one monitor.
+- **Genie's final icon-rect fallback anchors on `primaryMonitor`, dodge's thresholds do not.**
+  `_dockEdgeCenterRect()` resolves against `Main.layoutManager.primaryMonitor` because the merged
+  upstream assumed the dock lives on the primary screen ("requirement 7"), while D-052 moved dodge's
+  edges and poll thresholds onto the monitor the dock is actually on. With the dock on a secondary
+  monitor the two disagree: dodge hides and shows correctly, but a minimize whose app icon cannot be
+  resolved pours toward the primary screen. Unmeasured here — this box has one monitor.
 - **The funnel's "the window is gone before it reaches the icon" is measured, not reproduced.**
   These frame numbers predate D-137's timing and easing changes. They came from a private compositor,
   driven against a real `MetaWindowActor` opened inside it (L1; the live session still has to confirm
@@ -665,27 +664,14 @@ holds all three properties, and each of them was red against the pre-fix `common
   snapshot was a copy (`shared=0`, `Clutter_TextureContent tex=648x429`) whose size held on **every**
   frame even though `actorVisible=0 actorMapped=0` from frame 0 — the early `_fireComplete()` hid the
   real actor, and the strips kept painting anyway, excluding candidate (a) on a real window buffer.
-  That measurement also reproduced a target problem: both `_dockCenterRect()` and `_dockEdgeAt()`
-  then returned a **64×12 patch**, and `sink = absorb × iconDepth` collapsed the window into a 12 px
-  band (`sink=10.2`, against `sink=45.9` with a real 54 px icon box). D-135 has since changed
-  `_dockEdgeAt()` only: peek-off now delegates to `_shrinkEdgeRect()` and preserves the input rect's
-  dimensions. `_dockCenterRect()`, `_dockEdgeCenterRect()` and the final literal fallback still use
-  64×12, so the no-icon fallback can still produce that sliver. The four-edge peek-off closing shape
-  and the owner's original visual symptom remain L2 checks after the new modules are loaded; the old
-  temporary diagnostic blocks are no longer present.
-- **The shrink restore's first frame is at scale 0.** The time mirror maps p=0 to q=1 and the
-  collapse segment gives `sEnd × (1 − (q−0.88)/0.12)`, which is 0 there — measured
-  `wantScale=0.0008` by the 5th frame (0.7×0.4 px of a 648×429 actor). Every frame after it is
-  painted, visible and mapped (`actorVisible=1 actorMapped=1 actorOpacity=255`, want ==
-  actor-reported for scale *and* position at all 38 sampled frames of both directions), so the
-  hard criterion holds for 0<p<1. Whether the window should emerge at icon size instead of out of
-  nothing is a spec question for the owner, not a bug to fix silently.
-- **A shrink minimize leaves the actor at the collapsed layout position** (measured: an actor that
-  starts at y=204 is left there with scale restored to 1). Nothing sees it — mutter unmaps the
-  actor as part of the completion fired at p=1, and the next restore rewrites the position from
-  `get_buffer_rect()` before it starts. Recorded because `disable()` mid-animation would not
-  restore it: `ShrinkManager`'s teardown restores scale and pivot only, never position.
-
+  That measurement also reproduced a target problem: both the center fallback and the then-existing
+  edge fallback returned a **64×12 patch**, and `sink = absorb × iconDepth` collapsed the window into
+  a 12 px band (`sink=10.2`, against `sink=45.9` with a real 54 px icon box). The hidden-dock
+  peek-off path now keeps the resolved icon rect unchanged (D-138), so only `_dockCenterRect()`,
+  `_dockEdgeCenterRect()` and the final literal fallback still use 64×12; the no-icon fallback can
+  still produce that sliver. The peek-off closing shape and the owner's original visual symptom
+  remain L2 checks after the new modules are loaded; the old temporary diagnostic blocks are no
+  longer present.
 
 ## 15. GNOME compatibility matrix
 

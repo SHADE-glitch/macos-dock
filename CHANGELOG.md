@@ -2079,3 +2079,56 @@ Cost     The direction mapping adds one pure maths call per timeline frame, outs
          no settings key, per-strip heap allocation or scratch-buffer change was added. This is taste
          and an upgrade may discard it wholesale.
 Commit   2bf01c1
+
+---
+
+### D-138 · 2026-11-06 · fix
+
+Symptom  With the dock hidden and `genie-peek-hidden-dock` off, the funnel projected the icon box
+         onto the screen edge, centring it on the edge so half lay outside the monitor; the closing
+         footprint was the clipped half. A window overlapping its icon could also keep the taper
+         above icon width because `funnelDepth` used the window's axial length as a floor.
+Change   The hidden-dock target now keeps the resolved icon rect unchanged instead of projecting it.
+         `funnelDepth` ends exactly at `bEnd`, and the end control point `c2` settles at the icon
+         width instead of pinching on the closing frame.
+Evidence L0: `npm test` 193/193 in 48 suites; `test/genieGeometry.test.js` covers the overlap case
+         on all four dock edges, and `test/repo.test.js` guards the controller target. Visual feel
+         remains L2 and needs a session that has loaded the new modules.
+Cost     No settings key, per-frame allocation or scratch-buffer change. The final closing shape is
+         a deliberate feel trade; an upgrade may discard it.
+Commit   ff631ed
+
+---
+
+### D-139 · 2026-11-06 · fix
+
+Symptom  Rapid left clicks on the Trash icon opened one Nautilus window per click while the first
+         window was still absent from the asynchronous FileManager1 window map.
+Change   `TrashManager.activate()` now arms a 2 s pending-launch guard before opening the trash. A
+         mapped trash window clears it, and `stop()` clears it; a failed launch releases it
+         immediately. Middle-click and the menu's explicit New Window path remain unguarded.
+Evidence L0: `npm test` 194/194 in 49 suites; a wiring guard in `test/repo.test.js` was red before
+         the field existed. The rapid-click result itself is L2 and needs a real session — the
+         headless harness does not drive Nautilus windows or this click path.
+Cost     One `get_monotonic_time()` read per click, no timeout source and no per-frame work. A
+         launch failure suppresses further left-click launches only for the guard's short window.
+Commit   4f4a072
+
+---
+
+### D-140 · 2026-11-06 · chore
+
+Symptom  The shrink animation mode duplicated the funnel behind a second engine, a pure geometry
+         module, five settings keys, a prefs group and a mode switch in the controller and
+         dockManager. The owner asked for it to be removed rather than maintained as a second path.
+Change   Deleted `lib/shrinkGeometry.js` and its suite, `ShrinkManager`, `genie-mode` and the four
+         `shrink-*` keys, the controller branches and helpers, the dockManager listener, and the
+         prefs group. Hidden-dock targeting now has one path: `genie-peek-hidden-dock` decides
+         whether the dock peeks, and the resolved icon rect is kept as-is.
+Evidence L0: `npm test` 173/173 in 44 suites; tier 1 9/9 with 63 schema keys compiled == XML ==
+         what the shell reads; no `shrinkGeometry`, `ShrinkManager` or shrink setting-key identifier
+         remains under `lib/`, `prefs.js`, `schemas/` or `test/`. The mode's absence in a running
+         shell is L2 and needs a logout; the schema change is not live in the current session.
+Cost     The alternate mode is gone and stale dconf values are ignored. The static suite floor drops
+         from 174/44 to 173/44 because the deleted suite and pure-lib guard were intentional.
+Commit   02208a1

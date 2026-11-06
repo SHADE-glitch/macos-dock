@@ -536,11 +536,10 @@ harness 自己也是隐私面。`test/common.sh` 里设了 `umask 077`，`test/r
   （`containers=1 registered=1`）时调 `disable()`，返回后 `containers=0`、`scale_x=1`、
   `opacity=255`、`pivot=(0,0)`，引擎把这次收尾记成 `reason=finishAll`。记下来是为了下一个 agent
   不再犯同样的方法错误；harness 自己仍然只走安全路径。
-- **genie 解析图标兜底用的是 `primaryMonitor`，dodge 的阈值不是。** `_dockEdgeCenterRect()`、
-  `_dockEdgeAt()`、`_shrinkEdgeRect()` 都按合并进来的上游那句"dock 只在主屏"（requirement 7）
-  落在 `Main.layoutManager.primaryMonitor` 上，而 D-052 已经把 dodge 的边缘判据和轮询阈值搬到
-  dock 真正所在的那块屏。dock 挂在副屏时两边会分叉：收起/显示都对，但解析不到应用图标的那次
-  最小化会朝主屏倾倒。本机只有一块屏，这条没有实测。
+- **genie 解析图标兜底用的是 `primaryMonitor`，dodge 的阈值不是。** `_dockEdgeCenterRect()` 按合并
+  进来的上游那句"dock 只在主屏"（requirement 7）落在 `Main.layoutManager.primaryMonitor` 上，
+  而 D-052 已经把 dodge 的边缘判据和轮询阈值搬到 dock 真正所在的那块屏。dock 挂在副屏时两边会
+  分叉：收起/显示都对，但解析不到应用图标的那次最小化会朝主屏倾倒。本机只有一块屏，这条没有实测。
 - **漏斗"还没落到图标就提前消失"已经量到帧级，但没有复现。** 这些帧级数字早于 D-137 的时长与
   缓动调整，取自私有合成器里一个真 `MetaWindowActor`（L1；真会话仍要确认同样这三列）：
   `finish reason=completed p=1.0000` —— 没有提前截断、看门狗或容器早拆。从 p=0.17 到 p=0.80
@@ -549,23 +548,11 @@ harness 自己也是隐私面。`test/common.sh` 里设了 `umask 077`，`test/r
   （`shared=0`，`Clutter_TextureContent tex=648x429`），尽管从第 0 帧起
   `actorVisible=0 actorMapped=0`，尺寸在**每一帧**都没变 —— 提前 `_fireComplete()` 确实藏掉了真
   actor，但条带照旧画得出来，候选 (a) 在真实窗口缓冲上被排除。那次测量还复现了目标问题：当时
-  `_dockCenterRect()` 与 `_dockEdgeAt()` 都返回 **64×12** 补丁，`sink = absorb × iconDepth`
-  因而把窗口压进 12 px 窄带（实测 `sink=10.2`，真实 54 px 图标盒则为 `sink=45.9`）。D-135
-  此后只改了 `_dockEdgeAt()`：peek-off 现在委托 `_shrinkEdgeRect()`，保留输入矩形的真实宽高。
-  `_dockCenterRect()`、`_dockEdgeCenterRect()` 和最后的字面量兜底仍是 64×12，所以无图标兜底依然
-  可能形成那条窄带。四个方位的 peek-off 实际收口、车主最初报告是否消失，仍要等新模块加载后做
-  第三层目测；旧的临时诊断块现已不在代码里。
-- **shrink 还原方向的第一帧尺度是 0。** 时间镜像把 p=0 映到 q=1，而塌缩段
-  `sEnd × (1 − (q−0.88)/0.12)` 在那一点正是 0 —— 实测到第 5 帧是 `wantScale=0.0008`
-  （648×429 的 actor 上 0.7×0.4 px）。之后的每一帧都被画出、都可见、都已映射
-  （`actorVisible=1 actorMapped=1 actorOpacity=255`，两个方向共 38 个采样帧上 want 与 actor 自报的
-  尺度和位置完全相等），所以 0<p<1 的硬判据成立。要不要让它"从图标尺寸长出来"而不是"从虚无里
-  冒出来"是规格问题，该车主拍板，不该我悄悄改公式。
-- **shrink 最小化结束后把 actor 留在塌缩后的位置上**（实测：起点 y=204 的窗口收尾停在 553，
-  尺度已恢复成 1）。看不出来：mutter 会在 p=1 那次 complete 里把 actor 隐藏，而下一次还原在开始前
-  就用 `get_buffer_rect()` 重写过位置。记下来是因为动画进行中 `disable()` 不会还原它 ——
-  `ShrinkManager` 的拆除只恢复尺度与 pivot，从不恢复位置。
-
+  居中的兜底与当时存在的边缘兜底都返回 **64×12** 补丁，`sink = absorb × iconDepth` 因而把窗口
+  压进 12 px 窄带（实测 `sink=10.2`，真实 54 px 图标盒则为 `sink=45.9`）。隐藏 dock 的 peek-off
+  路径现在保留已解析的图标矩形（D-138），因此只有 `_dockCenterRect()`、`_dockEdgeCenterRect()`
+  和最后的字面量兜底仍用 64×12，无图标兜底依然可能形成那条窄带。四个方位的 peek-off 实际收口、
+  车主最初报告是否消失，仍要等新模块加载后做第三层目测；旧的临时诊断块现已不在代码里。
 
 ## 15. GNOME 兼容矩阵
 
