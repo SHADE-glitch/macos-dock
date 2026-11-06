@@ -126,8 +126,8 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   preferred height 推导概览底部预留带（`overviewControls.js` `vfunc_allocate`），即使 dash
   被隐藏也照算；隐藏它会让 dash 变空、该高度塌缩成主题内边距（36px），于是比该内边距高的
   dock 会压住窗口选择器/应用网格。该检查断言预留带（dash preferred height + shell 自身的
-  spacing）不小于 dock 的占用高度。已做过先红后绿：改前 `band=51 < dock=70`，改后
-  `band=85 >= dock=70`（无头显示器、icon-size 默认 48）。
+  spacing）不小于 dock 的占用高度。已做过先红后绿：改前 `band=51 < dock=70`，当前默认
+  `band=80 >= dock=65`（无头显示器、icon-size 默认 43）。
 - `overview-window-inset` 守的是**只有 dock 在概览里可见时才出现**的一类问题。shell 用
   `WorkspaceLayout._getWindowSlots` 布局窗口预览，喂给它的是整个 window-picker 盒子，而桌面
   背景是内缩在这个盒子里的（主题：左右 20px、上下 12px）——于是预览会探出桌面边缘，窗口数让
@@ -161,8 +161,9 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
 - 同一阶段还在真实的行上守住手势的两个手感门。起一次拖拽后，悬停放大必须处于挂起状态
   （`Magnification._pauseCount > 0`）、每个图标都必须回到 1.00 倍（探针会先把一个图标撑到 1.6，
   好让缓动有东西可收），松手后计数必须回到 0；空位挪一格之后，被跨过的那个图标必须把"空位宽度 +
-  spacing"背在 `translation` 上（实测 **+66px**，朝行尾 —— 符号本身是门的一部分：第一版只查幅度，
-  符号错了也能过，图标会先多弹出一格再滑回来），另一侧的图标保持 0，一次缓动之后回到 0.5px 以内。
+  spacing"背在 `translation` 上（当前 43px 图标默认下实测 **+61px**，朝行尾 —— 符号本身是门的一部分：
+  第一版只查幅度，符号错了也能过，图标会先多弹出一格再滑回来），另一侧的图标保持 0，一次缓动之后
+  回到 0.5px 以内。
   把 `_slideRow` 改成空函数，第二个门会以 `slideShift: 0` 变红；两条都记在 `CHANGELOG.md`。
 - 收尾回收的是**整棵子树**，不只是 `dbus-run-session`。该进程会 fork 出两个子进程——私有的
   `dbus-daemon` 和命令本身（`gnome-shell`）——只杀它会让这两个被 reparent 到 systemd 后继续
@@ -443,6 +444,10 @@ GNOME 更新能拿走的东西，全在这里：
 - 偏好窗口是**每个分类一个 `Adw.PreferencesPage`** —— 侧栏就是这么来的；分类之下再按"这些行
   彼此在说什么"切 `Adw.PreferencesGroup`，而不是按当初写代码的顺序。新键要放进车主会去找的那个
   分类，并且给所在的组写一句说明，讲清默认值假设了什么。
+- **Restore Defaults** 在 System 页底部。先确认，再用 `GSettings.reset()` 删除所有用户值，包括
+  十个 `keynav-app-N` 槽；只排除 `keynav-stock-backup` / `keynav-stock-dirty`，因为它们是
+  崩溃恢复状态而不是偏好。重置会触发与手动修改相同的 `changed::` 监听，所以 dock 不需要重载就
+  会重新应用每个值，偏好行也跟随各自的绑定刷新。按钮有意不做成 schema 键：它自身没有状态。
 - `schemas/gschemas.compiled` 是**被跟踪的二进制**。改过 XML 之后必须
   `glib-compile-schemas schemas/` 重新生成 —— shell 是从编译产物读默认值的，产物过期就意味
   着运行时默认值和 XML 写的不一样。`static-checks.sh` 的 S6 会重编译到临时目录比对：可复现

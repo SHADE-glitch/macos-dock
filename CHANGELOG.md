@@ -2147,3 +2147,26 @@ Evidence L0: `npm test` 173/173 in 44 suites; tier 1 9/9; the Trash wiring guard
          coalesced clicks and a one-window toggle; this follow-up only changes the failure branch.
 Cost     One boolean return through the existing launch path; no new state, allocation or source.
 Commit   e30fea8
+
+---
+
+### D-142 · 2026-11-06 · taste
+
+Symptom  The shipped defaults still reflected the original upstream tune, while the owner's working
+         configuration had nine deliberate differences; there was also no way to return every
+         setting to the shipped state.
+Change   Frozen the current values as the new defaults for `icon-size` (43), `icon-quality` (1),
+         `dock-opacity` (57), `dock-blur-enabled` (true), `window-previews` (false),
+         `media-indicator` (false), `peek-hold-ms` (70), `keynav-peek-duration` (530) and
+         `genie-peek-hidden-dock` (false). Added a destructive Restore Defaults control at the
+         bottom of the System page; it confirms first, then calls `GSettings.reset()` for every
+         explicitly set user value, excluding only `keynav-stock-backup`/`-dirty`. System is now
+         the last sidebar page.
+Evidence L0: `npm test` 175/175 in 45 suites; tier 1 9/9 with 63 keys; the reset wiring guard covers
+         the exclusion set, the confirmation response and `get_user_value`/`reset`. L1: tier 2
+         33/33 after the default change (`overview-band band=80 >= dock=65`). L2: opening the prefs
+         window and clicking the reset remain manual.
+Cost     Nine defaults move away from upstream; a fresh install starts from the owner's current
+         look. The reset cannot be undone and removes every user override except the two keynav
+         sentinels.
+Commit   fed3bff

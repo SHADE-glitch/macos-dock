@@ -148,8 +148,8 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   hiding it leaves the dash empty, so that height collapses to the theme padding (36 px) and
   a dock taller than that padding overlaps the window picker / app grid. The check asserts
   the reserved band (dash preferred height + the shell's own spacing) clears the dock's
-  occupied height. Verified red-then-green: pre-fix `band=51 < dock=70`, post-fix
-  `band=85 >= dock=70` (headless monitor, icon-size default 48).
+  occupied height. Verified red-then-green: pre-fix `band=51 < dock=70`, current default
+  `band=80 >= dock=65` (headless monitor, icon-size default 43).
 - The `overview-window-inset` check guards a class that only appears **once the dock is
   visible in the overview**. The shell lays the window previews out with
   `WorkspaceLayout._getWindowSlots`, fed the whole window-picker box, while the desktop
@@ -193,7 +193,7 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   magnification must be suspended (`Magnification._pauseCount > 0`) and every icon at scale 1.00
   -- the icon is forced to 1.6 first, so the ease has something to undo -- and the counter must be
   back to 0 after the drop. And after a one-slot gap move the crossed icon must carry the gap plus
-  spacing on its `translation`, **+66px** measured and *toward the row's end* so the icon is held at
+  spacing on its `translation`, **+61px** measured at the current 43px icon default and *toward the row's end* so the icon is held at
   its old place -- the sign is part of the gate, because a magnitude-only check passed the first
   version, which drew the icon a slot further out and slid it home -- the icon on the other side
   must stay at 0, and the translation must be back under 0.5px one ease later. Removing `_slideRow`'s body turns the
@@ -530,6 +530,12 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   into a sidebar; a category is then split into `Adw.PreferencesGroup`s by what the rows have to
   say to each other, not by the order they were written in. A new key goes into the category the
   user would look in, with a group description that says what the default assumes.
+- **Restore Defaults** lives at the bottom of the System page. It confirms first, then removes
+  every user value with `GSettings.reset()`, including the ten `keynav-app-N` slots; only
+  `keynav-stock-backup` / `keynav-stock-dirty` are excluded, because they are crash-recovery
+  state rather than preferences. The reset triggers the same `changed::` listeners as a manual
+  edit, so the dock re-applies each value without a reload, and the prefs rows follow their
+  bindings. The button is deliberately not a schema key: it has no state of its own.
 - `schemas/gschemas.compiled` is a **tracked binary**. Regenerate with
   `glib-compile-schemas schemas/` after any XML edit — the shell reads defaults from the
   compiled file, so a stale one means running defaults differ from what the XML says.

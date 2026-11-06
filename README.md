@@ -77,13 +77,13 @@ Where the gap opens is decided by the pointer, not by the icon it happens to be 
 
 ## ⚙️ Preferences
 
-Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure appearance and position, magnification, previews, dodge/auto-hide, keyboard navigation (including the dock pop-up), media controls, running indicators, separators, animation timing and the genie minimize/restore animation.
+Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure appearance and position, magnification, previews, dodge/auto-hide, keyboard navigation (including the dock pop-up), media controls, running indicators, separators, animation timing and the genie minimize/restore animation. **Restore default settings** at the bottom of the System page resets every user-facing key after a confirmation; the internal keynav crash-recovery keys are kept.
 
 ## 📚 Settings reference
 
 Every key the extension reads, with the default it ships with. The rows are taken from
 `schemas/org.gnome.shell.extensions.macosdock.gschema.xml`, and `test/repo.test.js` fails when a key
-is added to the schema without a row here. The settings window binds 56 of the 68 keys; the ten
+is added to the schema without a row here. The settings window binds 51 of the 63 keys; the ten
 `keynav-app-N` slots are set by the keyboard code (Super+digit steals the shell's own binding), and
 `keynav-stock-backup` / `keynav-stock-dirty` are its crash-recovery bookkeeping — no row in the
 window for those twelve, by design.
@@ -92,13 +92,13 @@ window for those twelve, by design.
 
 | Key | Default | What it does |
 |---|---|---|
-| `icon-size` | `48` | Size of dock icons in pixels (16-96) |
-| `dock-opacity` | `60` | Dock background opacity percentage (0-100) |
+| `icon-size` | `43` | Size of dock icons in pixels (16-96) |
+| `dock-opacity` | `57` | Dock background opacity percentage (0-100) |
 | `dock-background-color` | `'#1e1e1e'` | Hex color for dock background (e.g. #1e1e1e) |
 | `dock-border-radius` | `16` | Corner radius of the dock in pixels |
-| `dock-blur-enabled` | `false` | Apply blur effect behind the dock for a frosted glass look |
+| `dock-blur-enabled` | `true` | Apply blur effect behind the dock for a frosted glass look |
 | `dock-position` | `0` | Position of the dock on screen (0=bottom, 1=left, 2=right, 3=top) |
-| `icon-quality` | `2` | Render icons at N times native resolution to prevent blur when magnified (1, 2, or 4) |
+| `icon-quality` | `1` | Render icons at N times native resolution to prevent blur when magnified (1, 2, or 4) |
 | `animation-duration` | `200` | Duration of the show/hide animation in milliseconds (0 = instant, max 1000) |
 | `bounce-on-launch` | `true` | Play a bounce animation on the dock icon when a new app is launched |
 
@@ -125,7 +125,7 @@ window for those twelve, by design.
 | `running-indicators` | `true` | Show a small dot under icons of running apps |
 | `running-indicator-style` | `0` | 0 = dots per window (macOS style), 1 = horizontal bar |
 | `max-indicator-dots` | `4` | Maximum number of window dots drawn under one icon; further windows are not shown |
-| `media-indicator` | `true` | Show a music note indicator on the icon of the currently playing media app |
+| `media-indicator` | `false` | Show a music note indicator on the icon of the currently playing media app |
 | `media-controls` | `false` | Show play/pause controls in the dock context menu when media is playing |
 
 ### Apps, windows and previews
@@ -139,7 +139,7 @@ window for those twelve, by design.
 | `apps-button-fix-enabled` | `true` | Make the dock's Show Apps button open the app grid from the overview and use the brand icon instead of hiding the overview. Independent of the running-icons fix |
 | `show-running-apps` | `true` | Show non-favorite running applications in the dock |
 | `dock-workspace-mode` | `0` | Which workspaces show running apps (0=all, 1=current only) |
-| `window-previews` | `true` | Show live thumbnail previews of app windows on hover, and the window picker a click opens on an app with several windows |
+| `window-previews` | `false` | Show live thumbnail previews of app windows on hover, and the window picker a click opens on an app with several windows |
 | `preview-scale` | `200` | Width of each preview thumbnail in pixels (100-400) |
 | `icons-fix-enabled` | `true` | Keep non-favorite running apps in the dock across minimize and workspace switches |
 | `overview-patches-enabled` | `true` | Inset the overview window previews to the desktop background and reserve the dock's height in the overview's bottom band. Shell-layout fixes independent of the dock; degrade to the native layout if a shell symbol moves |
@@ -152,7 +152,7 @@ window for those twelve, by design.
 | `dodge-only-focused` | `true` | Hide only when the currently focused window overlaps the dock; otherwise any overlapping window hides it |
 | `show-threshold` | `25` | Distance in pixels from screen edge to trigger dock show |
 | `peek-edge-px` | `5` | Pointer must be within this many pixels of the screen edge to peek the hidden dock |
-| `peek-hold-ms` | `80` | Pointer must stay inside the deep zone this long before the hidden dock peeks out |
+| `peek-hold-ms` | `70` | Pointer must stay inside the deep zone this long before the hidden dock peeks out |
 | `hide-in-fullscreen` | `true` | Force-hide the dock and disable peeking while a true fullscreen window is on the active workspace |
 
 ### Super+number keyboard launch
@@ -171,7 +171,7 @@ window for those twelve, by design.
 | `keynav-app-9` | `['<Super>9']` | Activate the ninth app in the dock |
 | `keynav-app-10` | `['<Super>0']` | Activate the tenth app in the dock |
 | `keynav-peek-dock` | `true` | Briefly reveal a dodge-hidden dock whenever a Super+number shortcut fires, whether it launches, focuses, switches or minimizes |
-| `keynav-peek-duration` | `800` | How long the dock stays revealed after a Super+number shortcut |
+| `keynav-peek-duration` | `530` | How long the dock stays revealed after a Super+number shortcut |
 | `keynav-stock-backup` | `[]` | Internal crash-recovery backup of org.gnome.shell.keybindings switch-to-application-1..9, one newline-joined entry per slot, taken when the dock grabs them. Not user-facing; never shown in preferences. |
 | `keynav-stock-dirty` | `false` | True while the dock holds cleared stock keybindings. Lets the next enable() self-heal after a crash between grab and restore. Not user-facing; never shown in preferences. |
 
@@ -180,7 +180,7 @@ window for those twelve, by design.
 | Key | Default | What it does |
 |---|---|---|
 | `genie-enabled` | `true` | Play the macOS genie animation when a window minimizes into, or restores out of, its dock icon |
-| `genie-peek-hidden-dock` | `true` | When the dock is hidden by dodge, briefly show it during a minimize/restore so the window can be seen flying to its icon. When off, the dock stays hidden and the animation keeps its resolved icon target |
+| `genie-peek-hidden-dock` | `false` | When the dock is hidden by dodge, briefly show it during a minimize/restore so the window can be seen flying to its icon. When off, the dock stays hidden and the animation keeps its resolved icon target |
 | `genie-icon-reaction` | `true` | Give the target dock icon a small press-and-rebound as the window lands in it (minimize) or leaves it (restore) |
 | `genie-minimize-duration` | `420` | How long the window takes to pour into its dock icon |
 | `genie-restore-duration` | `460` | How long the window takes to stream back out of its dock icon |

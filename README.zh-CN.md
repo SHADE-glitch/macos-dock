@@ -77,13 +77,13 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 
 ## ⚙️ 偏好设置
 
-打开 **GNOME 设置 → 扩展 → MacOS Dock → 设置**，可配置外观与位置、放大效果、预览、避让/自动隐藏、键盘导航（含弹出 Dock）、媒体控制、运行指示器、分隔线、动画时长与 Genie 最小化/还原动画。
+打开 **GNOME 设置 → 扩展 → MacOS Dock → 设置**，可配置外观与位置、放大效果、预览、避让/自动隐藏、键盘导航（含弹出 Dock）、媒体控制、运行指示器、分隔线、动画时长与 Genie 最小化/还原动画。System 页底部的 **Restore Defaults** 会在确认后重置所有用户可见键；内部的 keynav 崩溃恢复键会保留。
 
 ## 📚 设置项说明
 
 扩展读取的每一个键，以及出厂默认值。内容取自
 `schemas/org.gnome.shell.extensions.macosdock.gschema.xml`；往 schema 里加键却没在这里加一行，
-`test/repo.test.js` 会直接失败。68 个键里偏好窗口绑定了 56 个：十个 `keynav-app-N` 由键盘代码
+`test/repo.test.js` 会直接失败。63 个键里偏好窗口绑定了 51 个：十个 `keynav-app-N` 由键盘代码
 写入（Super+数字抢的是 shell 自己的快捷键），`keynav-stock-backup` / `keynav-stock-dirty` 是它的
 崩溃恢复记账 —— 这 12 个界面上有意没有对应的行。
 
@@ -91,13 +91,13 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 
 | 键 | 默认值 | 作用 |
 |---|---|---|
-| `icon-size` | `48` | 图标像素尺寸（16–96） |
-| `dock-opacity` | `60` | dock 背景不透明度百分比（0–100） |
+| `icon-size` | `43` | 图标像素尺寸（16–96） |
+| `dock-opacity` | `57` | dock 背景不透明度百分比（0–100） |
 | `dock-background-color` | `'#1e1e1e'` | dock 背景色（十六进制，如 #1e1e1e） |
 | `dock-border-radius` | `16` | dock 圆角像素 |
-| `dock-blur-enabled` | `false` | 在 dock 后面加模糊（毛玻璃） |
+| `dock-blur-enabled` | `true` | 在 dock 后面加模糊（毛玻璃） |
 | `dock-position` | `0` | dock 贴哪条边（0=下 1=左 2=右 3=上） |
-| `icon-quality` | `2` | 按原生分辨率 N 倍渲染图标，放大时不发虚（1/2/4） |
+| `icon-quality` | `1` | 按原生分辨率 N 倍渲染图标，放大时不发虚（1/2/4） |
 | `animation-duration` | `200` | 显示/隐藏动画时长毫秒（0=立即，上限 1000） |
 | `bounce-on-launch` | `true` | 新应用启动时图标播放弹跳 |
 
@@ -124,7 +124,7 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | `running-indicators` | `true` | 运行中应用图标下方显示小点 |
 | `running-indicator-style` | `0` | 0=每窗口一个点（macOS 风格），1=横向条 |
 | `max-indicator-dots` | `4` | 一个图标下方最多画几个窗口点，超出部分不显示 |
-| `media-indicator` | `true` | 正在播放的媒体应用图标上加音符标记 |
+| `media-indicator` | `false` | 正在播放的媒体应用图标上加音符标记 |
 | `media-controls` | `false` | 在右键菜单里显示播放/暂停/上一首/下一首 |
 
 ### 应用、窗口与预览
@@ -138,7 +138,7 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | `apps-button-fix-enabled` | `true` | 让 dock 的 Show Apps 按钮在概览内也进应用网格、并改用品牌图标（与「运行图标修复」彼此独立） |
 | `show-running-apps` | `true` | 把非收藏的运行中应用也显示进 dock |
 | `dock-workspace-mode` | `0` | 运行中应用按工作区显示（0=全部 1=仅当前） |
-| `window-previews` | `true` | 悬停时显示窗口的实时缩略预览；也决定点击多窗口应用图标时是否展开窗口选择器 |
+| `window-previews` | `false` | 悬停时显示窗口的实时缩略预览；也决定点击多窗口应用图标时是否展开窗口选择器 |
 | `preview-scale` | `200` | 每张预览缩略图的像素宽度（100–400） |
 | `icons-fix-enabled` | `true` | 最小化/切工作区后仍保留非收藏的运行应用图标 |
 | `overview-patches-enabled` | `true` | 把概览窗口预览内缩到桌面背景范围内，并在概览底部预留 dock 高度。属 shell 布局修复，与 dock 无关；shell 符号变动时自动退回原生布局 |
@@ -151,7 +151,7 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | `dodge-only-focused` | `true` | 仅当前聚焦窗口压住才隐藏（推荐）；关掉则任何窗口压住都隐藏 |
 | `show-threshold` | `25` | 距屏幕边多少像素触发 dock 显示 |
 | `peek-edge-px` | `5` | 指针要贴边到多少像素以内才探出隐藏的 dock |
-| `peek-hold-ms` | `80` | 指针在深区停留多久才探出（0=立即） |
+| `peek-hold-ms` | `70` | 指针在深区停留多久才探出（0=立即） |
 | `hide-in-fullscreen` | `true` | 真正的全屏窗口（视频/游戏）存在时强制隐藏并禁用探出 |
 
 ### Super+数字 键盘启动
@@ -170,7 +170,7 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | `keynav-app-9` | `['<Super>9']` | 激活 dock 里第 9 个应用（默认 Super+9）；键位可改 |
 | `keynav-app-10` | `['<Super>0']` | 激活 dock 里第 10 个应用（默认 Super+0）；键位可改 |
 | `keynav-peek-dock` | `true` | 快捷键触发时短暂露出被避让隐藏的 dock（无论它启动/聚焦/切换/最小化） |
-| `keynav-peek-duration` | `800` | 快捷键后 dock 保持露出的时长毫秒 |
+| `keynav-peek-duration` | `530` | 快捷键后 dock 保持露出的时长毫秒 |
 | `keynav-stock-backup` | `[]` | 内部崩溃恢复备份（原装 switch-to-application-1..9 键位），不面向用户、偏好窗口里从不显示 |
 | `keynav-stock-dirty` | `false` | 内部标志：dock 持有已清空的原装键位时为真，让下一次 enable() 能在崩溃后自愈。不面向用户 |
 
@@ -179,7 +179,7 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | 键 | 默认值 | 作用 |
 |---|---|---|
 | `genie-enabled` | `true` | 窗口最小化进/从其 dock 图标还原时播放 macOS genie 动画 |
-| `genie-peek-hidden-dock` | `true` | dock 被避让隐藏时，最小化/还原过程中短暂露出它，好让你看见窗口飞向哪个图标；关掉则 dock 保持隐藏，动画仍使用已解析的图标目标 |
+| `genie-peek-hidden-dock` | `false` | dock 被避让隐藏时，最小化/还原过程中短暂露出它，好让你看见窗口飞向哪个图标；关掉则 dock 保持隐藏，动画仍使用已解析的图标目标 |
 | `genie-icon-reaction` | `true` | 窗口落到目标图标（最小化）或离开它（还原）时，图标做一次按压回弹 |
 | `genie-minimize-duration` | `420` | 窗口「灌进」图标所需毫秒数 |
 | `genie-restore-duration` | `460` | 窗口从图标「流出」所需毫秒数 |
