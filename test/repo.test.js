@@ -138,6 +138,11 @@ describe("trash click launch guard", () => {
         assert.match(activate[1], /this\._openPendingUntil = now \+ OPEN_GUARD_US;/,
             "the left-click launch must arm the guard");
 
+        const open = src.match(/openNewWindow\(\) \{([\s\S]*?)\n    \}/);
+        assert.ok(open, "openNewWindow() was not found");
+        assert.match(open[1], /return Gio\.AppInfo\.launch_default_for_uri\(/,
+            "the launch result must be returned so a false result releases the guard");
+
         const stop = src.match(/stop\(\) \{([\s\S]*?)\n    \}/);
         assert.ok(stop, "stop() was not found");
         assert.match(stop[1], /this\._openPendingUntil = 0;/,
