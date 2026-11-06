@@ -59,6 +59,24 @@ const knobs = (over = {}) => ({
 const WIN = rect(0, 0, 400, 300);
 const ICON = rect(150, 310, 64, 64);
 
+// The maximized/flush case: the window extends past the icon on its own edge.
+// Indexed by dockPosition (0=BOTTOM, 1=LEFT, 2=RIGHT, 3=TOP).
+const OVERLAP_WIN = rect(0, 0, 400, 300);
+const OVERLAP_ICONS = [
+    rect(176, 220, 48, 48),
+    rect(12, 126, 48, 48),
+    rect(340, 126, 48, 48),
+    rect(176, 20, 48, 48),
+];
+
+// Lateral width at the animation's final position, computed from the same
+// fields stripTransform reads.
+function finalWidth(g) {
+    const tau = clamp((g.bEnd - g.wb0) / g.funnelDepth, 0, 1);
+    const c = sideCurve(tau, g.c1, g.c2);
+    return lerp(g.wa1, g.ia1, c) - lerp(g.wa0, g.ia0, c);
+}
+
 describe("scalar helpers", () => {
     it("clamp keeps in-range values and pins the bounds", () => {
         assert.equal(clamp(5, 0, 10), 5);
@@ -194,7 +212,7 @@ describe("easing curves", () => {
     });
 
     it("sideCurve passes through (0,0) and (1,1)", () => {
-        for (const [c1, c2] of [[0.04, 0.55], [0.14, 0.24], [1 / 3, 1 / 3]]) {
+        for (const [c1, c2] of [[0.04, 0.66], [0.14, 0.44], [1 / 3, 1 / 3]]) {
             assert.equal(sideCurve(0, c1, c2), 0);
             assert.equal(sideCurve(1, c1, c2), 1);
         }
@@ -202,7 +220,7 @@ describe("easing curves", () => {
 
     it("sideCurve is monotonic across the documented c1/c2 ranges", () => {
         for (const c1 of [0.04, 0.09, 0.14]) {
-            for (const c2 of [0.24, 0.395, 0.55]) {
+            for (const c2 of [0.44, 0.55, 0.66]) {
                 let prev = -Infinity;
                 for (let i = 0; i <= 200; i++) {
                     const v = sideCurve(i / 200, c1, c2);
@@ -314,14 +332,26 @@ describe("funnelGeometry", () => {
         assert.equal(funnelGeometry(center, left, noPos).side, Side.LEFT);
     });
 
-    it("keeps funnelDepth at least 1 and at least the window's axial length", () => {
+    it("ends the taper exactly at bEnd for every dock edge", () => {
         for (let pos = 0; pos <= 3; pos++) {
-            const g = funnelGeometry(WIN, ICON, knobs({ dockPosition: pos }));
-            const winAxis = Math.abs(g.wb1 - g.wb0);
+            const g = funnelGeometry(
+                OVERLAP_WIN, OVERLAP_ICONS[pos], knobs({ dockPosition: pos }));
             assert.ok(g.funnelDepth >= 1, `funnelDepth ${g.funnelDepth}`);
             assert.ok(
-                g.funnelDepth >= winAxis,
-                `funnelDepth ${g.funnelDepth} < winAxis ${winAxis}`
+                close((g.bEnd - g.wb0) / g.funnelDepth, 1),
+                `pos ${pos}: taper does not reach bEnd`
+            );
+        }
+    });
+
+    it("closes to the icon's lateral width when the window overlaps it", () => {
+        for (let pos = 0; pos <= 3; pos++) {
+            const g = funnelGeometry(
+                OVERLAP_WIN, OVERLAP_ICONS[pos], knobs({ dockPosition: pos }));
+            const iconWidth = Math.abs(g.ia1 - g.ia0);
+            assert.ok(
+                close(finalWidth(g), iconWidth, 1e-6),
+                `pos ${pos}: final width ${finalWidth(g)} != icon ${iconWidth}`
             );
         }
     });
@@ -342,17 +372,23 @@ describe("funnelGeometry", () => {
     });
 
     it("derives c1/c2 from curvature within the documented ranges", () => {
-        // c1 = 0.04 + 0.10*(1 - curvature), c2 = lerp(0.55, 0.24, curvature)
+        // c1 = 0.04 + 0.10*(1 - curvature), c2 = lerp(0.66, 0.44, curvature)
         const zero = funnelGeometry(WIN, ICON, knobs({ curvature: 0 }));
         const full = funnelGeometry(WIN, ICON, knobs({ curvature: 1 }));
-        assert.ok(close(zero.c1, 0.14) && close(zero.c2, 0.55), `c=${zero.c1},${zero.c2}`);
-        assert.ok(close(full.c1, 0.04) && close(full.c2, 0.24), `c=${full.c1},${full.c2}`);
+        assert.ok(close(zero.c1, 0.14) && close(zero.c2, 0.66), `c=${zero.c1},${zero.c2}`);
+        assert.ok(close(full.c1, 0.04) && close(full.c2, 0.44), `c=${full.c1},${full.c2}`);
 
         for (const curvature of [0, 0.25, 0.5, 0.85, 1]) {
             const g = funnelGeometry(WIN, ICON, knobs({ curvature }));
             assert.ok(g.c1 >= 0.04 - EPS && g.c1 <= 0.14 + EPS, `c1 ${g.c1}`);
-            assert.ok(g.c2 >= 0.24 - EPS && g.c2 <= 0.55 + EPS, `c2 ${g.c2}`);
+            assert.ok(g.c2 >= 0.44 - EPS && g.c2 <= 0.66 + EPS, `c2 ${g.c2}`);
         }
+    });
+
+    it("keeps the softened closing control point at the default curvature", () => {
+        const g = funnelGeometry(WIN, ICON, knobs());
+        assert.ok(close(g.c2, lerp(0.66, 0.44, 0.85)), `c2 ${g.c2}`);
+        assert.ok(g.c2 > 0.4, `c2 ${g.c2} would pinch at the end again`);
     });
 
     it("clamps curvature and leaves no NaN for an omitted or junk knob", () => {
@@ -386,7 +422,7 @@ describe("funnelGeometry", () => {
                 `${label}: c1 ${g.c1} disagrees with curvature ${expected}`
             );
             assert.ok(
-                close(g.c2, lerp(0.55, 0.24, expected)),
+                close(g.c2, lerp(0.66, 0.44, expected)),
                 `${label}: c2 ${g.c2} disagrees with curvature ${expected}`
             );
         }

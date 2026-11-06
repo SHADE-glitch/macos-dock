@@ -102,16 +102,20 @@ describe("pure modules stay Node-importable", () => {
     }
 });
 
-describe("funnel hidden-dock target projection", () => {
-    it("delegates to shrink's size-preserving edge projection", () => {
-        // The shell-bound controller cannot be imported by Node. This guard
-        // covers the wiring, while shrinkGeometry.test.js covers the projected
-        // coordinates and preserved icon dimensions on all four dock edges.
-        const match = read("lib/genieController.js").match(
-            /_dockEdgeAt\(rect\) \{([\s\S]*?)\n    \}/);
-        assert.ok(match, "_dockEdgeAt(rect) was not found");
-        assert.match(match[1], /return this\._shrinkEdgeRect\(rect\);/,
-            "funnel must not replace the icon's real dimensions with a fixed patch");
+describe("funnel hidden-dock target", () => {
+    it("keeps the resolved icon rect instead of projecting it onto the edge", () => {
+        // The shell-bound controller cannot be imported by Node. Guard the
+        // wiring: the funnel must not re-target a hidden dock. The edge
+        // projection centres the icon box on the screen edge, so half of it is
+        // outside the monitor and the closing footprint is smaller than the
+        // icon. Shrink keeps the projection; the funnel must not.
+        const src = read("lib/genieController.js");
+        assert.ok(!src.includes("_dockEdgeAt"),
+            "the funnel must not project a hidden dock's target onto the edge");
+        const resolve = src.match(/_resolveTarget\(metaWindow\) \{([\s\S]*?)\n    \}/);
+        assert.ok(resolve, "_resolveTarget(metaWindow) was not found");
+        assert.match(resolve[1], /else if \(shrink\) \{[\s\S]*?_shrinkEdgeRect\(iconRect\)/,
+            "only shrink may keep the edge projection");
     });
 });
 
