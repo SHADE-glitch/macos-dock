@@ -1297,6 +1297,131 @@ cat > "$T2/e13.js" <<'JS'
         out.restingLength = Math.round(vertical ? c.height : c.width);
         out.ladderOk = !out.hiddenClearLeak && out.hiddenClearAnimating === 0 &&
             out.afterShowChildren === nBefore;
+        // The owner's reports, in order: dragging onto the icon immediately to the
+        // right of the held one showed no gap (the cell answered the line BEFORE
+        // it, which is the position the item already has); then the reverse
+        // direction showed the same on the left; then the whole "+1 to the right"
+        // fix was rejected as worse than the disease. What the owner described and
+        // approved is the pointer's own rule -- the nearer line wins -- with one
+        // consequence: the held icon still occupies its own slot until the drop
+        // lands, so both lines touching it are spent, its two neighbours can only
+        // be answered on their outer line, and its own cell draws nothing at all.
+        const rowIds = icons.map(k => k._appData.appId);
+        // The gesture needs the cell right of the dragged icon to BE the favourite
+        // slot right of it. This sandbox ships eight favourites for six icons, so the
+        // two spaces do not line up the way the live row's do -- and the tier-2
+        // settings backend is in memory, so the probe may pin exactly the six icons it
+        // can see, run the gesture, then put the list back.
+        const origFavs = global.settings.get_strv('favorite-apps');
+        global.settings.set_strv('favorite-apps', rowIds);
+        await wait(500);
+        const cells2 = dnd._slotChildren();
+        const favIds2 = im._favorites;
+        out.biasWhy = { slots: cells2.length, favs: favIds2.length,
+            aligned: cells2.length === favIds2.length &&
+                rowIds.every((id, j) => favIds2.indexOf(id) === j) };
+        out.biasPrecondition = out.biasWhy.aligned && cells2.length >= 4;
+        // Every (held position, icon, half) the row offers, as a table. The
+        // neighbour is not a special case to patch: it is one line of a rule that
+        // has to hold everywhere, so the expected answer is written here from the
+        // geometry -- the nearest line, spent lines pushed to the neighbour's outer
+        // side, nothing on the held icon's own cell. null means draw nothing.
+        const nCells = cells2.length;
+        const line = (i) => i === 0 ? cells2[0].start
+            : i === nCells ? cells2[nCells - 1].start + cells2[nCells - 1].size
+            : (cells2[i - 1].start + cells2[i - 1].size + cells2[i].start) / 2;
+        const wantGap = (p, k, frac) => {
+            const x = cells2[k].start + frac * cells2[k].size;
+            let b = 0, best = Infinity;
+            for (let i = 0; i <= nCells; i++) {
+                const d = Math.abs(x - line(i));
+                if (d < best) { best = d; b = i; }
+            }
+            if (b !== p && b !== p + 1)
+                return b;
+            if (k === p)
+                return null;
+            return k < p ? k : Math.min(k + 1, nCells);
+        };
+        const CASES = [];
+        for (let p = 0; p < nCells; p++)
+            for (let k = 0; k < nCells; k++)
+                for (const frac of [0.2, 0.8])
+                    CASES.push([p, k, frac, wantGap(p, k, frac)]);
+        const wrong = [];
+        for (const [p, k, frac, want] of CASES) {
+            dnd._clearPlaceholder(false);
+            dm._updatePosition();
+            await wait(25);
+            const src = { appId: rowIds[p], _dockDnd: dnd };
+            const cell = cells2[k];
+            const cx = Math.round(cell.start + frac * cell.size);
+            dnd._placeholderPos = -1;
+            dnd._lastVerdict = null;
+            dnd._handleDragOver(src, vertical ? 0 : cx, vertical ? cx : 0);
+            const got = dnd._placeholder ? dnd._placeholderPos : null;
+            const gotIndex = dnd._placeholder ? c.get_children().indexOf(dnd._placeholder) : null;
+            if (got !== want || gotIndex !== want)
+                wrong.push(`p${p}k${k}@${frac}want=${want}got=${got}/${gotIndex}`);
+        }
+        out.uniformCases = CASES.length;
+        out.uniformWrong = wrong;
+        out.uniformOk = wrong.length === 0 && CASES.length >= 32;
+        // The gesture's own two gates (D-134). First: a held icon stops the hover
+        // magnification. The scale is forced up before the hold so the ease has
+        // something to undo, and the counter proves the poll is back afterwards.
+        const mag = dm._magnification;
+        const held = icons[Math.min(2, icons.length - 1)];
+        held.scale_x = 1.6;
+        held.scale_y = 1.6;
+        held._dockMagnifyScale = 1.6;
+        dnd._onDragBegin(held);
+        await wait(260);
+        out.magnifyPaused = mag._pauseCount > 0;
+        out.magnifyScales = icons.map(k => Math.round(k.scale_x * 100) / 100);
+        dnd._finishDrag();
+        await wait(80);
+        out.magnifyResumed = mag._pauseCount === 0;
+        out.magnifyOk = out.magnifyPaused && out.magnifyResumed &&
+            out.magnifyScales.every(s => s === 1);
+        // Second: when the gap moves, the row must slide instead of teleport.
+        // Open at line 3, then aim one icon further -- the crossed icon carries
+        // the whole gap-plus-spacing on its translation and eases it away, the
+        // icon on the other side of the gap never moves.
+        const at = (cell, frac) => Math.round(cells2[cell].start + frac * cells2[cell].size);
+        const srcB = { appId: rowIds[0], _dockDnd: dnd };
+        const hoverB = (cell, frac) => dnd._handleDragOver(srcB,
+            vertical ? 0 : at(cell, frac), vertical ? at(cell, frac) : 0);
+        const tAxis = vertical ? "translation_y" : "translation_x";
+        dnd._clearPlaceholder(false);
+        dm._updatePosition();
+        await wait(25);
+        hoverB(2, 0.8);
+        await wait(320);
+        out.slideGapOpen = !!dnd._placeholder;
+        const crossed = icons[3];
+        const other = icons[1];
+        out.slideBefore = Math.round((crossed[tAxis] || 0) * 100) / 100;
+        hoverB(3, 0.8);
+        out.slideShift = Math.round((crossed[tAxis] || 0) * 100) / 100;
+        out.slideOther = Math.round((other[tAxis] || 0) * 100) / 100;
+        // The painted offset is the gap plus spacing, in the row's own direction:
+        // the crossed icon must be held at its OLD place and slide out of the way,
+        // never start a second slot further and slide home. Sign and size.
+        const slideSign = vertical || !dnd._isRtl() ? 1 : -1;
+        const gapWidth = dnd._placeholder ? dnd._placeholder.width : 0;
+        out.slideExpect = Math.round((gapWidth + out.spacing) * slideSign * 100) / 100;
+        await wait(320);
+        out.slideSettled = Math.round((crossed[tAxis] || 0) * 100) / 100;
+        out.slideOk = out.slideGapOpen &&
+            Math.abs(out.slideBefore) < 0.01 &&
+            Math.abs(out.slideShift - out.slideExpect) < 0.5 &&
+            Math.abs(out.slideOther) < 0.01 &&
+            Math.abs(out.slideSettled) < 0.5;
+        dnd._clearPlaceholder(false);
+        dm._updatePosition();
+        await wait(25);
+        global.settings.set_strv('favorite-apps', origFavs);
         dnd._finishDrag();
         await wait(320);
     } catch (e) {
@@ -1315,8 +1440,16 @@ elif [ "$(jq -r '.precondition' "$T2/gapslot.json")" != true ]; then
     report $T drag-slot-partition-gap-invariant ENV "dock surface unavailable: $gapslot_json"
 elif [ "$(jq -r '.stable' "$T2/gapslot.json")" = true ] && [ "$(jq -r '.ladderOk' "$T2/gapslot.json")" != true ]; then
     report $T drag-slot-partition-gap-invariant FAIL "partition stable, but a gap cleared while the dock was hidden did not leave the row: $(jq -c '{ladderChildren,hiddenClearChildren,hiddenClearAnimating,afterShowChildren}' "$T2/gapslot.json")"
+elif [ "$(jq -r '.stable' "$T2/gapslot.json")" = true ] && [ "$(jq -r '.ladderOk' "$T2/gapslot.json")" = true ] && [ "$(jq -r '.biasPrecondition' "$T2/gapslot.json")" != true ]; then
+    report $T drag-slot-partition-gap-invariant ENV "the row is not aligned favourites, so cell space and favourite space disagree: $(jq -c '{biasWhy}' "$T2/gapslot.json")"
+elif [ "$(jq -r '.stable' "$T2/gapslot.json")" = true ] && [ "$(jq -r '.ladderOk' "$T2/gapslot.json")" = true ] && [ "$(jq -r '.uniformOk' "$T2/gapslot.json")" != true ]; then
+    report $T drag-slot-partition-gap-invariant FAIL "the held icon's own slot is not accounted for uniformly ($(jq -r '(.uniformWrong|length)' "$T2/gapslot.json") of $(jq -r '.uniformCases' "$T2/gapslot.json") cases wrong: $(jq -r '.uniformWrong[:6]|join(" ")' "$T2/gapslot.json"))"
+elif [ "$(jq -r '.stable' "$T2/gapslot.json")" = true ] && [ "$(jq -r '.magnifyOk' "$T2/gapslot.json")" != true ]; then
+    report $T drag-slot-partition-gap-invariant FAIL "the hover magnification is not suspended for the gesture: $(jq -c '{magnifyPaused,magnifyResumed,magnifyScales}' "$T2/gapslot.json")"
+elif [ "$(jq -r '.stable' "$T2/gapslot.json")" = true ] && [ "$(jq -r '.slideOk' "$T2/gapslot.json")" != true ]; then
+    report $T drag-slot-partition-gap-invariant FAIL "the row does not slide when the gap moves: $(jq -c '{slideGapOpen,slideBefore,slideShift,slideExpect,slideOther,slideSettled}' "$T2/gapslot.json")"
 elif [ "$(jq -r '.stable' "$T2/gapslot.json")" = true ]; then
-    report $T drag-slot-partition-gap-invariant PASS "no sample point moved its gap when the gap it chose was still open, and a gap cleared while hidden leaves the row: $(jq -c '{extentClosed,extentOpen,containerLength,hiddenClearChildren,afterShowChildren}' "$T2/gapslot.json")"
+    report $T drag-slot-partition-gap-invariant PASS "every held position x every icon x both halves answers the table, the gap's own geometry included, a gap cleared while hidden leaves the row, the hover scale is suspended for the gesture and the row slides rather than jumping: $(jq -c '{extentClosed,extentOpen,hiddenClearChildren,afterShowChildren,uniformCases,slideShift,magnifyPaused}' "$T2/gapslot.json")"
 else
     report $T drag-slot-partition-gap-invariant FAIL "opening the gap moved the partition under the pointer ($(jq -r '.flips|length' "$T2/gapslot.json") flips, first $(jq -c '.flips[0]' "$T2/gapslot.json")): $gapslot_json"
 fi
