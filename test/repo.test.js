@@ -119,6 +119,31 @@ describe("funnel hidden-dock target", () => {
     });
 });
 
+describe("trash click launch guard", () => {
+    it("coalesces a rapid click burst into one window launch", () => {
+        // TrashManager is shell-bound, so this guards the wiring that cannot be
+        // imported: getWindows() is fed by an async FileManager1 read, and a
+        // second click inside that gap used to launch another Nautilus window.
+        const src = read("lib/trashManager.js");
+        const activate = src.match(/activate\(\) \{([\s\S]*?)\n    \}/);
+        assert.ok(activate, "activate() was not found");
+        assert.match(activate[1], /if \(now < this\._openPendingUntil\)/,
+            "a click inside the guard window must return before launching");
+        assert.match(activate[1], /this\._openPendingUntil = now \+ OPEN_GUARD_US;/,
+            "the left-click launch must arm the guard");
+
+        const stop = src.match(/stop\(\) \{([\s\S]*?)\n    \}/);
+        assert.ok(stop, "stop() was not found");
+        assert.match(stop[1], /this\._openPendingUntil = 0;/,
+            "stop() must clear the pending launch");
+
+        const apply = src.match(/_applyLocationWindows\([^)]*\) \{([\s\S]*?)\n    \}/);
+        assert.ok(apply, "_applyLocationWindows() was not found");
+        assert.match(apply[1], /trashWindows\.size > 0[\s\S]*?this\._openPendingUntil = 0;/,
+            "a mapped trash window must clear the pending launch");
+    });
+});
+
 describe("funnel animation tuning", () => {
     it("keeps the approved axial bunching strength", () => {
         const engine = read("lib/genieEngine.js");
