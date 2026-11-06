@@ -2021,3 +2021,61 @@ Evidence L1: `npm test` **184/184 in 46 suites** (floor 180/45 -> 184/46). `gapS
 Cost     One array copy and one ease per gap move, one eased scale per icon per drag begin; nothing on
          the idle path. The slide is cosmetic and its catch only guards actors rebuilt mid-gesture.
 Commit   ca020d1
+
+---
+
+### D-135 · 2026-11-06 · fix
+
+Symptom  With the dock hidden and `genie-peek-hidden-dock` off, `_dockEdgeAt()` discarded the
+         resolved icon rect's dimensions and replaced them with a fixed 64x12 patch. Even when the
+         real icon box was known, the funnel's closing aspect ratio was therefore rewritten.
+Change   `_dockEdgeAt()` now delegates to `_shrinkEdgeRect()`, sharing `shrinkTargetRect()`'s edge
+         projection: the centre lands on the dock's screen edge while the input width and height
+         survive, including on a non-zero monitor origin. Shrink's own path is unchanged. The
+         centre and last-resort 64x12 fallbacks deliberately remain outside this fix.
+Evidence L0: the controller delegation guard was red against the old fixed-size return and is green
+         now; `shrinkGeometry.test.js` 20/20 covers all four edges, real dimensions and non-zero
+         origins. Final run: `npm test` 191/191 in 48 suites, tier 1 9/9. Actual peek-off funnel
+         pixels remain L2 and need a session that has loaded the new modules.
+Cost     The shared projection keeps the existing `primaryMonitor` limitation recorded in
+         MAINTENANCE §14. This changes only the funnel's hidden-dock, peek-off target.
+Commit   2bf01c1
+
+---
+
+### D-136 · 2026-11-06 · fix
+
+Symptom  `IconManager._doSync()` notified layout listeners for additions and removals, but a sync
+         that only reordered existing actors merely logged `reorder:yes`. Genie's icon-rect cache
+         could consequently retain old slots when the dock was hidden or live rect resolution failed.
+Change   When `_enforceOrder()` reports a reorder, `_doSync()` now invokes the existing
+         `_onIconsChanged` callback. The established chain reaches `dockManager._updatePosition()`
+         and `genie.onLayoutChanged()`; DnD itself and the add/remove paths are unchanged.
+Evidence L1: the new `genie-reorder-invalidation` probe drives the real sync and callback chain.
+         Pre-fix it was red with reorder notifications/invalidations 0/0; post-fix they are exactly
+         1/1, and a steady-state second sync stays silent at 0/0. Tier 2 is 33/33. A real pointer
+         drag followed by minimize/restore remains an L2 visual check, not something this probe claims.
+Cost     One existing layout notification per actual reorder; no notification in steady state and no
+         new signal subscription.
+Commit   2bf01c1
+
+---
+
+### D-137 · 2026-11-06 · taste
+
+Symptom  The funnel used 560/480 ms defaults, one shared easing curve in both directions, and
+         `AXIAL_BUNCH = .35`; the owner asked for a more decisive minimize and a brief restore hold.
+Change   Defaults are now 420 ms minimize / 460 ms restore in the schema, compiled schema and
+         controller fallbacks. Funnel-only `genieEaseProgress()` uses amplitude .65 for minimize;
+         restore raises the existing forward ease to 1.2 before reversing it. `AXIAL_BUNCH` is .45,
+         making the maximum default-curvature gamma .6175 instead of .7025. Lead/trail fractions,
+         tail fade, absorb, curvature, mesh, squash, dodge and shrink behaviour are unchanged.
+Evidence L0: `genieGeometry.test.js` 47/47 checks endpoints, monotonicity over 1000 steps per
+         direction, finite values, minimize's stronger ends and restore's initial hold; shrink geometry
+         remains 20/20. Schema/controller defaults and the bunching constant have guards. Final run:
+         `npm test` 191/191 in 48 suites, tier 1 9/9, tier 2 33/33 with clean import and no fork-owned
+         JS errors. Headless does not execute the real animation, and visual feel remains L2.
+Cost     The direction mapping adds one pure maths call per timeline frame, outside the strip loop;
+         no settings key, per-strip heap allocation or scratch-buffer change was added. This is taste
+         and an upgrade may discard it wholesale.
+Commit   2bf01c1

@@ -108,6 +108,10 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   枚举出内容、dodge 起来了、以及没有任何错误块指向本扩展。**不能**证明的：任何
   map/minimize/restore 动画路径 —— 把计数器挂到真实例上、即使加 `--force-animations` 也仍是
   0。不要在这一层加动画断言。
+- `genie-reorder-invalidation` 是图标同步检查，不是动画断言。它交换两个已有收藏 actor，驱动真实的
+  `IconManager._doSync()`，要求这次重排恰好产生一次 `_onIconsChanged` 通知和一次
+  `genie.onLayoutChanged` 失效，随后的稳定状态同步则两者都为 0。修复前探针以 0/0 变红，修复后
+  以 1/1、0/0 变绿；真实指针拖拽及拖拽后的视觉目标仍是第三层人工检查。
 - 无头数字与真机**不可比**（本机实测：`enable()` 无头 25 ms vs 真机 30 ms，而隔壁 fork 同
   一段工作是 5355 ms vs 757 ms）。所以第二层只断存在性，不断阈值。
 - 错误计数按路径限定：只有错误块栈里出现 `macos-dock@local/` 才算到本 fork 头上，因为一次
@@ -349,8 +353,8 @@ GNOME 更新能拿走的东西，全在这里：
   的东西（peek、悬停放大、tooltip）都无法从会话内部触发。键盘侧的 `windowactivate` 走
   client message 是**有效**的，B 组用的就是它。
 - **用窗口状态量动画时长。** `_NET_WM_STATE_HIDDEN` 在 `minimize()` 后 10–40 ms 就翻转，
-  `_NET_WM_STATE_FULLSCREEN` 约 91 ms，因为 mutter 在请求时刻就发布状态，而 560 ms 的 actor
-  动画还在跑。轮询窗口状态只能证明状态机，永远证明不了动画长度。
+  `_NET_WM_STATE_FULLSCREEN` 约 91 ms，因为 mutter 在请求时刻就发布状态，而 actor 动画还在跑
+  （那次测量用的是当时默认的 560 ms）。轮询窗口状态只能证明状态机，永远证明不了动画长度。
 - **无头动画。** mutter 在那里根本不跑 map/minimize 路径。
 - **实时会话的 `org.gnome.Shell.Eval`。** 需要 unsafe 模式，而它已经无法开启（对应 gsettings
   键已删除）。实时内省永远只能靠一条临时日志加一次注销。
@@ -401,8 +405,10 @@ GNOME 更新能拿走的东西，全在这里：
   就是修复本身，不是细节。
 - genie：`_steal()` 必须先于 `finishFor()`，且 `record.finish()` 只恢复它自己停放过的 actor
   —— 否则 Clutter 移除隐式过渡时会发 `stopped`，把 shell 的 `completed_minimize` 触发第二次。
-- `AXIAL_BUNCH` 是漏斗唯一的手感旋钮。觉得不对就调这个常数；不要重构，也不要动
-  `leadFrac`/`trailFrac` 的默认值（那两个是量过的）。
+- 漏斗手感现在有三项已记录的口味选择（D-137）：默认时长 420/460 ms、按方向区分的
+  `genieEaseProgress()`（最小化幅度 .65；还原先把正向缓动取 1.2 次幂再反向），以及
+  `AXIAL_BUNCH = .45`。上游升级可以整体丢弃它们。不要重构效果，也不要动已量过的
+  `leadFrac`/`trailFrac` 默认值；已否决的拖尾 ease-in 仍然不要重新提议。
 - 分隔线标的是**收藏区边界**，不是"有没有运行中的未固定应用"：只要有应用被固定、且尾部还有
   东西（运行中的未固定应用、垃圾桶或 Show Apps 按钮），它就在——与 Ubuntu dash 由
   `nFavorites < nIcons` 推导的是同一条规则。**settled** 图标集（跳过 `_dockRemovalPending`）
@@ -535,19 +541,20 @@ harness 自己也是隐私面。`test/common.sh` 里设了 `umask 077`，`test/r
   落在 `Main.layoutManager.primaryMonitor` 上，而 D-052 已经把 dodge 的边缘判据和轮询阈值搬到
   dock 真正所在的那块屏。dock 挂在副屏时两边会分叉：收起/显示都对，但解析不到应用图标的那次
   最小化会朝主屏倾倒。本机只有一块屏，这条没有实测。
-- **漏斗"还没落到图标就提前消失"已经量到帧级，但没有复现。** 数字取自私有合成器里一个真
-  `MetaWindowActor`（L1；真会话仍要确认同样这三列）：`finish reason=completed p=1.0000` ——
-  没有任何一次被提前截断，没有走看门狗，没有容器早拆。从 p=0.17 到 p=0.80 的每一帧都是
-  `stripsOpacity=255..255`，只有 p=1.0000 那一帧才出现 `0..255`，也就是说 `genie-tail-fade` 0.08
-  只吃掉 560 ms 最小化的最后约 30 ms，构不成"提前消失"。快照是一份拷贝（`shared=0`，
-  `Clutter_TextureContent tex=648x429`），而且尽管从第 0 帧起 `actorVisible=0 actorMapped=0`，
-  这个尺寸在**每一帧**都没变 —— 提前 `_fireComplete()` 确实把真 actor 藏掉了，但条带照旧画得出来，
-  候选 (a) 在真实窗口缓冲上被排除。**能**复现的是目标问题不是淡化问题：解析不到应用图标时兜底是
-  一块 **64×12** 补丁（`_dockCenterRect` / `_dockEdgeAt`），而 `sink = absorb × iconDepth` 会把
-  整扇窗口压进那 12 px —— 实测兜底时 `sink=10.2`，换成真实 54 px 图标盒是 `sink=45.9`。倒在一条
-  12 px 窄带上，看起来正好就是"还没落到图标就没了"。没有修：R2 把兜底链钉死原样，而能判断车主
-  桌面属于哪一种情况的 `icon=` / `peek=` / 每帧 `pixels=` 三列，只有注销之后才存在。打印它们的
-  `TEMP-DIAGNOSTIC` 块留在 `lib/genieEngine.js` 与 `lib/genieController.js` 里，读完就删。
+- **漏斗"还没落到图标就提前消失"已经量到帧级，但没有复现。** 这些帧级数字早于 D-137 的时长与
+  缓动调整，取自私有合成器里一个真 `MetaWindowActor`（L1；真会话仍要确认同样这三列）：
+  `finish reason=completed p=1.0000` —— 没有提前截断、看门狗或容器早拆。从 p=0.17 到 p=0.80
+  每帧都是 `stripsOpacity=255..255`，只有 p=1.0000 才出现 `0..255`，所以 `genie-tail-fade` 0.08
+  只吃掉**当时默认的** 560 ms 最小化最后约 30 ms，解释不了"提前消失"。快照是一份拷贝
+  （`shared=0`，`Clutter_TextureContent tex=648x429`），尽管从第 0 帧起
+  `actorVisible=0 actorMapped=0`，尺寸在**每一帧**都没变 —— 提前 `_fireComplete()` 确实藏掉了真
+  actor，但条带照旧画得出来，候选 (a) 在真实窗口缓冲上被排除。那次测量还复现了目标问题：当时
+  `_dockCenterRect()` 与 `_dockEdgeAt()` 都返回 **64×12** 补丁，`sink = absorb × iconDepth`
+  因而把窗口压进 12 px 窄带（实测 `sink=10.2`，真实 54 px 图标盒则为 `sink=45.9`）。D-135
+  此后只改了 `_dockEdgeAt()`：peek-off 现在委托 `_shrinkEdgeRect()`，保留输入矩形的真实宽高。
+  `_dockCenterRect()`、`_dockEdgeCenterRect()` 和最后的字面量兜底仍是 64×12，所以无图标兜底依然
+  可能形成那条窄带。四个方位的 peek-off 实际收口、车主最初报告是否消失，仍要等新模块加载后做
+  第三层目测；旧的临时诊断块现已不在代码里。
 - **shrink 还原方向的第一帧尺度是 0。** 时间镜像把 p=0 映到 q=1，而塌缩段
   `sEnd × (1 − (q−0.88)/0.12)` 在那一点正是 0 —— 实测到第 5 帧是 `wantScale=0.0008`
   （648×429 的 actor 上 0.7×0.4 px）。之后的每一帧都被画出、都可见、都已映射

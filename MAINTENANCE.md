@@ -124,6 +124,11 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   block names this extension. What it **cannot** prove: any map/minimize/restore animation
   path — counters wrapped onto the live instances stayed at 0 even with
   `--force-animations`. Do not add animation assertions here.
+- `genie-reorder-invalidation` is an icon-synchronization check, not an animation assertion. It
+  swaps two existing favourite actors, drives the real `IconManager._doSync()`, and requires one
+  `_onIconsChanged` notification and one `genie.onLayoutChanged` invalidation after the reorder,
+  then zero of both for a steady-state sync. The pre-fix probe was red at 0/0; the fixed chain is
+  green at 1/1 and 0/0. A real pointer drag and the resulting visual target remain L2 checks.
 - Headless numbers are **not** comparable to the live session (measured here: `enable()`
   25 ms headless vs 30 ms live, but a sibling fork showed 5355 ms vs 757 ms for the same
   work). Tier 2 therefore asserts presence, never a threshold.
@@ -407,7 +412,8 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   Keyboard `windowactivate` via client message *does* work, which is what group B uses.
 - **Animation timing from window state.** `_NET_WM_STATE_HIDDEN` flips 10–40 ms after
   `minimize()`, and `_NET_WM_STATE_FULLSCREEN` about 91 ms after `fullscreen()`, because
-  mutter publishes state at request time while the 560 ms actor animation is still running.
+  mutter publishes state at request time while the actor animation is still running (the measurement
+  used the then-default 560 ms duration).
   Polling window state proves the state machine, never the animation length.
 - **Headless animations.** mutter does not run the map/minimize path there at all.
 - **`org.gnome.Shell.Eval` on the live session.** Needs unsafe mode, which cannot be enabled
@@ -472,9 +478,11 @@ Each of these was tested directly and failed. Do not spend time retrying them.
 - genie: `_steal()` must precede `finishFor()`, and `record.finish()` restores only actors it
   parked — otherwise Clutter's implicit transition removal emits `stopped` and fires the
   shell's `completed_minimize` a second time.
-- `AXIAL_BUNCH` is the single feel knob for the funnel. If it reads wrong, retune that
-  constant; do not redesign, and do not touch `leadFrac`/`trailFrac` defaults, which were
-  measured.
+- Funnel feel now has three recorded taste choices (D-137): 420/460 ms default durations,
+  direction-specific `genieEaseProgress()` (minimize amplitude .65; restore raises the forward
+  ease to 1.2 before reversing it), and `AXIAL_BUNCH = .45`. An upgrade may discard them together.
+  Do not redesign the effect or touch `leadFrac`/`trailFrac` defaults, which were measured; the
+  withdrawn trailing-edge ease-in stays withdrawn.
 - Separator marks the **favorites boundary**, not the presence of running non-favorites: it is
   shown whenever something is pinned and there is a tail (a running non-favorite, the Trash or
   the Show Apps button) -- the same rule Ubuntu's dash derives from `nFavorites < nIcons`. The
@@ -648,23 +656,23 @@ holds all three properties, and each of them was red against the pre-fix `common
   hides and shows correctly, but a minimize whose app icon cannot be resolved pours toward the
   primary screen. Unmeasured here — this box has one monitor.
 - **The funnel's "the window is gone before it reaches the icon" is measured, not reproduced.**
-  Frame numbers, private compositor, driven against a real `MetaWindowActor` opened inside it (L1;
-  the live session still has to confirm the same three columns): `finish reason=completed
-  p=1.0000` — nothing is cut short, no watchdog, no early container teardown.
-  `stripsOpacity=255..255` at every sampled frame from p=0.17 to p=0.80, reaching `0..255` only on
-  the frame at p=1.0000, so `genie-tail-fade` 0.08 eats the tail inside the last ~30 ms of a 560 ms
-  minimize and cannot be an early disappearance. The snapshot is a copy (`shared=0`,
-  `Clutter_TextureContent tex=648x429`) and that size holds on **every** frame even though
-  `actorVisible=0 actorMapped=0` from frame 0 — the early `_fireComplete()` does hide the real
-  actor, and the strips keep painting anyway, so candidate (a) is excluded on a real window buffer.
-  What *is* reproducible is a target problem, not a fade problem: when no app icon resolves, the
-  fallback is a **64×12 patch** (`_dockCenterRect` / `_dockEdgeAt`) and `sink = absorb × iconDepth`
-  then collapses the whole window into a 12 px band — measured `sink=10.2` on the fallback against
-  `sink=45.9` with a real 54 px icon box. A pour ending in a 12 px sliver reads exactly as
-  "vanished before landing". Not fixed: R2 pins the fallback chain as it is, and the live `icon=` /
-  `peek=` / per-frame `pixels=` columns — the ones that say which case the owner's desktop is in —
-  only exist after a logout. The `TEMP-DIAGNOSTIC` block printing them sits in `lib/genieEngine.js`
-  and `lib/genieController.js` and is deleted once that read is done.
+  These frame numbers predate D-137's timing and easing changes. They came from a private compositor,
+  driven against a real `MetaWindowActor` opened inside it (L1; the live session still has to confirm
+  the same three columns): `finish reason=completed p=1.0000` — nothing was cut short, no watchdog,
+  no early container teardown. `stripsOpacity=255..255` held at every sampled frame from p=0.17 to
+  p=0.80, reaching `0..255` only at p=1.0000, so `genie-tail-fade` 0.08 ate the tail inside the last
+  ~30 ms of the **then-default** 560 ms minimize and could not explain an early disappearance. The
+  snapshot was a copy (`shared=0`, `Clutter_TextureContent tex=648x429`) whose size held on **every**
+  frame even though `actorVisible=0 actorMapped=0` from frame 0 — the early `_fireComplete()` hid the
+  real actor, and the strips kept painting anyway, excluding candidate (a) on a real window buffer.
+  That measurement also reproduced a target problem: both `_dockCenterRect()` and `_dockEdgeAt()`
+  then returned a **64×12 patch**, and `sink = absorb × iconDepth` collapsed the window into a 12 px
+  band (`sink=10.2`, against `sink=45.9` with a real 54 px icon box). D-135 has since changed
+  `_dockEdgeAt()` only: peek-off now delegates to `_shrinkEdgeRect()` and preserves the input rect's
+  dimensions. `_dockCenterRect()`, `_dockEdgeCenterRect()` and the final literal fallback still use
+  64×12, so the no-icon fallback can still produce that sliver. The four-edge peek-off closing shape
+  and the owner's original visual symptom remain L2 checks after the new modules are loaded; the old
+  temporary diagnostic blocks are no longer present.
 - **The shrink restore's first frame is at scale 0.** The time mirror maps p=0 to q=1 and the
   collapse segment gives `sEnd × (1 − (q−0.88)/0.12)`, which is 0 there — measured
   `wantScale=0.0008` by the 5th frame (0.7×0.4 px of a 648×429 actor). Every frame after it is

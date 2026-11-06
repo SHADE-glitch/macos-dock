@@ -182,8 +182,8 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | `genie-mode` | `funnel` | 用哪种动画：`funnel` 把窗口"倒"进图标，`shrink` 让真实窗口等比缩向图标并带重力加速。其它值一律回落到 `funnel` |
 | `genie-peek-hidden-dock` | `true` | dock 被避让隐藏时，最小化/还原过程中短暂露出它，好让你看见窗口飞向哪个图标；关掉则飞向 dock 所在屏幕边 |
 | `genie-icon-reaction` | `true` | 窗口落到目标图标（最小化）或离开它（还原）时，图标做一次按压回弹 |
-| `genie-minimize-duration` | `560` | 窗口「灌进」图标所需毫秒数 |
-| `genie-restore-duration` | `480` | 窗口从图标「流出」所需毫秒数 |
+| `genie-minimize-duration` | `420` | 窗口「灌进」图标所需毫秒数 |
+| `genie-restore-duration` | `460` | 窗口从图标「流出」所需毫秒数 |
 | `genie-curvature` | `0.85` | 0=柔和的 macOS S 形曲线，1=更紧的 KDE 神灯收拢 |
 | `genie-lead-fraction` | `0.58` | 动画进行到该比例时近边已到达图标 |
 | `genie-trail-fraction` | `0.38` | 动画到该比例时远边才开始移动 |

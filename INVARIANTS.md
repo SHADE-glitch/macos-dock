@@ -24,11 +24,13 @@ win and this one is stale.
 
 Two rules about the list itself:
 
-- **`kind: taste` entries are not invariants.** Genie's funnel feel (`AXIAL_BUNCH`) and the preview
-  inset (D-057) are preferences: an upgrade may discard them wholesale. They are recorded in
-  `CHANGELOG.md`, not here.
+- **`kind: taste` entries are not invariants.** Genie's funnel feel (durations, direction easing and
+  `AXIAL_BUNCH`) and the preview inset (D-057) are preferences: an upgrade may discard them wholesale.
+  They are recorded in `CHANGELOG.md`, not here.
 - **Withdrawn items belong to MAINTENANCE §11, not here.** "Do not re-propose" entries (dodge's
   hidden-state heartbeat as a CPU saving, the genie trailing ease-in) are decisions not to change
   something, which is the opposite kind of claim from "never revert this fix".
 | D-132 | the drop indicator reads the nearest line between icons, and the two lines touching the held icon's slot are spent | L1 (`drag-slot-partition-gap-invariant`) + L2, owner confirmed by hand | the two neighbours stop being swaps and the held cell draws a gap that would write the order it already has |
 | D-134 | a gap move paints the crossed children back by the layout delta's opposite sign, then eases it to zero | L1 (`drag-slot-partition-gap-invariant`), mutation turns it red at `slideShift: 0` | the crossed icon pops a whole slot outward and slides home, which is the "appears out of nowhere" report |
+| D-135 | hidden-dock, peek-off funnel targeting preserves the resolved rect's dimensions through `_shrinkEdgeRect()` | L0 (controller delegation guard + four-edge `shrinkGeometry` tests) | the animation again collapses into a fixed 64x12 patch even when the real icon dimensions were known |
+| D-136 | a reorder-only `_doSync()` emits the existing `_onIconsChanged` notification; steady state emits none | L1 (`genie-reorder-invalidation`, red at 0/0 before the fix, green at 1/1 and 0/0 after) | hidden-dock or failed-live-resolution fallbacks can consume genie's stale pre-reorder icon rectangles |
