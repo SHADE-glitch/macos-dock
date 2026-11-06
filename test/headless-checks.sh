@@ -1454,6 +1454,97 @@ else
     report $T drag-slot-partition-gap-invariant FAIL "opening the gap moved the partition under the pointer ($(jq -r '.flips|length' "$T2/gapslot.json") flips, first $(jq -c '.flips[0]' "$T2/gapslot.json")): $gapslot_json"
 fi
 
+# H26 ------------------------------------------------------------------------
+# A reorder-only incremental sync must invalidate the genie icon-rect cache.
+# Adds/removes have their own notifications; reordering existing favourite actors
+# is the one path that otherwise only logs `reorder:yes`. Exercise the real
+# callback chain, then prove a steady-state second sync emits nothing.
+cat > "$T2/e14.js" <<'JS'
+(async () => {
+    const GLib = imports.gi.GLib;
+    const Main = await import('resource:///org/gnome/shell/ui/main.js');
+    const out = { ok: false, precondition: false };
+    const dm = Main.extensionManager.lookup('macos-dock@local')?.stateObj?._dockManager;
+    const im = dm?._iconManager;
+    const genie = dm?._genie;
+    const c = im?._container;
+    const favActors = im?._favorites?.map(id => im._icons.get(id)).filter(Boolean) ?? [];
+    out.precondition = !!c && favActors.length >= 2 &&
+        typeof im?._onIconsChanged === 'function' &&
+        typeof genie?.onLayoutChanged === 'function';
+    if (!out.precondition) {
+        GLib.file_set_contents('%T2%/reorder.json', JSON.stringify(out));
+        return;
+    }
+    const saved = {
+        defer: im._deferForDrag,
+        syncFavorites: im._syncFavorites,
+        windowChange: im._doWindowChange,
+        iconsChanged: im._onIconsChanged,
+        layoutChanged: genie.onLayoutChanged,
+    };
+    const first = favActors[0], second = favActors[1];
+    let notifications = 0, invalidations = 0;
+    try {
+        // Establish the canonical order before deliberately reversing the first
+        // two favourites. No app, favourite or running-set membership changes.
+        im._enforceOrder();
+        saved.iconsChanged();
+        c.set_child_at_index(first, c.get_children().indexOf(second));
+        out.mismatchCreated = c.get_children().indexOf(first) >
+            c.get_children().indexOf(second);
+        im._deferForDrag = () => false;
+        im._syncFavorites = () => ({ added: 0, removed: 0 });
+        im._doWindowChange = () => ({ added: 0, removed: 0 });
+        im._onIconsChanged = () => {
+            notifications++;
+            saved.iconsChanged();
+        };
+        genie.onLayoutChanged = function () {
+            invalidations++;
+            return saved.layoutChanged.call(this);
+        };
+        im._doSync('reorder-only-probe');
+        out.reorderNotifications = notifications;
+        out.reorderInvalidations = invalidations;
+        out.orderRestored = c.get_children().indexOf(first) <
+            c.get_children().indexOf(second);
+        notifications = 0;
+        invalidations = 0;
+        im._doSync('reorder-steady-probe');
+        out.steadyNotifications = notifications;
+        out.steadyInvalidations = invalidations;
+        out.ok = out.mismatchCreated && out.orderRestored &&
+            out.reorderNotifications === 1 && out.reorderInvalidations === 1 &&
+            out.steadyNotifications === 0 && out.steadyInvalidations === 0;
+    } catch (e) {
+        out.error = e.message;
+    } finally {
+        im._enforceOrder();
+        im._deferForDrag = saved.defer;
+        im._syncFavorites = saved.syncFavorites;
+        im._doWindowChange = saved.windowChange;
+        im._onIconsChanged = saved.iconsChanged;
+        genie.onLayoutChanged = saved.layoutChanged;
+        saved.iconsChanged();
+    }
+    GLib.file_set_contents('%T2%/reorder.json', JSON.stringify(out));
+})();
+JS
+sed -i "s|%T2%|$T2|g" "$T2/e14.js"
+EV_FILE "$T2/e14.js" > "$T2/e14.reply" 2>&1
+for _ in $(seq 1 10); do [ -s "$T2/reorder.json" ] && break; sleep 1; done
+reorder_json=$(jq -c 'del(.ok)' "$T2/reorder.json" 2>/dev/null)
+if [ ! -s "$T2/reorder.json" ]; then
+    report $T genie-reorder-invalidation ENV "reorder probe wrote nothing — reply: $(head -c 120 "$T2/e14.reply" 2>/dev/null)"
+elif [ "$(jq -r '.precondition' "$T2/reorder.json")" != true ]; then
+    report $T genie-reorder-invalidation ENV "reorder surface unavailable: $reorder_json"
+elif [ "$(jq -r '.ok' "$T2/reorder.json")" = true ]; then
+    report $T genie-reorder-invalidation PASS "reorder-only sync invalidated genie rects exactly once; steady sync stayed silent"
+else
+    report $T genie-reorder-invalidation FAIL "reorder-only notification chain is not exactly-once: $reorder_json"
+fi
+
 # H23 ------------------------------------------------------------------------
 # Teardown of the chrome registration is an assertion, not a formality. The
 # container's own `destroy` handler nulls `_container`, and `stop()` decides

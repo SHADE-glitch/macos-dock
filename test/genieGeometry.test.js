@@ -20,7 +20,7 @@ import {
     lerp,
     smooth,
     EASE_AMPLITUDE,
-    easeProgress,
+    easeProgress, genieEaseProgress,
     sideCurve,
     mul3,
     LOCAL_TO_FUNNEL,
@@ -150,6 +150,47 @@ describe("easing curves", () => {
             prev = v;
         }
         assert.ok(close(easeProgress(0.5, 1), 0.5), `midpoint is ${easeProgress(0.5, 1)}`);
+    });
+
+    it("directional genie easing passes through the exact spatial endpoints", () => {
+        assert.strictEqual(genieEaseProgress(0, false), 0);
+        assert.strictEqual(genieEaseProgress(1, false), 1);
+        assert.strictEqual(genieEaseProgress(0, true), 1);
+        assert.strictEqual(genieEaseProgress(1, true), 0);
+    });
+
+    it("directional genie easing stays finite and monotonic", () => {
+        for (const restore of [false, true]) {
+            let previous = genieEaseProgress(0, restore);
+            for (let i = 1; i <= 1000; i++) {
+                const current = genieEaseProgress(i / 1000, restore);
+                assert.ok(Number.isFinite(current));
+                if (restore)
+                    assert.ok(current <= previous, `restore reversal at ${i / 1000}`);
+                else
+                    assert.ok(current >= previous, `minimize reversal at ${i / 1000}`);
+                previous = current;
+            }
+        }
+    });
+
+    it("directional minimize has faster ends than the shared ease", () => {
+        assert.ok(genieEaseProgress(0.25, false) > easeProgress(0.25, 0.5));
+        assert.ok(genieEaseProgress(0.75, false) < easeProgress(0.75, 0.5));
+        const delta = 1e-4;
+        const directionalEnd = (genieEaseProgress(1, false) -
+            genieEaseProgress(1 - delta, false)) / delta;
+        const sharedEnd = (easeProgress(1, 0.5) - easeProgress(1 - delta, 0.5)) / delta;
+        assert.ok(directionalEnd > sharedEnd, "the final suck did not get faster");
+    });
+
+    it("directional restore holds near the icon before streaming out", () => {
+        for (const t of [0.05, 0.1, 0.2]) {
+            const directional = genieEaseProgress(t, true);
+            const mirroredShared = 1 - easeProgress(t, 0.5);
+            assert.ok(directional > mirroredShared,
+                `restore left the icon too early at t=${t}`);
+        }
     });
 
     it("sideCurve passes through (0,0) and (1,1)", () => {

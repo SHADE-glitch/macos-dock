@@ -293,13 +293,13 @@
     </key>
     <key name="genie-minimize-duration" type="i">
       <range min="100" max="3000"/>
-      <default>560</default>
+      <default>420</default>
       <summary>Minimize animation duration (ms)</summary>
       <description>How long the window takes to pour into its dock icon</description>
     </key>
     <key name="genie-restore-duration" type="i">
       <range min="100" max="3000"/>
-      <default>480</default>
+      <default>460</default>
       <summary>Restore animation duration (ms)</summary>
       <description>How long the window takes to stream back out of its dock icon</description>
     </key>

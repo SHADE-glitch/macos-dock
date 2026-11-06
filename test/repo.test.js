@@ -102,6 +102,30 @@ describe("pure modules stay Node-importable", () => {
     }
 });
 
+describe("funnel hidden-dock target projection", () => {
+    it("delegates to shrink's size-preserving edge projection", () => {
+        // The shell-bound controller cannot be imported by Node. This guard
+        // covers the wiring, while shrinkGeometry.test.js covers the projected
+        // coordinates and preserved icon dimensions on all four dock edges.
+        const match = read("lib/genieController.js").match(
+            /_dockEdgeAt\(rect\) \{([\s\S]*?)\n    \}/);
+        assert.ok(match, "_dockEdgeAt(rect) was not found");
+        assert.match(match[1], /return this\._shrinkEdgeRect\(rect\);/,
+            "funnel must not replace the icon's real dimensions with a fixed patch");
+    });
+});
+
+describe("funnel animation tuning", () => {
+    it("keeps the approved axial bunching strength", () => {
+        const engine = read("lib/genieEngine.js");
+        const match = engine.match(/^const AXIAL_BUNCH = ([0-9.]+);$/m);
+        assert.ok(match, "AXIAL_BUNCH declaration was not found");
+        assert.equal(Number(match[1]), 0.45);
+        assert.ok(Math.abs((1 - 0.45 * 0.85) - 0.6175) < 1e-12,
+            "default-curvature maximum spacing exponent must remain 0.6175");
+    });
+});
+
 describe("genie attribution headers are preserved", () => {
     // Upstream macos-genie is GPL-2.0-or-later and the merge obligation is to
     // keep the copyright notice. A failure here is a LICENSE regression, not a
@@ -165,6 +189,20 @@ describe("settings surface is complete", () => {
         const unbound = schemaKeys().filter(k => !prefs.includes(`"${k}"`)).sort();
         assert.deepEqual(unbound, [...EXPECTED_UNBOUND].sort(),
             "a new key with no prefs row is a silent feature gap; a row whose key was deleted makes the prefs window throw");
+    });
+
+    it("genie duration defaults match the controller fallbacks", () => {
+        const controller = read("lib/genieController.js");
+        for (const [key, ms] of [["genie-minimize-duration", 420],
+            ["genie-restore-duration", 460]]) {
+            const block = schemaXml().match(
+                new RegExp(`<key name="${key}"[\\s\\S]*?<\\/key>`));
+            assert.ok(block, `${key} is missing from the schema`);
+            assert.match(block[0], new RegExp(`<default>${ms}<\\/default>`),
+                `${key} schema default drifted from the approved feel`);
+            assert.ok(controller.includes(`'${key}', ${ms}, 100, 3000`),
+                `${key} controller fallback must match the schema default`);
+        }
     });
 
     it("metadata.json matches the schema and declares plain majors", () => {
