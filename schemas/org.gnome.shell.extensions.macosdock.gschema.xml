@@ -3,7 +3,7 @@
   <schema id="org.gnome.shell.extensions.macosdock"
           path="/org/gnome/shell/extensions/macosdock/">
     <key name="icon-size" type="i">
-      <default>48</default>
+      <default>43</default>
       <summary>Icon size</summary>
       <description>Size of dock icons in pixels (16-96)</description>
     </key>
@@ -48,7 +48,7 @@
       <description>Target framerate for magnification animation in Hz (30, 60, or 120)</description>
     </key>
     <key name="icon-quality" type="i">
-      <default>2</default>
+      <default>1</default>
       <summary>Icon quality multiplier</summary>
       <description>Render icons at N times native resolution to prevent blur when magnified (1, 2, or 4)</description>
     </key>
@@ -58,7 +58,7 @@
       <description>Distance in pixels from screen edge to trigger dock show</description>
     </key>
     <key name="dock-opacity" type="i">
-      <default>60</default>
+      <default>57</default>
       <summary>Dock opacity</summary>
       <description>Dock background opacity percentage (0-100)</description>
     </key>
@@ -73,7 +73,7 @@
       <description>Corner radius of the dock in pixels</description>
     </key>
     <key name="dock-blur-enabled" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Enable dock blur</summary>
       <description>Apply blur effect behind the dock for a frosted glass look</description>
     </key>
@@ -127,7 +127,7 @@
       <description>Make the dock's Show Apps button open the app grid from the overview and use the brand icon instead of hiding the overview. Independent of the running-icons fix</description>
     </key>
     <key name="window-previews" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Window previews</summary>
       <description>Show live thumbnail previews of app windows on hover, and the window picker a click opens on an app with several windows</description>
     </key>
@@ -152,7 +152,7 @@
       <description>Show play/pause controls in the dock context menu when media is playing</description>
     </key>
     <key name="media-indicator" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Media indicator</summary>
       <description>Show a music note indicator on the icon of the currently playing media app</description>
     </key>
@@ -182,7 +182,7 @@
       <description>Pointer must be within this many pixels of the screen edge to peek the hidden dock</description>
     </key>
     <key name="peek-hold-ms" type="i">
-      <default>80</default>
+      <default>70</default>
       <summary>Peek hold time (ms)</summary>
       <description>Pointer must stay inside the deep zone this long before the hidden dock peeks out</description>
     </key>
@@ -253,7 +253,7 @@
     </key>
     <key name="keynav-peek-duration" type="i">
       <range min="100" max="3000"/>
-      <default>800</default>
+      <default>530</default>
       <summary>Hotkey dock peek duration (ms)</summary>
       <description>How long the dock stays revealed after a Super+number shortcut</description>
     </key>
@@ -273,7 +273,7 @@
       <description>Play the macOS genie animation when a window minimizes into, or restores out of, its dock icon</description>
     </key>
     <key name="genie-peek-hidden-dock" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Peek the hidden dock during the animation</summary>
       <description>When the dock is hidden by dodge, briefly show it during a minimize/restore so the window can be seen flying to its icon. When off, the dock stays hidden and the animation keeps its resolved icon target</description>
     </key>

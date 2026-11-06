@@ -226,7 +226,12 @@ describe("settings surface is complete", () => {
         assert.equal(EXPECTED_UNBOUND.length, 12,
             "the docs say twelve keys have no prefs row — if this set changes, those sentences change with it");
         const prefs = read("prefs.js");
-        const unbound = schemaKeys().filter(k => !prefs.includes(`"${k}"`)).sort();
+        // The reset control names the two keynav sentinels without binding
+        // them, so a textual mention is not a prefs row.
+        const resetMentions = new Set(["keynav-stock-backup", "keynav-stock-dirty"]);
+        const unbound = schemaKeys()
+            .filter(k => resetMentions.has(k) || !prefs.includes(`"${k}"`))
+            .sort();
         assert.deepEqual(unbound, [...EXPECTED_UNBOUND].sort(),
             "a new key with no prefs row is a silent feature gap; a row whose key was deleted makes the prefs window throw");
     });
@@ -256,6 +261,31 @@ describe("settings surface is complete", () => {
         for (const v of meta["shell-version"])
             assert.match(v, /^\d+$/,
                 `shell-version entry "${v}" is not a plain major — _isOutOfDate uses startsWith(), so "5" would falsely claim 50-59`);
+    });
+});
+
+describe("restore-defaults control", () => {
+    const prefs = read("prefs.js");
+
+    it("keeps the keynav crash-recovery sentinels out of the reset", () => {
+        assert.match(prefs,
+            /RESET_EXCLUDED_KEYS = new Set\(\["keynav-stock-backup", "keynav-stock-dirty"\]\)/,
+            "the reset must not discard the keynav stock-key backup");
+        assert.match(prefs, /if \(RESET_EXCLUDED_KEYS\.has\(key\)\)\s*\n\s*continue;/,
+            "the reset loop must actually skip the excluded keys");
+    });
+
+    it("confirms first and removes every other user value", () => {
+        assert.match(prefs, /resetButton\.connect\("clicked", \(\) => this\._confirmReset\(settings, window\)\)/,
+            "the visible button must open the confirmation dialog");
+        assert.match(prefs, /heading: "Restore default settings\?"/,
+            "the confirmation heading was removed");
+        assert.match(prefs, /if \(response !== "restore"\)/,
+            "the reset must only run on the confirming response");
+        assert.match(prefs, /settings\.get_user_value\(key\) !== null/,
+            "the reset must target explicitly set values, not only bound rows");
+        assert.match(prefs, /settings\.reset\(key\)/,
+            "the reset must call GSettings.reset()");
     });
 });
 

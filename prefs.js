@@ -3,6 +3,9 @@ import Gdk from 'gi://Gdk?version=4.0';
 import Gtk from 'gi://Gtk?version=4.0';
 import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
 const BIND_FLAGS = 0 | 1 | 2 | 4; // DEFAULT | GET | SET | NO_SENSITIVITY
+// The keynav crash-recovery sentinels are state, not preferences: resetting
+// them while the extension is running would discard the stock-key backup.
+const RESET_EXCLUDED_KEYS = new Set(["keynav-stock-backup", "keynav-stock-dirty"]);
 export default class MacosDockPreferences extends ExtensionPreferences {
     _signalConnections = [];
     async fillPreferencesWindow(window) {
@@ -40,16 +43,18 @@ export default class MacosDockPreferences extends ExtensionPreferences {
             icon_name: "input-keyboard-symbolic",
         });
         window.add(keysPage);
-        const systemPage = new Adw.PreferencesPage({
-            title: "System",
-            icon_name: "preferences-system-symbolic",
-        });
-        window.add(systemPage);
         const perfPage = new Adw.PreferencesPage({
             title: "Performance",
             icon_name: "preferences-system-details-symbolic",
         });
         window.add(perfPage);
+        // System is added last on purpose: it holds shell-integration fixes and
+        // the restore-defaults control, which are the tail of the sidebar.
+        const systemPage = new Adw.PreferencesPage({
+            title: "System",
+            icon_name: "preferences-system-symbolic",
+        });
+        window.add(systemPage);
         // Size group
         const iconSizeGroup = new Adw.PreferencesGroup({
             title: "Size",
@@ -505,6 +510,26 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         });
         settings.bind("overview-patches-enabled", overviewPatchesRow, "active", BIND_FLAGS);
         overviewPatchesGroup.add(overviewPatchesRow);
+        // Defaults. One confirmation, then every user value is removed so the
+        // schema defaults take over; the internal keynav sentinels are kept.
+        const resetGroup = new Adw.PreferencesGroup({
+            title: "Defaults",
+            description: "Restore every user-facing setting to the defaults this fork ships",
+        });
+        systemPage.add(resetGroup);
+        const resetRow = new Adw.ActionRow({
+            title: "Restore default settings",
+            subtitle: "Reset appearance, behavior, hotkeys and Genie settings; internal crash-recovery keys are kept",
+        });
+        const resetButton = new Gtk.Button({
+            label: "Restore Defaults",
+            valign: Gtk.Align.CENTER,
+        });
+        resetButton.add_css_class("destructive-action");
+        resetButton.connect("clicked", () => this._confirmReset(settings, window));
+        resetRow.add_suffix(resetButton);
+        resetRow.activatable_widget = resetButton;
+        resetGroup.add(resetRow);
         // Dodge
         const dodgeGroup = new Adw.PreferencesGroup({
             title: "Dodge",
@@ -700,6 +725,37 @@ export default class MacosDockPreferences extends ExtensionPreferences {
         funnelGroup.add(genieMeshRow);
         // Disconnect all tracked signals when the window is closed.
         window.connect("close-request", () => this._disconnectAll());
+    }
+    _confirmReset(settings, window) {
+        const dialog = new Adw.AlertDialog({
+            heading: "Restore default settings?",
+            body: "Every user-facing setting returns to its default, including keyboard shortcuts and Super+number app slots. Internal crash-recovery keys are kept. This cannot be undone.",
+        });
+        dialog.add_response("cancel", "Cancel");
+        dialog.add_response("restore", "Restore Defaults");
+        dialog.set_response_appearance("restore", Adw.ResponseAppearance.DESTRUCTIVE);
+        dialog.set_default_response("cancel");
+        dialog.set_close_response("cancel");
+        dialog.connect("response", (_dialog, response) => {
+            if (response !== "restore")
+                return;
+            this._resetSettings(settings);
+            window.add_toast(new Adw.Toast({
+                title: "Default settings restored",
+                timeout: 3,
+            }));
+        });
+        dialog.present(window);
+    }
+    _resetSettings(settings) {
+        for (const key of settings.list_keys()) {
+            if (RESET_EXCLUDED_KEYS.has(key))
+                continue;
+            // Only remove values the user (or a previous run) actually set;
+            // an unset key already reads its schema default.
+            if (settings.get_user_value(key) !== null)
+                settings.reset(key);
+        }
     }
     _scaleRow(settings, key, title, subtitle) {
         let lower = 0;
