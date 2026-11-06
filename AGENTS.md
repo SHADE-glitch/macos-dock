@@ -19,7 +19,7 @@ fork of MacOSDock (v9) with the macOS Genie animation merged in.
 - **Do not reassign ESModule exports directly** (e.g. `Main.notify = ...`). Monkeypatch mutable prototypes instead.
 - **GJS constraint**: no `fetch`/`URLSearchParams` inside the shell process — measured here: `gjs -c 'print(typeof fetch)'` prints `undefined`, likewise `URL` and `URLSearchParams`. Use `Soup.Session` + `GLib.Bytes`.
 - **`disable` + `enable` does NOT reimport modules.** A cached ESModule keeps its old code, so a change to a `lib/*.js` file only takes effect after a **log out / log in**. Never claim a reload activated an edit.
-- **Keep `genieGeometry.js` and `signalManager.js` free of `gi://` AND `resource://` imports.** They are the only modules Node can import, hence the only ones unit-testable without a shell; either scheme added there breaks `npm test` on every machine, CI included. `resource://` matters exactly as much as `gi://` — `lib/overviewLayout.js` holds no `gi://` token at all yet is not Node-importable.
+- **Keep the Node-importable modules free of `gi://` AND `resource://` imports.** They are the only modules Node can import, hence the only ones unit-testable without a shell; either scheme added there breaks `npm test` on every machine, CI included. `resource://` matters exactly as much as `gi://` — `lib/overviewLayout.js` holds no `gi://` token at all yet is not Node-importable. Which modules are in that set is derived, not remembered: `grep -LE 'gi://|resource://' lib/*.js`.
 
 ## Priorities & maintenance model
 - Maintained **solo, for this machine**. Not published to extensions.gnome.org; EGO review rules
@@ -72,9 +72,9 @@ fork of MacOSDock (v9) with the macOS Genie animation merged in.
 ## Tests
 - **Run `npm test`** (i.e. `node --test test/*.test.js`) after editing a pure module. No gjs, no dependencies, no build step.
 - `npm run test:coverage` — the same pure suites with Node's built-in coverage (`--experimental-test-coverage`). The report also lists the test files themselves; read the `lib/` rows for the product modules. A **reading, not a gate**: no threshold, and the shell-bound modules (`extension.js` and the rest of `lib/`) cannot appear because Node never imports them.
-- Pure modules and their suites:
-  - `lib/genieGeometry.js` → `test/genieGeometry.test.js`
-  - `lib/signalManager.js` → `test/signalManager.test.js`
+- Pure modules and their suites — derive both halves instead of keeping a list (the two entries
+  kept at this spot had already rotted): pure = `grep -LE 'gi://|resource://' lib/*.js`, and each
+  of those has a same-named suite under `test/`.
 - Everything else under `lib/` is shell-bound: Node cannot import it, so verify those modules live in the shell instead. **Do not hand-copy that list into this file** — the enumeration kept here had already rotted (it missed `overviewLayout.js` and `overviewPatches.js`, both born with D-054/D-057). Derive it when you need it: `grep -lE 'gi://|resource://' lib/*.js`.
 - When fixing a bug, add a regression test that **fails against the pre-fix code** before making it pass.
 - Three tiers of checks exist because the shell-bound modules cannot be imported: `npm run test:static` (offline), `test:headless` (private throwaway compositor), `test:live` (reads this boot's journal). What each one guards is enumerated in `MAINTENANCE.md` §2–§5 — a list that grows, so do not copy it here. `test:live-trigger` runs the pointer-free A/B but **opens probe windows on the user's desktop** — only on an idle session and with approval.

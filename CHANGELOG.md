@@ -787,3 +787,1085 @@ Cost     None at rest: the label is placed once per show, and once per dock move
          visible.
 Commit   83e022e
 
+### D-093 · 2026-11-05 · fix
+
+Symptom  The dock had no Trash. A Trash window was also indistinguishable from any other
+         file-manager window, so it counted against the file-manager icon, appeared in its
+         previews and answered its focus click. This entry covers the Trash button only;
+         pinning and unpinning are D-094, and drag-reordering is still unbuilt.
+Change   New `lib/trashManager.js` tracks the Trash location independently: it watches
+         `trash:///` for the empty/full icon, resolves which windows a file manager shows for
+         the Trash over an explicit `Properties.Get` of `OpenWindowsWithLocations`, and maps
+         those windows back by `get_gtk_window_object_path()`. `IconManager` adds one button
+         to the tail -- Trash before the applications button, both pinned by position rather
+         than walked, so steady state still costs zero moves -- and gains
+         `representsTrashWindow()`, the single predicate every filter now goes through: with
+         `show-trash` off nothing represents that window, so it returns to the file-manager
+         icon and the dock behaves like a stock one. The same predicate is applied to window
+         counts, running indicators, focus tracking, previews, the close-all action and
+         `iconFix`'s replacement of `_getRunningApps`, which otherwise bypassed the filter
+         under the default settings.
+         Four APIs were measured before use, because the first draft of this code had
+         invented all of them: `Meta.WorkspaceManager` has no `get_workspaces()` (only
+         `get_n_workspaces()` plus `get_workspace_by_index()`, which is what the shell itself
+         uses); a `DO_NOT_AUTO_START` proxy reports no init error while the name is unowned
+         yet caches nothing, and `Gio.DBusProxy.prototype.refresh` does not exist here, so
+         ownership is read from `get_name_owner()` and the property is fetched over the bus
+         when it appears; GJS unpacks `a{sas}` into entries whose array member is an empty
+         object, so the reply is walked by child index instead of unpacked. Window previews
+         needed a `setWindowFilter()` that `dockManager` was already calling, whose absence
+         threw in `enable()` and stopped the dock from appearing at all.
+Evidence L0: `npm test` 134/134, `npm run test:static` 9/9 (schema strict, 63 compiled keys),
+         `npm run test:headless` 24/24 including `enable` ACTIVE and `no-js-errors`. The kept
+         tier-2 log shows `[icons] +trash` on both enable cycles with zero `[trash]` warnings
+         and `reorder:no` in steady state. Run-verified on this machine: `trash::item-count`
+         answers, `OpenWindowsWithLocations` has type `a{sas}`, the file manager's `EmptyTrash`
+         takes `ba{sv}`. L1 gap: no file manager runs in the tier-2 sandbox, so the name is
+         never owned and the window-separation path was never executed -- the Trash button
+         renders, but the claim that a Trash window stops counting as a file-manager window is
+         unverified until a logout. The pre-fix double move in `_enforceOrder` is an
+         index-level inference, not an A/B.
+Cost     One extra dock slot and one D-Bus property read per file-manager window event, both
+         coalesced; the proxy never auto-starts a file manager, so enabling the extension
+         launches nothing. Stages 2 and 3 of the approved plan are still unbuilt.
+Commit   6b80798
+
+---
+
+### D-094 · 2026-11-05 · fix
+
+Symptom  The pinned set could only be changed outside the dock: an icon offered New Window,
+         media controls and Close, but no way to pin the application it stood for or to drop
+         it from the pinned row.
+Change   The right-click menu now carries one state-dependent row between the media items and
+         Close -- `Unpin from Dock` when the application is already a favorite, `Pin to Dock`
+         when it is not -- and the write goes through the shell's own favorites object rather
+         than a hand-written `set_strv` of `favorite-apps`. The dock already read that key and
+         already reloaded on it, so no new store, setting or lifecycle was needed: reading
+         `ui/appFavorites.js` first confirmed the export is `getAppFavorites()` (not an
+         instance getter), that `addFavorite()` maps to the `pos === -1` branch which appends
+         rather than splicing before the last entry, and that both add and remove come with the
+         native Undo notification that re-inserts the application at the position it left --
+         the feedback a manual key write would have thrown away. Adding a favorite that is not
+         running stays the shell's own app-grid action, since both lists are the same key.
+Evidence L0: `npm test` 134/134, `npm run test:static` 9/9. L1: tier 2 24/24 with `enable`
+         ACTIVE and `no-js-errors` clean -- a static import of a shell module that failed to
+         resolve would throw during `enable()` and stop the dock from appearing at all, so that
+         run does prove the module path and the export name on this shell. Nothing here is L2:
+         every part of it needs a pointer, so the menu row, the write, the Undo notification and
+         the pinned-to-running demotion of an icon are all unverified until a logout.
+Cost     One extra menu row per icon. `AppFavorites` is the shell's process-wide singleton and
+         is already built by the overview, so this adds no resident object. Drag-reordering and
+         drop-to-pin from the app grid remain unbuilt.
+Commit   6b80798
+
+---
+
+### D-095 · 2026-11-05 · fix
+
+Symptom  Three defects in the Trash button once it ran on the live session: its label kept the
+         position of whatever icon was hovered last; it never showed a running indicator, so an
+         open trash window was invisible to the row; and its icon skipped the texture pipeline
+         the rest of the row uses, so it neither scaled with `icon-size` nor sharpened with
+         `icon-quality`.
+Change   `_positionTooltip()` treats the Trash actor as a valid anchor next to the applications
+         button -- the `appId === null` branch only recognised the latter, so the Trash was
+         declared dead, the label was left at the previous icon's X, and the `show()` that
+         followed made the stale position visible. The button now repeats an app icon's
+         two-child shape (`macos-dock-icon-wrapper` then `macos-dock-indicator-box`), drawing
+         one dot per open trash window in the dock's current indicator style, and
+         `_applyTrashIconSize()` runs through `_applyIconTexture` from `setIconSize()` and
+         `setQuality()` like every other icon. Ubuntu's dash gets the same result by faking a
+         `Shell.App` for the Trash; that needs a synthetic app and injected methods, and the
+         dock-level separation here already knows the window count, so the indicator is drawn
+         directly instead.
+Evidence L0: `npm test` 134/134, tier 1 9/9. L1: tier 2 24/24 with `enable` ACTIVE and
+         `no-js-errors`. L2, live session after the logout: `[icons] +trash (empty=false)` in
+         the journal proves the item-count read works on the real trash, and zero `JS ERROR`
+         blocks named this extension across the boot. The dot and the label position are not
+         covered by any tier -- both need a pointer and an open trash window.
+Cost     One allocation pass per trash-window change, guarded by a state key so a steady
+         indicator rebuilds nothing.
+Commit   6b80798
+
+---
+
+### D-096 · 2026-11-05 · fix
+
+Symptom  The favorites separator appeared only while a non-favorite app was running, so it
+         vanished and reappeared as windows opened and closed -- and every one of those toggles
+         snapped the dock 15px wider or narrower. Ubuntu's dash shows the line permanently in
+         the same situation.
+Change   The rule is now the favorites boundary, matching Ubuntu's `nFavorites > 0 && nFavorites
+         < nIcons` (which counts the Trash inside `nIcons`): shown whenever something is pinned
+         and a tail exists -- a running non-favorite, the Trash button or the applications
+         button. `_reload()` had a second copy of the old condition and ran it *before* the tail
+         buttons existed; it now calls `_updateSeparator()` after them, so one rule decides the
+         line. Both tail setters re-evaluate it, so switching the Trash and the applications
+         button off can still leave no line at all. The settled-icon count that D-017/D-037/
+         D-041 exist to protect keeps deciding the case where both tail buttons are off.
+         `MAINTENANCE.md` / `.zh-CN.md` and the tier-3 B6 comment and ENV text moved with it.
+Evidence L0: `npm test` 134/134, tier 1 9/9. L1: tier 2 24/24, and the kept sandbox log shows
+         `+separator at=6 (favs=8 running=0 reason=reload)` -- a separator with zero running
+         non-favorites, which the old rule could not produce, on the reload path that used to
+         carry its own copy of the condition. B6 was re-read rather than re-run: it flips
+         `show-running-apps`, which still takes the line down and back up.
+Cost     The dock is ~15px wider whenever anything is pinned, permanently. `at=6` with `favs=8`
+         is not an off-by-one: two pinned ids do not resolve through AppSystem here, and the
+         index counts rendered leading favorites.
+Commit   6b80798
+
+---
+
+### D-097 · 2026-11-05 · taste
+
+Symptom  The icon label sat closer to the row than Ubuntu's dash label does, which read as
+         crowded next to the magnified icon.
+Change   `TOOLTIP_GAP` 8 → 10, the gap Ubuntu's `.dash-label.bottom` gets from `margin-bottom`
+         (its `shrink` variant is 3px). Supersedes D-091's by-eye 8px; the placement formula
+         from D-090/D-092 (settled rect plus the magnification rise) is untouched.
+Evidence L0: `npm test` 134/134. No check covers label placement -- tier 2 forbids animation
+         assertions -- so this is by eye on the live session, same as D-091.
+Cost     None.
+Commit   6b80798
+
+---
+
+### D-098 · 2026-11-05 · fix
+
+Symptom  The pinned row could not be reordered, an application could not be pinned by dragging,
+         and nothing in the dock could unpin by dragging: the only way to change the order was
+         outside the dock.
+Change   New `lib/dockDnd.js`, gated by `dock-dnd-enabled` (default on). Every icon actor gets a
+         drag source -- a `_delegate` with `getDragActor`/`getDragActorSource` plus the gesture
+         `DND.makeDraggable` hangs on it -- and two drop targets exist: the container, which
+         clamps the drop position into the favourites range and writes through
+         `moveFavoriteToPos` or `addFavoriteAtPos`, and the applications button, which accepts a
+         pinned icon and removes it, the way the shell's own Show Apps button does. Running
+         unpinned icons are draggable on purpose: dropping one in the favourites range pins it,
+         which is the only thing that makes their order persist. The write is deferred to a
+         BEFORE_REDRAW later because the drop animation is still resolving, and the whole row is
+         frozen for the gesture -- `_doSync` and `_reload` record one deferred reason and replay
+         it when the drag releases, so a drag delays a sync but can never drop it. The dragged
+         icon hides and the placeholder fills one slot, so the dock keeps its width throughout.
+         The gesture is captured by diffing the actor's action list around the call rather than
+         by testing a gesture type name, so switching drag off does not depend on what that class
+         is called this cycle; `Clutter.Action` removal is the only API used on it.
+Evidence L0: `npm test` 134/134, tier 1 9/9 including the new key's schema strict compile and its
+         two README rows. L1: tier 2 24/24, kept log shows `started (enabled)` then `stopped`
+         then started again across enable cycles, zero `could not capture` warnings -- every
+         icon's gesture was found -- and zero JS errors. The separator and Trash lines did not
+         regress. Nothing here is L2: tier 2 forbids pointer assertions, so the long press, the
+         placeholder landing where the drop applies, the unpin drop and a grid-to-dock pin are
+         all unverified until a logout.
+Cost     One action and one delegate per icon, both dropped when the setting is off. Dragging
+         suppresses icon-row syncs for its duration only.
+Commit   6b80798
+
+---
+
+### D-099 · 2026-11-05 · taste
+
+Symptom  Four details read as this dock rather than as a macOS-style dock: an application with a
+         dozen windows drew a dozen dots and lengthened the indicator row, the separator was a
+         fixed 32px bar that lay wrong on a side dock and was three times too bright, and the
+         name label appeared the instant the pointer touched an icon -- so sweeping the row
+         flashed every name -- in a rounded rectangle instead of a pill.
+Change   Dots cap at 4, matching the shell's own `MAX_WINDOWS_CLASSES`, and the cap is applied
+         before the indicator state key is built so 5 and 6 windows no longer each rebuild the
+         widgets; the Trash indicator is capped the same way. The separator now spans the current
+         icon size, lies down when the dock is on a left or right edge, and drops to
+         `rgba(255,255,255,0.1)`; a new `applySeparatorGeometry()` runs on creation, on
+         `icon-size` and on dock-position changes. The label waits 300ms of steady hover and
+         fades in over 150ms -- the shell dash's own two constants -- with its timer id stored so
+         `_hideTooltip` and `stop()` can cancel it, and it is styled as a pill: 999px radius, a
+         1px hairline border and full black, the padding having matched all along.
+Evidence L0: `npm test` 134/134, tier 1 9/9. No check covers any of these four -- tier 2 forbids
+         animation and pixel assertions -- so the judgement is by eye on the live session, the
+         same basis D-089/D-091 were set on, and it stays discardable on that basis.
+Cost     The label is now invisible for the first 300ms of a hover, which reads as slower if you
+         expect the old instant name.
+Commit   6b80798
+
+---
+
+### D-100 · 2026-11-05 · fix
+
+Symptom  Dragging a pinned icon did nothing. The live journal was the evidence: it carried
+         `[dnd] started (enabled)` and no `could not capture` warning, so every icon had its
+         gesture installed and enabled, yet `drag-begin` never fired once across the whole boot.
+Change   The icon's left button no longer acts on press. Pressing had been launching the
+         application and returning EVENT_STOP right there, so the press itself activated the
+         window, dodge hid the dock under it (the same journal is full of `overlap -> hide`
+         lines), and the icon moved out from under the pointer before the gesture could
+         recognise -- the drag died on its own first event. Activation now happens on release,
+         only when the same actor is still hovered and no drag is in progress, which is the
+         semantics the shell's own icon has: `AppViewItem extends St.Button`
+         (appDisplay.js:1847) fires `clicked` on release, and that is why the identical
+         200ms drag works there. A `recognize` probe was added on the captured gesture because
+         the two remaining silent failure modes print nothing on their own -- no recognise at
+         all, versus recognising and then losing the grab, since `_gestureRecognized()` returns
+         before emitting drag-begin when Main.pushModal yields nothing (dnd.js:144-147).
+Evidence L0: `npm test` 134/134, tier 1 9/9. L1: tier 2 24/24. The causal chain from the live
+         journal is L2 for the *symptom* (no drag-begin in a boot where the gesture was
+         installed on every icon); the fix itself is unverified -- it needs a pointer, and the
+         journal after the next logout is what decides whether the gesture now recognises.
+Cost     Launching an icon now happens on release rather than press. That is the standard
+         semantics and the shell's, but it is a feel change for the whole row.
+Commit   6b80798
+
+---
+
+### D-101 · 2026-11-05 · fix
+
+Symptom  Opening the icon context menu could throw `Object Gjs_ui_boxpointer_BoxPointer has
+         been already disposed` from popupMenu.js, live in the journal, when the menu was
+         opened around a favorites change.
+Change   `_showMenu()` defers its `open()` to an idle and guarded only the opacity line, so
+         `open()` ran unguarded on a menu that had already been disposed in between -- the
+         identity check `this._contextMenu !== menu` cannot see that, because the field still
+         points at the disposed menu. The whole open sequence is now inside the try, the field
+         is cleared on failure, and one warn line replaces the raw throw into the shell.
+Evidence L0: `npm test` 134/134. The throw itself is L2 -- read out of this boot's journal --
+         and the fix is unverified: reproducing it needs a favorites change landing inside the
+         same idle window as the right-click.
+Cost     None.
+Commit   6b80798
+
+---
+
+### D-102 · 2026-11-05 · fix
+
+Symptom  Clicking the Trash more than once did nothing visible, and the dock had no way to
+         open a second trash window at all.
+Change   The click rule moved out of the app-icon path into a new pure module,
+         `lib/clickAction.js` -- `clickActionFor(window)` decides minimize / restore / activate /
+         open-new-window, `applyClickAction()` carries it out with the caller's timestamp and
+         launch callback. `DockManager._onAppClicked` now runs through it (same four branches it
+         already had, one less copy) and `TrashManager.activate()` runs through the same rule, so
+         "the Trash answers a click like an app" is enforced by construction rather than by a
+         comment saying so. `openNewWindow()` launches the URI: the measured Exec in
+         org.gnome.Nautilus.desktop is `nautilus --new-window %U` and `-w` is documented as
+         "Always open a new window for browsing specified URIs", so a launch is always another
+         window -- reachable by middle-click and by a New Window menu row, while Open Trash became
+         `reveal()` (always raises, never carries the click's toggle). The menu row and the
+         overview teardown for the Trash route through `DockManager._onTrashClicked`, which shares
+         the extracted `_exitOverview()` with the app path.
+Evidence L0: `test/clickAction.test.js` -- 10 assertions over the whole focus x minimized table,
+         the restore ordering (unminimize before activate), that only the windowless case may
+         reach the launch callback, and the action each call reports back. `lib/clickAction.js`
+         added to the PURE_LIBS guard. Tier 1 floor raised to 144/36 in the same change that added
+         the suite. L1: tier 2 24/24. One journal line records which branch every Trash click took
+         (`[trash] click -> activate|minimize|restore|open-new-window (open=N)`) because the screen
+         cannot tell "nothing happened" from "minimized the window you could not see" -- that is the
+         instrument the post-logout round reads. The behavior on screen is still L2.
+Cost     A left-click on an app icon can now minimize the focused window in one more case than
+         before (the branch table is unchanged, but the Trash now shares it). The pure module is
+         one more file in the Node-importable set.
+Commit   6b80798
+
+---
+
+### D-103 · 2026-11-05 · fix
+
+Symptom  Minimizing or restoring a trash window animated into and out of the **Files** icon,
+         and the icon squash fired there too.
+Change   `IconManager.iconIdForWindow(metaWin)` is now the single answer to "which dock icon owns
+         this window": the `TRASH_ICON_ID` sentinel when the dock is showing that window on its
+         own Trash button, otherwise the tracker's app id. `GenieController._appIdForWindow` asks
+         the dock first and falls back to the tracker when the method is missing, which is the
+         file's existing degradation style. On the dock side a new `_iconWrapperFor(appId)`
+         resolves the sentinel to the Trash button's icon wrapper (and merges the duplicated
+         wrapper lookup in `getIconRectForAppId` / `squashForAppId`), so the rect chain, the rect
+         cache, the dodge-peek fallbacks and the squash all aim at the Trash without a single
+         genie-side special case. With `show-trash` off `representsTrashWindow()` is false, the
+         sentinel is never returned and the animation goes back to Files by itself.
+Evidence L0/L1: `npm test` 144/144, tier 1 9/9, tier 2 24/24 (genie `_validate()` still accepts
+         the private API surface). Where the animation actually lands is L2 -- it needs the logout.
+Cost     `TRASH_ICON_ID` is a dock-internal id that appears in the genie rect cache. It cannot
+         collide: real app ids end in `.desktop`.
+Commit   6b80798
+
+---
+
+### D-104 · 2026-11-05 · fix
+
+Symptom  Hovering the Trash gave no window preview, unlike every other icon.
+Change   The preview popup only ever asked an app for `get_id()` and `get_windows()`, so the
+         Trash is fed to it through a two-method stand-in built fresh on each hover (it must read
+         the live window list, which the popup re-reads when a thumbnail is closed). The preview
+         window filter now receives `(window, app)` and lets the Trash's own windows through for
+         the Trash subject only -- everything else keeps dropping them, which is the phase-1 rule.
+         Focus highlighting moved from `tracker.focus_app === thumb.app && has_focus()` to
+         `metaWindow.has_focus()`: that matches what `_createThumb` already did on the first paint,
+         and a stand-in object can never equal the real Files app, so the old condition would have
+         left every trash thumbnail unhighlighted. `thumb.app` and the `Shell` import went with it.
+Evidence L1: tier 2 24/24 with the popup wired; thumbnails, click-to-activate and the highlight
+         are L2 -- pointer and the logout.
+Cost     A duck-typed stand-in for something the popup documents as an app. The contract is two
+         methods and it is stated at both ends.
+Commit   6b80798
+
+---
+
+### D-105 · 2026-11-05 · taste
+
+Symptom  No icon in the dock had a "new window" gesture; Ubuntu's dash has one on middle-click.
+Change   Middle-click opens another window on every icon, consumed on press (the left button
+         stays free for the drag gesture, which is release-based and must not be starved). The
+         Trash answers the same button with another trash window through the same route.
+         Guarded by `_dragInProgress` so a middle-click cannot land inside a live drag.
+Evidence L1 only: tier 2 24/24. Whether the button reaches the icon at all -- rather than the
+         shell or a grab -- is L2 and is on the post-logout checklist with the rest.
+Cost     One more button bound. Nothing was rebound that a user might already rely on: middle
+         click did nothing before.
+Commit   6b80798
+
+---
+
+### D-106 · 2026-11-05 · fix
+
+Symptom  The owner restarted, drag worked, and a dropped icon **disappeared from the dock**.
+         Journal fingerprint, for every drop that landed on a new slot:
+
+           [dnd] drop <id> at slot=13
+           [icons] incremental: +0 -1 reorder:yes (reason=favorite-apps)
+           [icons] incremental: +0 -0 reorder:yes (reason=favorite-apps)
+
+         `-1` then `+0 -0` -- the icon was removed and the pass that should have
+         put it back added nothing.
+Change   Two defects, one write and one render, both had to go.
+         (1) `AppFavorites.moveFavoriteToPos` is `_removeFavorite` + `_addFavorite`
+         (appFavorites.js:115-118): it publishes a `favorite-apps` value with NO
+         entry for the app between the two writes. The reorder now writes the key
+         itself, once, rebuilt from the key's current value
+         (`lib/dockDndSlots.js:moveInFavoriteList`), so there is no intermediate
+         state for anyone to render. Pin and unpin keep going through AppFavorites
+         -- one write each, and the native Undo toast comes with them.
+         (2) Even with one write, the render path was broken on its own: a removed
+         favorite fades out over 200ms and keeps its entry in `_icons` until the
+         tail runs (deliberately, so the dock width matches the still-visible child),
+         so a re-add inside that window concluded "the icon already exists", added
+         nothing, and the fade's tail then destroyed the actor. `_keepExistingIcon()`
+         now cancels the pending fade and reuses the actor -- and it is used by BOTH
+         add paths (`_syncFavorites` and `_doWindowChange`), because a stopping and
+         restarting app falls into the same trap.
+         The second defect is the one that could bite anything that re-adds an id
+         within 200ms of losing it; the first is what made every drop hit it.
+Evidence L0: 19 new assertions in `test/dockDndSlots.test.js` (see D-107) over the write shape --
+         forward and backward moves, an out-of-range position clamping to the end, the id being
+         absent, the input list not being mutated, and an id that resolves to nothing surviving
+         the write untouched. L1: tier 1 9/9 (164/42), tier 2 24/24, `check:log` PASS. The
+         disappear itself is L2 from the journal above and its fix is unverified until the next
+         logout.
+Cost     The reorder bypasses AppFavorites, so it produces no Undo notification -- the shell
+         produces none for a move either, so nothing the owner had is lost. The bystander hazard
+         described in D-107's note still applies to pin/unpin, which stay on AppFavorites.
+Commit   6b80798
+
+---
+
+### D-107 · 2026-11-05 · fix
+
+Symptom  Dragging an icon out of the app grid, the drop indicator appeared **after the Show
+         Applications button** while the icon actually landed at the end of the pinned run,
+         before the separator. Indicator and result disagreed.
+Change   `_containerIndexForFavoriteSlot()` fell through its loop and returned the end of the
+         child list when the slot ran past the last favourite -- which in this dock's container
+         means after the separator, the running icons, the Trash and the applications button.
+         It now returns the boundary right after the last favourite icon, so the gap is always
+         where the drop will land. The rule and its siblings were extracted into the pure
+         `lib/dockDndSlots.js` (`slotAt`, `clampToFavoriteSlots`, `isSelfPosition`,
+         `containerIndexForFavoriteSlot`, `favoriteIndexAtGap`, `moveInFavoriteList`) with
+         `DockDnd` keeping only the projection from actors to `{start,size}` / app-id rows.
+         Also recorded, and NOT fixed here: every AppFavorites write rebuilds the list from
+         `_getIds()`, which holds only the ids AppSystem resolves at that instant
+         (appFavorites.js:46-62,124) -- so a pin or unpin can silently drop an unrelated
+         favourite whose .desktop is mid-rewrite. One of the two browser-generated entries the
+         owner had been dropping was gone from `favorite-apps` after the session, while its
+         .desktop file is still on disk. Going through the key for the move is what keeps the
+         reorder clear of it; §14 carries the rest.
+Evidence L0: the boundary case is asserted directly -- a row of `[fav, fav, separator, running,
+         trash, show-apps]` with slot 2 and slot 5 both returning index 2, plus a favourite with
+         no icon in the row. L1: tiers 1 and 2 green. The indicator position on screen is L2.
+Cost     One more pure module. It is in the Node-importable guard list, so the split is enforced.
+Commit   6b80798
+
+---
+
+### D-108 · 2026-11-05 · fix
+
+Symptom  The owner asked for Ubuntu Dock's drag behaviour specifically ("他的移动就非常棒").
+Change   `DockDnd` now runs the shell dash's algorithm, which is what Ubuntu Dock inherits
+         (its `DockDash` only forwards to `Dash.prototype` and swaps the axis). Four behaviours
+         that the previous version did not have, each with the shell's own number or guard:
+         - the slot under the pointer is a proportional partition of the row
+           (`floor((coord-origin)*n/extent)`, placeholder and separator subtracted from both,
+           RTL mirrored) rather than a nearest-edge scan;
+         - a slot at or immediately after the dragged item's own favourite position withdraws
+           the gap and drops nothing (dash.js:910) -- before, a drop in place wrote the list;
+         - the gap grows in over 200ms when it first appears and shrinks out when it is cleared,
+           and every move is refused while one is still shrinking (dash.js:841-851,906), which
+           is what stops it buzzing across the row when the pointer sits on a boundary;
+         - transient (window-backed) apps and a read-only `favorite-apps` key are refused up
+           front, the way dash.js:860-868 does.
+         The one divergence recorded here -- dimming the dragged icon instead of hiding it, and
+         the gap therefore always widening the dock -- was reversed by the owner in D-111, after
+         this entry was written. Read D-109 and D-111 for the live behaviour.
+Evidence L0: the slot/gate/self-position rules are the 19 assertions of D-107. L1: tier 2 24/24.
+         Feel is L2 and is exactly the thing that needs the owner's hand on the pointer.
+Cost     The proportional partition reads `child.x/width` per drag-motion event (already the
+         case before); it is one walk of a row of a dozen children.
+Commit   6b80798
+
+---
+
+### D-109 · 2026-11-05 · fix
+
+Symptom  Dropping an icon from the app grid adds a child to the row and removes none, so the
+         row becomes one slot wider than the width the dock computed for itself -- the trailing
+         icons sit past the calculated background for the whole gesture.
+Change   `IconManager.setDragGap()/hasDragGap()` records that a gap is occupying a slot, and
+         `_computeContainerRect()` adds one padded slot plus spacing while it is set. As first
+         written the flag was raised only when the drag had no local source (`_dragging === null`),
+         because a drag from the dock's own row hid its icon -- invisible children leave the
+         layout, the gap took that freed slot, and the net width was zero. D-111 moved the source
+         icon to opacity 50 instead of hiding it, which removes the case distinction: the gap now
+         always reserves its slot. The flag routes through `_onIconsChanged` either way, so the
+         position update happens on gap create and destroy, not per motion event.
+Evidence L1: tier 2 24/24; the geometry itself is not exercised by any offline tier, and the
+         overflow it fixes was inferred from the width formula, not measured. L2 on the next
+         logout, with the pointer.
+Cost     Two more public methods on IconManager for one layout fact.
+Commit   6b80798
+
+---
+
+### D-110 · 2026-11-05 · fix
+
+Symptom  This boot's journal carries the same error twice, each time within a second of a
+         favorites write (a drop, or an unpin while a menu was open):
+
+           Object Gjs_ui_boxpointer_BoxPointer (…), has been already disposed —
+           impossible to get any property from it. …destroyed from C code…
+           #0 popupMenu.js:1085   (close() reading `this._boxPointer.visible`)
+           #1 popupMenu.js:1468   (_onMenuOpenState: `oldMenu?.close(FADE)`)
+           #4 popupMenu.js:1078   (open() emitting `open-state-changed')
+           #5 …/macos-dock@local/lib/iconManager.js:1724   (our `menu.open()`)
+
+         with a `PopupMenuItem … already disposed` block right behind it. The D-101 guard
+         did not help because the throw is not in our `open()` -- it is the MenuManager
+         closing a *previous* menu of ours that had already been destroyed.
+Change   Read popupMenu.js instead of guessing. Three facts decided the fix:
+         `MenuManager.removeMenu()` pops the modal and unlinks the menu but never assigns
+         `activeMenu = null` (1438-1456); the only place that clears `activeMenu` is
+         `_onMenuOpenState` on the CLOSE (1486-1487); and `close()` emits that state change
+         synchronously and only then starts its animation (1083-1094). So
+         "removeMenu() + destroy(), closed with the FADE default, from the item's activate
+         handler" destroyed the actor while its own close animation still held it, and left
+         the manager pointing at the corpse for the next `open()` to trip over.
+         `_finalizeContextMenu()` now goes: our references down first (so nothing re-enters)
+         → `close(PopupAnimation.NONE)`, which is what makes the manager let go → disconnect
+         our handlers → `destroy()`, leaving `removeMenu` to the manager's own destroy hook
+         (`addMenu` connects it, 1428). Two more pieces: the item's activate handler no longer
+         closes the menu at all, because the shell's own handler is connected AFTER and does
+         it (785-787) while an action that writes favorites kills the anchor underneath us;
+         and a destroy hook on the menu actor releases our references for the path where the
+         shell disposes the menu with no state change for us to see.
+         Removed as a side effect: `setOnContextMenuActorChanged` / `_onContextMenuActorChanged`,
+         which had no caller anywhere in the repo -- an unread contract, not a feature.
+Evidence L2 for the symptom, both stacks above are this boot's journal. The fix is L1:
+         tiers 1 (164/42, 9/9) and 2 (24/24) green with the new teardown, and nothing offline
+         opens a context menu over a row rebuild -- that is one right-click during a pin/unpin
+         round trip on the post-logout checklist.
+Cost     A replaced menu no longer fades out (the destroy cut that animation short anyway), and
+         the `removeMenu()` call that used to sit in our teardown is gone: it is now reached
+         only through the manager's own destroy hook.
+Commit   6b80798
+
+---
+
+### D-111 · 2026-11-05 · taste
+
+Symptom  The owner asked to copy Ubuntu Dock's drag completely ("他的移动就非常棒"), and was
+         offered the choice of what the source icon does during a gesture. Two options were on
+         the table: hide it (what D-108 shipped, width rock-steady, hole under the pointer) or
+         dim it and let the dock grow (what Ubuntu does). Chosen: **dim + grow**.
+Change   `_onDragBegin` sets `actor.opacity = DRAGGED_OPACITY` (50) and `_finishDrag` restores
+         255, which are Ubuntu's own two numbers and its own two hook points
+         (ubuntu-dock `dash.js:519-526` -- its `_createAppItem` connects drag-begin/drag-end and
+         nothing else). Hiding has nothing to do with opacity, so `_dragging` stays whatever the
+         actor is and `_clearPlaceholder(true)`/`setDragInProgress(false)` still close the
+         gesture. The consequence is D-109's flag becoming unconditional: the source icon never
+         leaves the layout now, so the gap always occupies a slot nobody gave up and
+         `_relocatePlaceholder` always calls `setDragGap(true)`. The row is therefore one padded
+         slot wider than resting for the whole gesture, exactly as Ubuntu's dash grows by a slot.
+         An actor destroyed mid-gesture is caught rather than allowed to throw -- the opacity
+         write is the only thing left in that path.
+Evidence L1: tiers 1 (9/9) and 2 (24/24) with the drag live in the sandbox; the opacity and the
+         width are not asserted offline, and no tier moves a pointer. Ubuntu's number is read
+         from the installed extension, not from memory. L2 on the next logout.
+Cost     A drag now visibly widens and narrows the dock -- correct per Ubuntu, but new motion for
+         this fork's owner to judge, and it moves the dock's neighbours by one slot mid-gesture
+         on a `!hide-dock` layout.
+Commit   6b80798
+
+---
+
+### D-112 · 2026-11-05 · fix
+
+Symptom  Clicking an icon with several windows acted on one window (minimize if focused, else
+         activate), so the only way to reach the third window of an app was the keyboard or the
+         overview. Ubuntu's default click action opens the window picker instead.
+Change   `showsPreviewsOnClick(windowCount, focused)` in `lib/clickAction.js` encodes the half of
+         Ubuntu's `FOCUS_OR_PREVIEWS` that this fork uses -- `windowCount > 1 && focused`, the
+         `(windows.length > 1 || modifiers || button !== 1)` test with the modifier and non-left
+         button branches removed (ubuntu-dock `appIcons.js:618-627`); middle-click keeps its own
+         meaning, opening a new window. `dockManager._onAppClicked` tries the preview first and
+         falls through to `applyClickAction` if the icon declines, so previews switched off, or no
+         actor to hang the popup on, costs the click nothing rather than swallowing it. The Trash
+         goes through the same branch with its own duck-typed subject.
+         The holding open is the actual work: `WindowPreviewPopup.togglePinned()` pins the popup
+         and takes `Main.pushModal` on it, dismissing on Escape, on a press anywhere outside it,
+         or on the same icon clicked again. That is the behaviour-level shape of Ubuntu's
+         `WindowPreviewMenu`, which is a real PopupMenu under a `PopupMenuManager` and so inherits
+         MenuManager's grab and outside-press dismissal (`popupMenu.js:1501-1529`); this popup is
+         not a menu, so it takes the grab itself and copies the dismissal *rules*, not the code
+         (GPL-3). A refused pushModal drops the pin and hands the popup back to the hover rules --
+         an un-grabbable pinned popup would be undismissable. Selecting a thumbnail activates and
+         closes, as a menu item would.
+Evidence L0: 5 assertions over the window-count x focus table in `test/clickAction.test.js` --
+         3 and 2 windows focused open previews, an unfocused app does not, and a single focused
+         window must NOT (the row that would silently change every existing click).
+         L1: tiers 1 (9/9) and 2 (24/24). The grab, the dismiss paths and the fall-through when
+         previews are off are all L2 -- tier 2 forbids pointer and pixel assertions.
+Cost     Two fields and four methods on the popup for one interaction, and a click that used to
+         minimize now opens a picker when the app has more than one window -- minimising from the
+         dock is then one click inside the picker, or the preview's own close button.
+Deliberate Not done   The owner was asked whether the click actions should become a `click-action`
+         setting like Ubuntu's ten-mode enum, and said no: the behaviour stays hardcoded, so no
+         new schema keys (the count stays 64) and no prefs UI.
+Commit   6b80798
+
+---
+
+### D-113 · 2026-11-05 · fix
+
+Symptom  The owner's screenshot: the dark background stops roughly a third of the row short,
+         and the last icons, the separator, the Trash and the applications button sit on the
+         bare desktop. A live boot that had just done nine drags and six favorites writes.
+Change   `_computeContainerRect()` no longer ESTIMATES the dock's length. It used to add up
+         `iconCount × (icon-size+12) + gaps + separatorWidth + tailCount + a flag for the drag
+         gap` -- a second description of the row, maintained by hand, which is wrong the moment
+         the row contains a child the estimate does not name. Now it measures: sum the visible
+         children's own requests, add the layout's spacing and the container's padding, and take
+         `MIN_DOCK_WIDTH` as a floor. Ubuntu's dash has never had this bug because it has never
+         had this estimate -- the box is sized by its content.
+         Two facts measured before writing the sum, because both were guessed wrong first:
+         the gap between requests lives on the layout manager (`container.spacing` is not a
+         thing, and reading it as one produced a NaN width), and a child's CSS margin is already
+         inside its own request -- adding `margin_left/right` again overshoots the separator by
+         8px per row.
+         `IconManager.setDragGap()/hasDragGap()` and the `_dragGap` field are gone: they existed
+         only to feed the estimate. `notifyRowChanged()` replaces them.
+Evidence L2 for the symptom (the screenshot). L1 for the fix, and it is the kind of L1 that
+         separates regression from coincidence: the new tier-2 `dock-extent-tracks-row` compares
+         the computed length against the row's real allocation in six states, and run against
+         the pre-change estimate it FAILS with `557` where the row measured `623` (gap open),
+         `583` (gap shrinking) and `603` (a child the estimate never knew). Post-change:
+         557/557, 623/623, 584/583, 557/557, 603/603, 557/557.
+Cost     One walk of a dozen children per position update, which already happened per icons
+         change; and the width now follows anything that lands in the row, which is the point
+         but also means a stray child shows up as a wider dock instead of as icons outside it.
+Commit   6b80798
+
+---
+
+### D-114 · 2026-11-05 · fix
+
+Symptom  The drag gap jumped in and out at full size -- one whole slot, instantly -- instead of
+         growing the way Ubuntu's dash does.
+Change   The gap animates its WIDTH now, not its scale. Scale is a transform: it moves pixels
+         and leaves the layout alone, so an eased scale cannot make the row grow, which is why
+         the dock had to be told about the gap out of band (see D-113). Animating the request
+         makes the row itself grow, and with the length measured from the row the background
+         breathes with it. The shell reaches the same result from the other direction: its
+         placeholder reports a preferred width already multiplied by its own animation.
+         `notify::width` on the placeholder is what asks the dock to re-measure, so the growth
+         is sampled per frame rather than per drag event; a gap born at full size asks once
+         directly, because no notify is coming for it. The shrink's destroy hook also asks, so
+         the slot is handed back exactly when the child leaves the row rather than 200ms early.
+Evidence L1: the same tier-2 check samples `gap-open` (623/623) and `gap-shrinking` (583 row,
+         584 computed) -- the intermediate value is the proof the animation is in the layout and
+         not in a flag. Feel is L2.
+Cost     One more `set_size` per animation frame for 200ms at a time, and the background now
+         visibly resizes during a drag -- which is what the owner asked for in D-111.
+Commit   6b80798
+
+---
+
+### D-115 · 2026-11-05 · fix
+
+Symptom  Two separate things, one cause: the separator, the Trash and the applications button
+         magnify when the pointer passes them (they are not app tiles), and an icon can stay
+         enlarged after the pointer has left it.
+Change   The tick walks ICON actors only -- whatever the icon manager tagged `_appData` -- and
+         the per-actor scale lives on the actor instead of in a positional array. The array was
+         the second bug: it was indexed by child position, so every insertion into the row
+         (a drag gap, an icon appearing) shifted the whole array and handed one icon's scale to
+         its neighbour. `_collectIcons()` reuses one array across frames, so this costs no
+         allocation on the hot path.
+         This also removes a collision: the tick wrote `scale_x` on every child, and the drag
+         gap is a child whose `scale_x` is its own animation.
+Evidence L1: `tick-geometry-reads` now reports "6 for 6 icons of 9 children" and its assertion
+         was rewritten to the new contract (one read per icon, none per non-icon child) -- the
+         old assertion counted all nine children and would have called the fix a regression.
+         Whether the separator visibly stops bulging is L2.
+Cost     A `filter` over the children per frame, into a reused array. Strictly fewer geometry
+         reads and fewer property writes than before.
+Commit   6b80798
+
+---
+
+### D-116 · 2026-11-05 · fix
+
+Symptom  Two. (a) In the sandbox, ten drags with one interrupted left FIVE icons at opacity 50
+         for the rest of the session. (b) On the live session, nine `drag begin`/`drag end`
+         pairs and not one `drop` line -- the gesture runs, nothing is written, and no log says
+         why.
+Change   (a) The dim is a Set of actors, not a single "currently dragged" field. `_finishDrag`
+         restores everything in it, and `stop()` reaches `_finishDrag` on the disable path. A
+         gesture can end without ever calling the finish of the previous one (the dock sliding
+         out from under the pointer is the live case, and dodge logs `overlap -> hide`
+         constantly in this boot), so one slot is not enough state.
+         (b) Every silent exit in `_handleDragOver`/`_acceptDrop` now says what it decided:
+         `over gap@pos=… slot=… favPos=… favs=…`, `over self-slot`, `over refused by
+         canDrop`, `drop in place, nothing written (animating=…)`, `drop refused (…)`. Throttled
+         to one line per distinct verdict per drag, because `handleDragOver` runs per motion
+         event. This is an instrument, not a feature: the sandbox proves the API path does drop
+         (`drop move to fav#4`), so what is missing is the reason the real pointer path does not
+         reach it, and that reason is currently invisible from outside.
+Evidence L1 for (a): the new tier-2 `drag-dim-released` FAILS against the single-slot version
+         ("1 icon(s) stuck at drag opacity after two begins and one finish") and passes against
+         the Set. (b) RESOLVED by the instrument on the next boot: 15 `drag begin`, 112 gap
+         moves, and `2 drop move + 5 drop pin + 6 drop in place` -- reorders and grid-pins both
+         reach the write, and the six silent ones are the owner releasing on the icon's own slot,
+         which is what the shell persists nothing for (dash.js:974-976). The old "nine drags,
+         zero drops" boot had no such lines at all.
+Cost     A Set of at most a couple of actors for the length of a gesture; one journal line per
+         slot change during a drag.
+Commit   6b80798
+
+---
+
+### D-117 · 2026-11-06 · fix
+
+Symptom  The owner: the Trash menu's "Open Trash" and "New Window" do the same thing.
+Change   "Open Trash" is gone, and with it `TrashManager.reveal()` and dockManager's
+         `reveal` branch -- not left as an unreached method. Ubuntu's Trash is an
+         AppInfo whose only advertised action is `empty-trash`
+         (ubuntu-dock `locations.js:797-806`), so its menu is New Window plus that
+         row when the trash is non-empty; opening the trash is what *clicking the
+         icon* does, and a second row that also brought it forward reads as a
+         duplicate. The click keeps the toggle rule the owner asked for, and the
+         multi-window picker still applies when previews are on.
+Evidence L1: tiers 1 (9/9) and 2 (26/26); the sandbox probe asserts
+         `typeof trashManager.reveal === 'undefined'`. The menu itself is L2
+         (one right-click).
+Cost     One row fewer. Nothing is lost that the icon click does not already do.
+Commit   6b80798
+
+---
+
+### D-118 · 2026-11-06 · fix
+
+Symptom  Two, from the same gesture. (a) The owner tried to unpin by dragging an icon
+         onto the app grid, because the Show Apps button gives no sign that it is the
+         unpin target -- only a background highlight. (b) That attempt threw four
+         times inside the shell in one boot:
+           TypeError: icon.get_parent is not a function
+           _getViewFromIcon@resource:///org/gnome/shell/ui/appDisplay.js:108
+           _canAccept@resource:///org/gnome/shell/ui/appDisplay.js:3108
+Change   (a) The shell answers the same problem by relabelling its own button:
+         `setDragApp()` shows "Unpin" while a favorite hovers it (dash.js:237-246).
+         `IconManager.setUnpinLabel()` does the equivalent here through the existing
+         tooltip, revealed without the 300ms hover delay because mid-drag this is the
+         only signal there is; leaving the button with the pointer still on it falls
+         back to the normal label rather than blanking a legitimate tooltip. The
+         style-class highlight stays.
+         (b) The grid's probe assumes the drag source is an actor, because the shell's
+         own grid icons set `_delegate = this` (appDisplay.js:1857). Ours is a plain
+         object, so `source.get_parent()` was undefined. The delegate now answers
+         `get_parent()` with the real actor's parent, so the walk climbs to the stage,
+         finds no `BaseAppView`, and `_canAccept` returns false -- the refusal the
+         shell intended, instead of an exception on our drag's behalf.
+         Deliberately NOT implemented, at the owner's choice: "drag out of the dock
+         to unpin". Neither the shell nor Ubuntu has that target, the overview is
+         usually closed during a dock drag, and it would unpin on any release outside
+         the dock.
+Evidence L1: sandbox probe -- `typeof delegate.get_parent === 'function'`, the parent
+         walk completes in 3 hops with no throw, and the cue reports
+         `visible=true, text="Unpin"` on and `visible=false` off. Tiers 1 (9/9) and
+         2 (26/26). Whether the word is readable during a real drag is L2.
+Cost     One more label while dragging (it reuses the tooltip actor, so no new chrome
+         and no new teardown path); one method on the delegate.
+Commit   6b80798
+
+---
+
+### D-119 · 2026-11-06 · fix
+
+Symptom  A live boot's teardown ended with `reload: 16 icons in 33.5ms
+         (reason=apps-button-fix-disabled)` between the revert and `[dnd] stopped`:
+         `disable()` was rebuilding the whole icon row on its way out.
+Change   `_stopAppButtonFix(rebuild = true)`; `disable()` passes false. The rebuild
+         is not decoration on the settings path -- the patch detaches the button's
+         original press/hover connections through SignalManager and cannot re-attach
+         them (the ids are gone with the bookkeeping), so turning the fix OFF
+         mid-session has to rebuild the row to get the stock handlers back. During
+         teardown the container is destroyed moments later, so the same rebuild is
+         pure cost: 33.5ms and a burst of `[icons]` lines in the middle of a disable,
+         which is exactly the kind of journal noise that makes a teardown regression
+         impossible to read.
+Evidence L1: the sandbox probe calls `stateObj.disable()` and the log now goes
+         `wrapped methods reverted` -> `[dnd] stopped` with zero
+         `apps-button-fix-disabled` lines (it was one). Tiers 1 (9/9), 2 (26/26).
+Cost     The OFF-mid-session path keeps its rebuild, so nothing about the fix's own
+         revert contract changes.
+Commit   6b80798
+
+---
+
+### D-120 · 2026-11-06 · fix
+
+Symptom  The post-logout journal showed two `drag end` lines for one `drag begin`.
+Change   `bindIcon` connects `drag-end` only. The shell's `_cancelDrag()` emits
+         `drag-cancelled` AND `drag-end` for the same gesture (dnd.js:592 then
+         597/535), so wiring both signals ran `_finishDrag()` twice per cancelled
+         drag. It was harmless -- `_dimmed` is already cleared, `_clearPlaceholder`
+         early-returns on a null gap, and `setDragInProgress(false)` replays nothing
+         the second time -- but it doubled the work and, worse, put a shape in the
+         journal that is indistinguishable from a real double teardown, which is the
+         thing I read when a drag goes wrong.
+Evidence L1: tiers 1 (9/9) and 2 (26/26) unchanged. The live shape is L2: one
+         `drag begin` must now have exactly one `drag end`.
+Cost     Nothing: one signal connection fewer. The second teardown was harmless, which is
+         exactly why it is easy to leave in -- and why the log line it fabricated is the cost.
+Commit   6b80798
+
+---
+
+### D-121 · 2026-11-06 · guard
+
+Symptom  The dock's background covering its own row is the bug class the owner has
+         photographed twice, and it is the one thing with **no live detector**: the
+         screenshot API answers `AccessDenied` in a normal session, and tier 2 has
+         no fractional scaling, no user theme and no live drag -- so a length that
+         disagreed only on this machine would have passed 26/26 forever.
+Change   `_updatePosition()` schedules one debounced check (400ms, one pending at a
+         time, id stored and removed in `disable()`), which compares the length we
+         just set against the row's **painted** extent -- `max(child.x + child.width)
+         + min(child.x)` over visible children -- and warns only when they differ by
+         more than 2px. The settle delay is the whole design: during the gap's 200ms
+         growth the request legitimately runs a frame ahead of the allocation, and a
+         check that fires mid-animation would call correct layout a bug.
+         `[layout] background <len> does not cover the row's <painted> (<n> children,
+         position=<p>)`
+Evidence L1, and the instrument is proved in both directions on the private
+         compositor: mutate the length by 180px and it speaks exactly once
+         (`background 377 does not cover the row's 557 (9 children, position=0)`);
+         replay a real drag -- 8 slot moves and a drop -- and it stays silent.
+         Mutation is the only honest way to test a check that is silent by design.
+Cost     One walk of the children per settled position update. Skipped entirely
+         while a check is already pending.
+Commit   6b80798
+
+---
+
+### D-122 · 2026-11-06 · chore
+
+Symptom  Four public accessors on IconManager had no caller left.
+Change   `getIconCount()`, `hasSeparator()`, `hasAppButton()` and `hasTrash()` were
+         read by exactly one thing: the count-based width estimate deleted in
+         D-113. They are gone rather than kept as a public surface nobody
+         compiles against. The comment at the fade-out path still explained the
+         keep-the-entry rule in terms of `getIconCount()` and "the dock width" --
+         rewritten to say what is actually true now: the fading child stays in the
+         row the length is measured from, or the dock shrinks ~200ms before the
+         icon leaves the screen and yanks the trailing buttons past the background.
+Evidence L1: tier 1's parse/coverage guards plus 166 unit assertions and 26 tier-2
+         checks green with the methods deleted.
+Cost     Nothing at runtime. What is paid is that a future caller must go through an accessor
+         that answers a question someone actually asks, rather than one of the four deleted names.
+Commit   6b80798
+
+---
+
+### D-123 · 2026-11-06 · fix
+
+Symptom  The owner moved an icon, felt something wrong at the end of the row, and
+         did not describe it. The journal described it: the 22s drag
+         07:59:34→07:59:56 spent its last seven seconds alternating, ~5×/s,
+           [dnd] over gap@pos=15 slot=15 favPos=13 favs=15
+           [dnd] over self-slot pos=14 favPos=13
+         and ended `drop in place, nothing written`. The gap was being offered and
+         withdrawn under a pointer that had not moved. Two other drags that boot
+         were clean, so this was a place, not a gesture.
+Change   The partition counted the Trash as a slot. It cannot hold a favourite, so
+         `_slotChildren()` skips it exactly as it already skips the Show Apps
+         button -- in the shell's dash neither of those is inside `_box` at all
+         (dash.js:212). The arithmetic is the whole bug: `slotAt` divides the row's
+         extent into `n` equal slots, so adding one slot to 15 icons stretched the
+         extent by the Trash's ~81px and moved the boundary between "this is your
+         own position, gap withdrawn" and "drop after the last favourite" off the
+         last icon's right edge and ~16px to its right (arithmetic on the live
+         row's own numbers -- 15 favourites, the pointer parked in the padding at
+         the end -- not a measured pixel) -- which is precisely the
+         strip of padding the pointer occupies whenever someone aims at the END of
+         the row. Magnification shifts the icons several px as the pointer
+         approaches them, so a pointer parked in that strip crosses the boundary
+         back and forth under itself, several times a second.
+         Nothing in this shell or Ubuntu Dock counts a tail button as a slot; the
+         exclusion list here had simply never been asked whether the Trash is one.
+Evidence L1 for the rule, and the pre-fix code is proved to break it: tier 2's new
+         `drag-slots-are-icons-only` reads the partition while a drag is live and
+         compares it against the row -- post-fix `{slots:6, icons:6, boundary:400,
+         lastIconEdge:400}`, pre-fix `{slots:7, icons:6, boundary:481,
+         lastIconEdge:400}` (481 is the Trash's right edge). This round's two fixes
+         were reverted together and tier 2 came back 26 pass / 2 fail, the two
+         failures being exactly this check and D-124's. Whether the buzzing stopped
+         is L2: it needs the owner's pointer at the end of a real row on a real
+         monitor, which no sandbox can supply.
+Cost     One fewer child examined per motion event; nothing to pay.
+Commit   6b80798
+
+---
+
+### D-124 · 2026-11-06 · fix
+
+Symptom  D-121's own instrument cried at login, once, and lied:
+           [layout] background 1066 does not cover the row's 55 (18 children, position=0)
+         07:59:17.404 -- 1.5s after the shell started. Eighteen children had been
+         added; none had been allocated yet, so "the row" was measured as the one
+         icon that happened to have a size, and the dock was accused of being
+         1011px too long. A warning that is wrong once is worse than no warning: it
+         teaches whoever reads the journal to ignore the class of bug it names.
+Change   `_checkExtentAgreement()` returns without an opinion when a visible child
+         reports zero extent along the dock's axis, because that is not a layout
+         disagreement but the absence of one. The gap is exempted by identity: it
+         is the only child that is legitimately 0px wide on purpose, widening in and
+         shrinking out (D-113), and the check runs 400ms after `_updatePosition()`
+         precisely to land inside such an animation some days.
+         The fix is a bail-out, so the bail-out itself has to be proved not to be a
+         mute button. `console.warn` cannot be reassigned in GJS -- measured, it
+         throws `"warn" is read-only` -- so the new tier-2 assertion counts
+         `[layout]` lines in the private shell's own log across two fabricated
+         states: an unallocated child (must add 0) and a laid-out row whose
+         background is then claimed to be 300px longer than it paints (must add
+         exactly 1). `{ghostDelta:0, speakDelta:1}` green; with the guard removed
+         `{ghostDelta:1, speakDelta:1}` red, which is the same mutation that made
+         D-121's instrument trustworthy in the first place.
+Evidence L1 for both halves, from the same probe as D-123 (`28 checks — 28 pass`,
+         and 26 pass 2 fail against pre-fix). Whether login is now quiet is L2, and
+         it is checkable with one finite journal query.
+Cost     One extra comparison per child in a check that already walked them.
+Commit   6b80798
+
+---
+
+### D-125 · 2026-11-06 · fix
+
+Symptom  The owner's screenshot: a large empty rounded slot sitting between two icons, with
+         nothing dragging. Reproduced from this boot's journal -- `[dnd] over gap@pos=15
+         slot=15 favPos=-1 favs=15` with no `drag begin` before it and no `drop`/`drag end`
+         after it. `favPos=-1` means the source is the app grid, not a dock icon.
+Change   `DockDnd` now installs a DND drag monitor for as long as it owns a visible cue
+         (`_ensureDragMonitor` / `_removeDragMonitor` / `_syncDragMonitor`, called from the gap's
+         create and clear paths and from the Unpin cue). `dragMotion` compares the pointer against
+         the container's transformed rect and withdraws the gap the moment the pointer is outside
+         it -- the same rule the shell's own dash applies (dash.js:403-406, 420-443), which is why
+         the native dash never shows this. A monitor only fires on motion, so Escape is covered by
+         a `captured-event` handler on the stage that clears the cues and returns
+         `EVENT_PROPAGATE`; the shell still cancels its own drag. Both are removed together in
+         `_finishDrag`, so no path leaves a monitor installed on a dock that is not dragging.
+         Why the shell cannot tell us: `dnd.js` notifies a target only while the pointer is over
+         it, and there is no drag-leave callback -- an external source emits no `drag-end` this
+         class can connect to either.
+Evidence L1: new tier-2 assertion `external-drag-placeholder-clears` drives
+         `_handleDragOver` with an out-of-dock event and requires the gap destroyed, the actor
+         gone and the monitor removed. It was one of the 3 FAILs of the pre-fix run
+         (`tier 2: 31 checks -- 31 pass, 0 fail` after). L2 pending: it is the owner's own gesture.
+Cost     One rect comparison per pointer motion event, only while a cue is on screen.
+Commit   6b80798
+
+---
+
+### D-126 · 2026-11-06 · fix
+
+Symptom  "Icon and its name are too far apart." The gap grew toward the ends of the row, worst on
+         the first icon, and did not depend on the pointer being over anything magnified.
+Change   `_positionTooltip()` subtracted `(this._magScale - 1) * actor.height * pivotY` -- the
+         configured *maximum* scale -- while the icon under the pointer settles at whatever the
+         falloff curve hands it, stored per actor as `_dockMagnifyScale` (magnification.js:344).
+         It now reads that value (`Math.max(1, Number(actor._dockMagnifyScale) || 1)`), so the
+         anchor is the height this icon actually reaches. With the old formula a 64px slot was
+         lifted ~25px even where the wave never grows the icon, which is the distance photographed.
+         `TOOLTIP_GAP` 10 -> 6 and became the `tooltip-gap-px` setting (D-128), the measured
+         glyph-to-bubble gap being gap + label padding, not gap alone.
+Evidence L1: new tier-2 assertion `tooltip-settled-scale` places the label through the real
+         `_positionTooltip` and compares it against the settled top edge -- reported delta 0px.
+         It was one of the 3 pre-fix FAILs. L2: the owner's eye, next login.
+Cost     One property read per label placement.
+Commit   6b80798
+### D-127 · 2026-11-06 · fix
+
+Symptom  "Moving dock icons themselves has bugs." Journal shape: `[dnd] drop move to fav#15`
+         followed by two `[icons] incremental ... reason=favorite-apps` lines in a row, the second
+         `+0 -1` -- an icon vanishing right after a successful reorder.
+Change   `_acceptDrop` ran `_finishDrag()` for every accepted drop, but `dnd.js` emits the
+         source's `drag-end` *after* `acceptDrop` returns. Clearing `_dragInProgress` inside the
+         drop therefore let the deferred favourites write replay the sync once, and the second
+         pass ran while the drag teardown was still settling. Dock-owned sources now finish only
+         their own cues -- the Unpin highlight and the gap -- and leave the gesture to
+         `drag-end`; the applications-button target makes the same split, and an app-grid source,
+         which has no dock-side `drag-end` at all, still gets the full `_finishDrag()`. A refused
+         drop now clears the cues instead of leaving them painted.
+Evidence L1: new tier-2 assertion `drag-guard-through-drop` asserts `_dragInProgress` is still
+         set and the monitor still installed immediately after `acceptDrop`, and gone after the
+         source's `drag-end`. It was the third pre-fix FAIL. The `+0 -1` itself stays L2-shaped:
+         it is a real-desktop log, and the double-sync is only its explanation.
+Cost     No extra work; one cleanup moved from the drop to the drag's own end.
+Commit   6b80798
+
+---
+
+### D-128 · 2026-11-06 · chore
+
+Symptom  Four behaviours the owner asked to tune were compile-time constants: the label's distance
+         and its delay, the cap on running dots, and the press-and-hold that starts a drag.
+Change   New schema keys `tooltip-gap-px` (0-30, default 6), `tooltip-delay-ms` (0-2000,
+         default 300), `max-indicator-dots` (1-10, default 4), `drag-hold-ms` (100-1000,
+         default 200). `IconManager` gained `setTooltipGap` / `setTooltipDelay` /
+         `setMaxIndicatorDots` and `DockDnd` gained `setDragHoldMs`; each clamps to the schema
+         range, ignores a no-op write, and re-anchors what it changes (the label is repositioned,
+         the indicators and the Trash indicator are refreshed, `DND.makeDraggable` picks the value
+         up when the next icon is built). `DockManager` reads all four at start and reconnects on
+         `changed::`, so a settings edit takes effect without a reload. Fixed geometry
+         (icon vpad, dock height extra, minimum width) deliberately stayed constants -- see the
+         conventions note in `dockManager.js` about formerly-companion settings.
+Evidence L1: tier 1 `schema-valid` + `compiled-fresh` (68 keys, compiled == XML == what the shell
+         reads), and the settings-surface guard, which pins the bound set to everything except the
+         twelve keynav-owned keys -- so a key with no prefs row is red. Rows for all four exist in
+         both READMEs, which that same guard requires. `npm test` 166/166. L2: a live slider
+         nudge, which needs no logout.
+Cost     Four keys, four setters, four connections; nothing read per frame.
+Commit   6b80798
+
+---
+
+### D-129 · 2026-11-06 · taste
+
+Symptom  The prefs window was one "General" page holding fourteen groups -- a scroll, not a
+         set of categories -- and most groups explained nothing.
+Change   Eight `Adw.PreferencesPage`s, which is what makes `AdwPreferencesWindow` show a sidebar:
+         Dock, Behavior, Magnification, Auto-hide, Genie Animation, Keyboard, System, Performance.
+         Twenty-two groups inside them, each with a one-line description of what the defaults
+         assume. Rows moved to the category a reader would look in rather than staying where they
+         were written: `show-threshold` from Behavior to Auto-hide (it is a reveal rule),
+         `apps-button-fix-enabled` from Behavior to System (it patches the shell, not the dock),
+         the genie shape numbers out of the on/off group into "Funnel Shape", and the shrink keys
+         into "Shrink Mode" so they read as belonging to the non-default mode.
+Evidence   L0: `node --check`, plus a derived audit -- every declared group is added to a page,
+         every page has at least one group, and the schema-minus-prefs key difference is exactly
+         the pinned twelve. The settings-surface guard is the mechanical half and it is green.
+         The window itself is unverified: nothing here opens it, so the layout is
+         needs-manual-confirmation until the owner looks at it. It needs no logout.
+Cost     Structure only; no row was added, removed or re-bound.
+Commit   6b80798
+
+---
+
+### D-130 · 2026-11-06 · fix
+
+Symptom  The owner's report was that the icon *after* the one being moved animates oddly,
+         and that the drop indicator itself now misbehaves -- hard to describe, which is
+         why the journal was the only way in.
+         This boot (code fresh, shell 12:08:49, edits 10:57-11:37): six drags produced
+         **202 `over gap@pos=N` verdicts against 89 `over self-slot pos=N`** -- a still
+         pointer changing its mind hundreds of times. The pairs are adjacent
+         (`gap@pos=10` then `self-slot pos=9`, favPos=8), and each pair costs a
+         destroy-and-recreate of the gap plus a 200ms widen/shrink of the row, which is
+         the animation the owner could not describe. The neighbour icon is the one that
+         moves, because it is the one sitting on the boundary that flips.
+Change   The gap was being measured as part of the row it was deciding.
+         `_slotChildren()` returned the live allocations, so opening a gap pushed every
+         icon after it right -- measured in the sandbox: extent **390 → 456**, one slot
+         plus the layout spacing -- and `slotAt` divides by that extent, so the same
+         pointer coordinate answered one slot *lower* the next time round. Answering
+         lower can land on `favPos + 1`, which is the self-slot branch, which withdraws
+         the gap, which restores the old extent, which answers higher again.
+         The shell cannot do this: `dash.js:879-885` subtracts the placeholder's width
+         (and one child) from the box before dividing. The new pure function
+         `restingSlots(children, spacing)` does the same thing -- drop the gap, and pull
+         everything positioned after it back by `gap.size + spacing`, i.e. answer from
+         the geometry the row returns to when the gap goes away. `spacing` matters: a
+         child brings one with it, and the live tables read 66 = 60 + 6, not 60.
+         Also honest about the shrinking gap: width 0 still occupies a spacing.
+         `dockDndSlots.js` gained the function, `DockDnd._slotChildren()` became the
+         adapter that flags the gap and delegates; nothing else reads live geometry for
+         a verdict, and the drop path already reads `_placeholderPos` rather than the
+         pointer (D-113), so indicator and write still agree.
+Evidence L1: 5 new pure cases in `test/dockDndSlots.test.js` (identity without a gap;
+         the measured closed/open tables; `slotAt` agreement for every 2px across the
+         whole row; gap at index 0 shifting the origin; a 0-width gap still costing a
+         spacing) -- `npm test` 166→**171**, 44 suites, tier-1 floor raised to match.
+         L1: new tier-2 stage `drag-slot-partition-gap-invariant` replays what the shell
+         actually does -- ask from a closed row, let the gap open and the row relayout,
+         then ask the *same coordinate* again without resetting anything. Against the
+         pre-fix code: **6 of 18 sample points moved their own gap**, one of them to
+         `-1` (self-slot withdrawn), which is the live pair. After: 0 flips, and
+         `extentClosed == extentOpen == 390` while the container itself is 623.
+         tier 2 **32/32**. The `dock-extent-tracks-row` and `drag-slots-are-icons-only`
+         probes did not move, so the background maths and the slot partition are
+         unchanged. L2: the owner's pointer -- the description was "the animation of the
+         icon after the one I moved", and only a hand can say whether that is now calm.
+Cost     One pass over the child list per verdict, which it already did.
+Commit   6b80798
+
+---
+
+### D-131 · 2026-11-06 · fix
+
+Symptom  D-121's instrument spoke ten times this boot, and the numbers climbed a
+         ladder: 19 children at login, then 20, 21, 22, 23 after the drags, with the
+         row's painted length frozen at **930** while the computed background grew by
+         **61px per extra child** -- exactly one gap's width. Reported as
+         `[layout] background 1127/1188/1249/1310/1371 does not cover the row's 930`.
+Change   Two things, and the second is a negative result worth keeping.
+         (a) The check testified about a dock that was **hidden**. `hide()` freezes the
+         children's allocations, while `_computeContainerRect()` keeps recomputing the
+         length from their requests, so the pair disagrees by whatever changed while the
+         dock was away -- and dodge hides the dock the moment the pointer leaves it,
+         which is exactly when a drag ends. `_checkExtentAgreement()` now returns
+         without an opinion when `!c.visible`, and `notify::visible` re-arms the 400ms
+         check so the row is still judged once it is actually painted -- the bail-out
+         defers the testimony, it does not silence it.
+         (b) The ladder itself was D-130, not a leak. The obvious story -- a gap cleared
+         while hidden never gets destroyed -- was tested and **rejected**: in the
+         sandbox, `_clearPlaceholder(true)` on a hidden container takes the child count
+         from 10 back to 9, releases `_animatingPlaceholders` to 0, and stays at 9 after
+         the dock is shown again. What the ladder actually was is the flip storm: every
+         withdrawn gap leaves a shrinking actor for 200ms, five of them overlapping add
+         3-5 × 61px to the request sum, and the hidden row (a) made that visible.
+Evidence L1: the hidden-row state is now a fourth gate inside
+         `extent-check-silent-unallocated`: hide the container, change its length, run
+         the check, count `[layout]` lines in the private shell's own log. **Before the
+         fix: +1 line** (that is the pre-fix red run, `hiddenDelta: 1`); after: 0, while
+         the two older gates still hold (`ghostDelta: 0`, `speakDelta: 1`) -- so the new
+         bail-out is not a mute button. The no-leak half is measured, not asserted: the
+         child-count triple (10 → 9 → 9) is printed in the gap probe's JSON.
+         L2: after the next login, the finite query is
+         `journalctl --user -b -o cat _PID=$(bash -c 'source test/common.sh; shell_pid') | grep -a '\[macos-dock-local\] \[layout\]'`
+         -- the claim is that it prints nothing.
+Cost     One visibility read per check, one signal connection per enable cycle.
+Commit   6b80798

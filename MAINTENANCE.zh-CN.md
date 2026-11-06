@@ -12,7 +12,7 @@
 | 跑完所有可无人值守的检查 | `npm run test:static`，再 `npm run test:live` |
 | 跑私有的一次性合成器 | `npm run test:headless`（约 60 秒） |
 | 跑会开真实窗口的实时 A/B | `npm run test:live-trigger`（需要空闲会话） |
-| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 129/32**，不需要桌面 |
+| 纯单元测试覆盖 | `npm test` —— 数字由它自己打印（`# tests` / `# suites`）；第一层守的是**下限 171/44**，不需要桌面 |
 | 支配一切的那条事实 | `disable`+`enable` **不会**重新加载改过的 JS，只有注销再登录才会 |
 | 代码在哪 | 全在 `lib/` —— 数字用 `wc -l lib/*.js` 现取；无构建步骤、无依赖 |
 
@@ -61,7 +61,7 @@
 | 匹配 `*.test.js` 的文件不得导入 GI；GI 探针保持自己的文件名 | `npm test` 必须能用纯 Node 跑 | 把 `probe-window.js` 改名进 glob 会毁掉每一次运行 |
 | `package.json` 无依赖、无 `node_modules` | "无构建步骤"这条故事线 | 测试不再能离线运行 |
 
-shell 侧：工具链存在性（缺失 → ENV）、单测下限（129 断言 / 32 套件 —— 是下限，加测试永远不会失败；每
+shell 侧：工具链存在性（缺失 → ENV）、单测下限（171 断言 / 44 套件 —— 是下限，加测试永远不会失败；每
 次加用例时在同一次改动里把下限一起抬上去，这样"某个套件不再被收集"会直接报红）、对**全部** tracked `.js` 跑 `node --check`、对 harness 跑 `bash -n`、
 `glib-compile-schemas --strict --dry-run`、编译产物新鲜度、`gjs -c 'true'` 冒烟、`docs/reports/`
 确被忽略且其中没有任何文件被跟踪，最后断言这一轮没有把工作树弄脏。
@@ -131,6 +131,22 @@ gnome-shell --headless --unsafe-mode --wayland-display=wayland-$UNIQ --virtual-m
   **存在性**判据（与 `genie-apis` 同类），断言包装器打出了 `[overviewlayout] enabled`、且没有
   那行 `disabled — missing/changed private APIs` 降级日志。它证明的是包装器成功接上了这个
   shell 的私有面，而不是像素——像素靠肉眼确认（见 §10）。
+- `dock-extent-tracks-row` 这个探针在没有指针的情况下驱动真实的拖拽 API，一次跑完四条断言：
+  行长度在五种状态下的取值（静止、空位展开、空位收缩、空位消失、多出一个计划外的子元素）、
+  两次 drag-begin 配一次结束时不能有任何图标停在拖拽透明度上、槽位划分里只有图标
+  （`drag-slots-are-icons-only`）、以及 `[layout]` 这个仪表自己的双向行为
+  （`extent-check-silent-unallocated`）。最后一条需要一个通道：**GJS 里 `console.warn` 不能重新
+  赋值**（实测：抛 `"warn" is read-only`），所以它的证据是在 `$T2/shell.log` 里数行数——无头
+  shell 自己的输出，就是上面那些日志判据 grep 的同一个文件。
+- 再往下一轮截图又带来三条断言，走的是同一条不需要指针的 Eval 通道：从应用网格拖进来的图标一旦
+  移出 dock，空位必须被销毁、**并且**拖拽监视器要跟着撤掉（`external-drag-placeholder-clears`）；
+  标签必须按悬停图标**实际**落定的缩放来定位，而不是配置里的最大倍数
+  （`tooltip-settled-scale`，报的是与落定顶边之间的像素差）；放下 dock 自己的图标时，手势必须留到
+  该图标自己的 `drag-end` 才算结束（`drag-guard-through-drop`）——在 `acceptDrop` 里提前收尾，正是
+  那份延后的收藏同步被重放第二遍的原因。
+- `drag-slot-partition-gap-invariant` 把同一个坐标问两次——第二次是在"第一次的回答刚把空位打开、
+  容器也重新排过版"之后问的（指针不动时 shell 就是这么反复调用的），要求答案不许搬家；然后它
+  **在 dock 隐藏的状态下**清掉一个空位，要求那个 actor 真的离开行、并且动画计数器回到 0。
 - 收尾回收的是**整棵子树**，不只是 `dbus-run-session`。该进程会 fork 出两个子进程——私有的
   `dbus-daemon` 和命令本身（`gnome-shell`）——只杀它会让这两个被 reparent 到 systemd 后继续
   存活：一天的运行留下了 7 个无头 shell + 18 个私有 dbus-daemon（约 580 MB）。`t2killtree`
@@ -301,6 +317,10 @@ GNOME 更新能拿走的东西，全在这里：
 | `[genie] effect ended without completing mutter:`（`genieController.js:393`） | 恰好一次的完成闩锁被绕过 | —— 它就是为这件事存在 | 永久警告 |
 | `[appsbtn] applied (icon=…, label=none, grid=<n>)` (`overviewApps.js:257`) | 网格判断在**这台 shell 上**解析到的 `ControlsState` 值 —— 第二层把 `<n>` 与 shell 自己报出的数字比对；第三层的 `grid-state-loaded` 断言真实会话确实解析出了一个整数（`null` = 退回按钮的 `checked`，报 ENV） | 点击是否落到正确状态（要真实指针，只能第三层） | 2、3A |
 | `[overviewpatches] enabled (inset=ok band=ok\|skipped)` (`overviewPatches.js:76`) | 两个补丁在这台 shell 上都装上了；第三层的 `overview-patches-roundtrip` 在一次真实 `disable→enable` 之后重读这行 —— 这是唯一能看出 D-062 的 revert 真把遮蔽放开的途径 | 真实桌面上概览的几何（那是 `overview-band`，第二层） | 2、3B |
+| `[dnd] over gap@pos=N slot=N favPos=N favs=N` / `over self-slot …` / `over refused by canDrop …`（`dockDnd.js:336,331,318`） | 指针当时压在哪个槽上、被拖项自己的收藏位是多少、这次手势最终拿到哪个判定 —— 这是区分"放回了自己原位（本来就不该写，dash.js:974-976）"与"这次 drop 根本没落到 dock 上"的唯一办法。每次拖拽每个不同判定只打一条 | 排序手感顺不顺（要真指针加人眼） | 3A |
+| `[dnd] drop move to fav#N` / `drop pin to fav#N`（`dockDnd.js:385`） | `favorite-apps` 真的写了、写到哪。健康的 2026-11-06 boot 是 `2 drop move + 5 drop pin + 6 drop in place`；这些判定行还没加时那次坏的 boot 有九次拖拽、**一条 drop 都没有** | 行之后有没有重建正确 —— 要看配对的 `[icons] incremental:` | 3A |
+| `[trash] click -> {open-new-window,minimize,restore,activate} (open=N)`（`trashManager.js:192`） | 这一次垃圾桶点击走了哪个分支、当时有几个回收站窗口；"点了没反应"和"它把你看不见的那个窗口最小化了"在屏幕上完全一样。点击之间出现 `open=0 → 1 → 2` 也就是 New Window 真的又开了一个窗口的证据 | 菜单那一行有没有开窗口（菜单行不打日志） | 3A |
+| `[layout] background <len> does not cover the row's <painted> (<n> children, position=<p>)`（`dockManager.js:837`） | 车主拍过两次的那张截图，现在能在真机上被抓到：背景长度与行的**实际绘制范围**在事情稳定后仍然不一致。**不对才说话**——而且行还没被分配时也不说话：登录时它曾把 dock 说成长了 1011px，那是 18 个子元素各自有尺寸却都还没有位置的结果，所以一个主轴长度为 0 的子元素（空位除外，它就是故意 0px 宽）会让它闭嘴。两个方向都在 tier 2 验过（`extent-check-silent-unallocated`）：伪造一个未分配的 child 必须一条都不出，**在 dock 隐藏时改变行的长度也必须一条不出（`hide()` 会把子元素的 allocation 冻住，此时根本没有可对照的绘制结果——之后靠 `notify::visible` 重新排一次检查）**，把一个已分配行的背景说成长 300px 必须恰好出一条 | 拖拽空位动画进行中的状态（故意等 400ms：那期间 request 本来就比 allocation 早一帧） | 3A |
 | `_dbg` 输出、`hide-trigger` | 什么都不是：受 `DODGE_DEBUG=false` 门控、只在隐藏态打、每秒限一条，而且**打印窗口标题** | —— | 永不作为判据 |
 
 ## 10. 本机无法自动化的事情与原因
@@ -370,8 +390,16 @@ GNOME 更新能拿走的东西，全在这里：
   —— 否则 Clutter 移除隐式过渡时会发 `stopped`，把 shell 的 `completed_minimize` 触发第二次。
 - `AXIAL_BUNCH` 是漏斗唯一的手感旋钮。觉得不对就调这个常数；不要重构，也不要动
   `leadFrac`/`trailFrac` 的默认值（那两个是量过的）。
-- 分隔线可见性由**settled** 图标集推导（跳过 `_dockRemovalPending`），因为淡出中的图标在
-  `onComplete` 之前仍留在 `_icons`，否则会在 dock 收缩前 200 ms 先撑起一条分隔线。
+- 分隔线标的是**收藏区边界**，不是"有没有运行中的未固定应用"：只要有应用被固定、且尾部还有
+  东西（运行中的未固定应用、垃圾桶或 Show Apps 按钮），它就在——与 Ubuntu dash 由
+  `nFavorites < nIcons` 推导的是同一条规则。**settled** 图标集（跳过 `_dockRemovalPending`）
+  现在只管剩下那一种情况：两个尾部按钮都被关掉时，淡出中仍留在 `_icons` 的图标否则会在 dock
+  收缩前 200 ms 先撑起一条分隔线。
+- 拖拽的槽位划分排除的是**同一批**子元素（`_slotChildren()`）：空位、分隔线、垃圾桶、显示应用
+  按钮。这个集合就是收藏行，不能有别的，因为槽号是把划分范围的长度**按比例**除出来的——多算一个
+  槽就把范围拉长了尾部按钮那 ~81px，于是"这是你自己的位置 / 放在最后一个收藏之后"的分界线从最后
+  一个图标的右边缘挪进了 padding，而想放在行末的光标正好停在那里。真机测到的是每秒约 5 次"给出
+  空位/撤回空位"来回抖动，持续 7 秒（`drag-slots-are-icons-only`：把尾部按钮加回去它就红）。
 - SPDX 定为 `GPL-2.0-or-later`：genie 上游自己的 `README.md` 就是这么写的，那是作者的授权
   选择。不要收紧。
 - 已撤回、不要再以"省开销"为由重开：dodge 隐藏态心跳（实测 556 → 524 → 518 ticks，低于噪声），
@@ -381,17 +409,21 @@ GNOME 更新能拿走的东西，全在这里：
   只有在 48/49 上确认它真的不存在之后才可以删 —— **不要**把"在 50 上是死代码"当成许可。
 - 放大 tick 的单趟读取是被**测出来**的，不是口味：D-063 之前 6 个图标每帧 12 次 position 读取，
   之后 6 次（`tick-geometry-reads`）。谁再把那个循环拆成两趟，就是在重新引入被计数的那件事。
+  tick **只遍历图标 actor**——竖线、垃圾桶、所有应用按钮、拖拽空位都是子节点但不是
+  图块——所以读取次数在构造上就等于图标数；一旦超过图标数，说明过滤又退回成了 `get_children()`。
 - 密集开机时 dock 会故意最多约 6 秒不避让。那是选定的上限，不是 bug。要调只调
   `STARTUP_GRACE_CAP_MS`。
 
 ## 12. Schema、设置与编译产物
 
 - 键的数量由第一层 `compiled-fresh` 打印（它比对 编译产物 == XML == shell 实际读到的），抄进
-  这里只会过期 —— 本机当前是 57 个，是随 D-058 的两个开关长出来的。`prefs.js` 绑定其中 45 个；
-  没绑的 12 个在守卫里是按名字钉住的（键盘代码从 shell 抢来的十个 `keynav-app-N`，加上它自己的
+  这里只会过期。`prefs.js` 绑定了除 12 个之外的全部键，这 12 个在守卫里是按名字钉住的（键盘代码从 shell 抢来的十个 `keynav-app-N`，加上它自己的
   崩溃恢复记账 `keynav-stock-backup` / `keynav-stock-dirty`）—— 注意 `keynav-enabled` 和两个
   `keynav-peek-*` **是**绑定的，所以"除 `keynav-*` 之外的全部键"并不是这条规则。第一层精确断言
   这个集合差，所以新键不可能悄悄绕过偏好窗口；两份 README 也必须逐键各有一行。
+- 偏好窗口是**每个分类一个 `Adw.PreferencesPage`** —— 侧栏就是这么来的；分类之下再按"这些行
+  彼此在说什么"切 `Adw.PreferencesGroup`，而不是按当初写代码的顺序。新键要放进车主会去找的那个
+  分类，并且给所在的组写一句说明，讲清默认值假设了什么。
 - `schemas/gschemas.compiled` 是**被跟踪的二进制**。改过 XML 之后必须
   `glib-compile-schemas schemas/` 重新生成 —— shell 是从编译产物读默认值的，产物过期就意味
   着运行时默认值和 XML 写的不一样。`static-checks.sh` 的 S6 会重编译到临时目录比对：可复现
@@ -462,6 +494,11 @@ harness 自己也是隐私面。`test/common.sh` 里设了 `umask 077`，`test/r
   `visible`、`visibleTarget`、`closing`、`animationInProgress` 四个 getter，从外面不读私有符号
   就测不到 —— 而 §8 不许把私有依赖再扩大。这一条故意留着不修；真要付出可见代价，概览抖动
   检查就是用来发现它的。
+- **一次 `AppFavorites` 写入可能弄掉 dock 从没碰过的条目。** 它的每次改动都用 `_getIds()` 重建
+  `favorite-apps`，而 `_getIds()` 里只有**那一刻**能被 AppSystem 解析出来的 id
+  （`appFavorites.js:46-62,124`），于是一个 `.desktop` 正在被改写的收藏项，就会被一次毫不相干的
+  固定/解除丢掉。拖拽排序够不着这个机制——它是从键自己的当前值重建的——但固定与解除**有意**仍走
+  `AppFavorites`（为了原生 Undo 通知），因此一并带着这个风险。本机实测发生过一次。
 
 - 第一层的用例数是下限，所以"改个套件名"也能让覆盖率倒退。
 - **第二层开头那句声明有一半已经被证伪，但暂时留着。** `test/headless-checks.sh:9-14` 说无头壳

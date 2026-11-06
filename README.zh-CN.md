@@ -34,6 +34,7 @@
 - **媒体控制** —— 通过 MPRIS，可选指示点。
 - **分隔线** —— 把收藏项与运行中的非收藏项分开。
 - **应用按钮**、运行中应用显示与工作区模式设置。
+- **垃圾桶按钮** —— 行为与应用图标一致：自己的预览、自己的运行指示点、自己的窗口，最小化/还原也落在它自己身上；同时与 Files 图标彼此独立。
 - **Genie 最小化/还原** —— 窗口从任意 Dock 边缘流进/流出其**真实 Dock 图标**，即合并进来的 macOS Genie 动画。
 
 ## 🧰 前置依赖
@@ -68,6 +69,10 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 
 启用后，Dock 会出现在配置的屏幕边缘。悬停可放大并显示预览；点击图标启动或聚焦对应应用；右键打开应用菜单。使用 `Super` + 数字键按位置启动应用，每次都会短暂弹出 Dock。
 
+应用有多个窗口、且其中一个是聚焦窗口时，点击图标会展开窗口选择器而不是最小化——选中一个窗口、按 Escape、点它外面任意位置、或再点同一个图标才会关掉。中键点击图标，或在右键菜单里选 **New Window**，会新开一个窗口而不是切换第一个。垃圾桶在这个意义上也是一个应用图标：它走同一套点击规则；中键再开一个回收站窗口；它的预览与运行指示点都独立于 Files；最小化/还原动画落在垃圾桶而不是 Files 上。
+
+长按图标即可拖动：拖动期间 dock 加宽一格，被拿起来的图标留在原位、透明度降到 50，松手就把新的固定顺序写下去。可排的槽位就是那些已固定图标——垃圾桶和**所有应用**永远不算一格，所以把图标放到最后一个图标之后，它就是这一行的最后一个。从应用网格把应用拖进 dock 即固定，把已固定的图标拖到**所有应用**按钮上即解除固定（`dock-dnd-enabled`）。
+
 ## ⚙️ 偏好设置
 
 打开 **GNOME 设置 → 扩展 → MacOS Dock → 设置**，可配置外观与位置、放大效果、预览、避让/自动隐藏、键盘导航（含弹出 Dock）、媒体控制、运行指示器、分隔线、动画时长与 Genie 最小化/还原动画。
@@ -76,7 +81,7 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 
 扩展读取的每一个键，以及出厂默认值。内容取自
 `schemas/org.gnome.shell.extensions.macosdock.gschema.xml`；往 schema 里加键却没在这里加一行，
-`test/repo.test.js` 会直接失败。57 个键里偏好窗口绑定了 45 个：十个 `keynav-app-N` 由键盘代码
+`test/repo.test.js` 会直接失败。68 个键里偏好窗口绑定了 56 个：十个 `keynav-app-N` 由键盘代码
 写入（Super+数字抢的是 shell 自己的快捷键），`keynav-stock-backup` / `keynav-stock-dirty` 是它的
 崩溃恢复记账 —— 这 12 个界面上有意没有对应的行。
 
@@ -103,12 +108,20 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | `magnification-falloff` | `100` | 放大波从指针向外延伸的像素距离 |
 | `magnification-framerate` | `60` | 放大动画目标帧率 Hz（30/60/120） |
 
+### 图标标签
+
+| 键 | 默认值 | 作用 |
+|---|---|---|
+| `tooltip-gap-px` | `6` | 图标与其名字标签之间的像素间距，按悬停图标**实际**落定后的高度量，不是按最大放大倍数猜 |
+| `tooltip-delay-ms` | `300` | 指针在图标上停留多久才出现标签（0 = 立即） |
+
 ### 指示器与媒体
 
 | 键 | 默认值 | 作用 |
 |---|---|---|
 | `running-indicators` | `true` | 运行中应用图标下方显示小点 |
 | `running-indicator-style` | `0` | 0=每窗口一个点（macOS 风格），1=横向条 |
+| `max-indicator-dots` | `4` | 一个图标下方最多画几个窗口点，超出部分不显示 |
 | `media-indicator` | `true` | 正在播放的媒体应用图标上加音符标记 |
 | `media-controls` | `false` | 在右键菜单里显示播放/暂停/上一首/下一首 |
 
@@ -117,10 +130,13 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | 键 | 默认值 | 作用 |
 |---|---|---|
 | `show-applications-button` | `true` | 显示「所有应用」按钮 |
+| `show-trash` | `true` | 在「所有应用」按钮旁显示垃圾桶按钮；它与应用图标行为一致（独立预览、运行指示点、独立窗口、动画落点），其窗口与 Files 图标彼此独立 |
+| `dock-dnd-enabled` | `true` | 长按已固定图标可拖动排序；从应用网格拖入 dock 即固定，拖到「所有应用」按钮上即解除固定 |
+| `drag-hold-ms` | `200` | 图标要按住多久才算拖起来。调小反应快，调大不误触 |
 | `apps-button-fix-enabled` | `true` | 让 dock 的 Show Apps 按钮在概览内也进应用网格、并改用品牌图标（与「运行图标修复」彼此独立） |
 | `show-running-apps` | `true` | 把非收藏的运行中应用也显示进 dock |
 | `dock-workspace-mode` | `0` | 运行中应用按工作区显示（0=全部 1=仅当前） |
-| `window-previews` | `true` | 悬停时显示窗口的实时缩略预览 |
+| `window-previews` | `true` | 悬停时显示窗口的实时缩略预览；也决定点击多窗口应用图标时是否展开窗口选择器 |
 | `preview-scale` | `200` | 每张预览缩略图的像素宽度（100–400） |
 | `icons-fix-enabled` | `true` | 最小化/切工作区后仍保留非收藏的运行应用图标 |
 | `overview-patches-enabled` | `true` | 把概览窗口预览内缩到桌面背景范围内，并在概览底部预留 dock 高度。属 shell 布局修复，与 dock 无关；shell 符号变动时自动退回原生布局 |

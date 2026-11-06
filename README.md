@@ -34,6 +34,7 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 - **Media controls** via MPRIS, with an optional indicator.
 - **Separators** that divide favorites from running non-favorites.
 - **Applications button**, running-apps display and a workspace mode setting.
+- **Trash button** that behaves like an application icon — its own previews, running dots and windows, its own minimize/restore landing point — while staying separate from the Files icon.
 - **Genie minimize/restore** — windows pour into, and stream back out of, their **real dock icon** from any dock edge, merging the macOS Genie animation.
 
 ## 🧰 Prerequisites
@@ -68,6 +69,10 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 
 Once enabled, the dock appears at the configured screen edge. Hover to magnify and reveal previews; click an icon to launch or focus its app; right-click for the app menu. Use `Super` + digit to launch by position — the dock pops up briefly each time.
 
+An icon whose app has more than one window, with one of them focused, opens the window picker when clicked instead of minimizing — the picker stays open until you choose a window, press Escape, click outside it, or click the same icon again. Middle-click an icon, or pick **New Window** in its menu, to open another window instead of toggling the first one. The Trash is a dock icon in the same sense: it follows those same click rules, middle-click opens a further trash window, its previews and running dots are its own, and minimize/restore animations land on the Trash rather than on Files.
+
+Press and hold an icon to drag it: the dock widens by one slot for the duration, the icon you picked up stays in its slot at low opacity, and dropping it writes the new pin order. The slots are the pinned icons — the Trash and **Show Applications** are never one, so dropping past the last icon sends that app to the end of the row. Drag an application out of the app grid onto the dock to pin it, or drag a pinned icon onto **Show Applications** to unpin it (`dock-dnd-enabled`).
+
 ## ⚙️ Preferences
 
 Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure appearance and position, magnification, previews, dodge/auto-hide, keyboard navigation (including the dock pop-up), media controls, running indicators, separators, animation timing and the genie minimize/restore animation.
@@ -76,7 +81,7 @@ Open **GNOME Settings → Extensions → MacOS Dock → Settings** to configure 
 
 Every key the extension reads, with the default it ships with. The rows are taken from
 `schemas/org.gnome.shell.extensions.macosdock.gschema.xml`, and `test/repo.test.js` fails when a key
-is added to the schema without a row here. The settings window binds 45 of the 57 keys; the ten
+is added to the schema without a row here. The settings window binds 56 of the 68 keys; the ten
 `keynav-app-N` slots are set by the keyboard code (Super+digit steals the shell's own binding), and
 `keynav-stock-backup` / `keynav-stock-dirty` are its crash-recovery bookkeeping — no row in the
 window for those twelve, by design.
@@ -104,12 +109,20 @@ window for those twelve, by design.
 | `magnification-falloff` | `100` | How far (in pixels) the magnification wave reaches from the cursor |
 | `magnification-framerate` | `60` | Target framerate for magnification animation in Hz (30, 60, or 120) |
 
+### Icon labels
+
+| Key | Default | What it does |
+|---|---|---|
+| `tooltip-gap-px` | `6` | Gap in pixels between an icon and the label naming it, measured from the height the hovered icon actually settles at |
+| `tooltip-delay-ms` | `300` | How long the pointer must rest on an icon before its label appears (0 = instant) |
+
 ### Indicators and media
 
 | Key | Default | What it does |
 |---|---|---|
 | `running-indicators` | `true` | Show a small dot under icons of running apps |
 | `running-indicator-style` | `0` | 0 = dots per window (macOS style), 1 = horizontal bar |
+| `max-indicator-dots` | `4` | Maximum number of window dots drawn under one icon; further windows are not shown |
 | `media-indicator` | `true` | Show a music note indicator on the icon of the currently playing media app |
 | `media-controls` | `false` | Show play/pause controls in the dock context menu when media is playing |
 
@@ -118,10 +131,13 @@ window for those twelve, by design.
 | Key | Default | What it does |
 |---|---|---|
 | `show-applications-button` | `true` | Show a button to access all installed applications |
+| `show-trash` | `true` | Show a Trash button next to the applications button; it behaves like an application icon (own previews, running dots, windows, animations) and its windows stay separate from the Files icon |
+| `dock-dnd-enabled` | `true` | Press and hold a pinned icon to reorder it; drop an application from the app grid to pin it, or on the applications button to unpin it |
+| `drag-hold-ms` | `200` | How long an icon must be held before the drag begins. Lower reacts faster, higher misfires less |
 | `apps-button-fix-enabled` | `true` | Make the dock's Show Apps button open the app grid from the overview and use the brand icon instead of hiding the overview. Independent of the running-icons fix |
 | `show-running-apps` | `true` | Show non-favorite running applications in the dock |
 | `dock-workspace-mode` | `0` | Which workspaces show running apps (0=all, 1=current only) |
-| `window-previews` | `true` | Show live thumbnail previews of app windows on hover |
+| `window-previews` | `true` | Show live thumbnail previews of app windows on hover, and the window picker a click opens on an app with several windows |
 | `preview-scale` | `200` | Width of each preview thumbnail in pixels (100-400) |
 | `icons-fix-enabled` | `true` | Keep non-favorite running apps in the dock across minimize and workspace switches |
 | `overview-patches-enabled` | `true` | Inset the overview window previews to the desktop background and reserve the dock's height in the overview's bottom band. Shell-layout fixes independent of the dock; degrade to the native layout if a shell symbol moves |
