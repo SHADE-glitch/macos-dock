@@ -17,6 +17,8 @@ A macOS-style dock for GNOME Shell with magnification, animations, dodge, keyboa
 
 **Where to look** — See [AGENTS.md](AGENTS.md) and [MAINTENANCE.md](MAINTENANCE.md).
 
+<p align="center"><img src="docs/screenshots/overview.png" alt="The dock with the icons under the pointer magnified" width="900"></p>
+
 ## 📖 About
 
 This repository is a **personal maintenance fork** of [**MacOSDock**](https://github.com/vinnytherobot/MacOSDock) by **vinnytherobot** (also on [extensions.gnome.org](https://extensions.gnome.org/extension/10719/macos-dock/) as #10719), frozen at upstream **v9** and maintained locally under the UUID `macos-dock@local`. It also merges the **macOS Genie** minimize/restore animation by **Thuong Vo (SekiroKenjii)**.
@@ -36,6 +38,8 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 - **Applications button**, running-apps display and a workspace mode setting.
 - **Trash button** that behaves like an application icon — its own previews, running dots and windows, its own minimize/restore landing point — while staying separate from the Files icon.
 - **Genie minimize/restore** — windows pour into, and stream back out of, their **real dock icon** from any dock edge, merging the macOS Genie animation.
+
+<p align="center"><img src="docs/screenshots/demo.gif" alt="Icons magnifying as the pointer moves along the dock" width="900"></p>
 
 ## 🧰 Prerequisites
 

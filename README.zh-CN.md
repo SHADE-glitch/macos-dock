@@ -17,6 +17,8 @@
 
 **去哪看** — 见 [AGENTS.md](AGENTS.md) 与 [MAINTENANCE.md](MAINTENANCE.md)。
 
+<p align="center"><img src="docs/screenshots/overview.png" alt="指针下方图标被放大的程序坞" width="900"></p>
+
 ## 📖 项目说明
 
 本仓库是 **vinnytherobot** 的 [**MacOSDock**](https://github.com/vinnytherobot/MacOSDock)（也在 [extensions.gnome.org](https://extensions.gnome.org/extension/10719/macos-dock/)，编号 #10719）的**个人维护分支**，冻结在上游 **v9**，以 UUID `macos-dock@local` 在本地维护。同时合并了 **Thuong Vo（SekiroKenjii）** 的 **macOS Genie** 最小化/还原动画。
@@ -36,6 +38,8 @@
 - **应用按钮**、运行中应用显示与工作区模式设置。
 - **垃圾桶按钮** —— 行为与应用图标一致：自己的预览、自己的运行指示点、自己的窗口，最小化/还原也落在它自己身上；同时与 Files 图标彼此独立。
 - **Genie 最小化/还原** —— 窗口从任意 Dock 边缘流进/流出其**真实 Dock 图标**，即合并进来的 macOS Genie 动画。
+
+<p align="center"><img src="docs/screenshots/demo.gif" alt="指针沿程序坞移动时图标逐级放大" width="900"></p>
 
 ## 🧰 前置依赖
 
