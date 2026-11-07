@@ -2204,3 +2204,15 @@ Evidence  L0 2026-11-07 `npm test` green and `npm run check:log` PASS; `audit-la
           repository compliant; no committed document cited a section that moved.
 Cost      Two sections change position, so two anchors move; nothing cited them.
 Commit    4bc2c64
+
+### D-145 · 2026-11-07 · guard
+Symptom   The STANDARD_HEADINGS list is an anti-copy check: AGENTS.md must not restate a section of the
+          machine-wide standard. It stopped at the audit-anchor section, so the standard's four newest
+          sections (profile listing, retirement, About, citation stability) were never checked — a copy of
+          them here would have passed.
+Change    Added the four missing titles. The unnumbered short words stay out on purpose: the check is a
+          substring test, so an entry like the CI section title would fire on any mention of CI in
+          AGENTS.md (measured, it turned all five forks red when it was added).
+Evidence  `npm test` green (see the totals below), `npm run check:log` PASS.
+Cost      The snapshot cannot be read from ~/.agents at CI time, so this list is a copy by design; section 13
+          of the machine-wide audit checks it and reports drift.
