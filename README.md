@@ -25,6 +25,25 @@ A macOS-style dock for GNOME Shell with magnification, animations, dodge, keyboa
 
 **Where to look** — See [AGENTS.md](AGENTS.md) and [MAINTENANCE.md](MAINTENANCE.md).
 
+---
+
+## 📖 Table of Contents
+
+- [📖 About](#-about)
+- [✨ Features](#-features)
+- [🧞 Genie animation](#-genie-animation)
+- [🧰 Prerequisites](#-prerequisites)
+- [📥 Installation](#-installation)
+- [🖱️ Usage](#️-usage)
+- [⚙️ Preferences](#️-preferences)
+- [📚 Settings reference](#-settings-reference)
+- [🧪 Testing](#-testing)
+- [🆚 Changes vs upstream (v9)](#-changes-vs-upstream-v9)
+- [🛠️ Troubleshooting](#️-troubleshooting)
+- [🤝 Contributing](#-contributing)
+- [🙏 Credits & Attribution](#-credits--attribution)
+- [⚖️ License](#️-license)
+
 ## 📖 About
 
 This repository is a **personal maintenance fork** of [**MacOSDock**](https://github.com/vinnytherobot/MacOSDock) by **vinnytherobot** (also on [extensions.gnome.org](https://extensions.gnome.org/extension/10719/macos-dock/) as #10719), frozen at upstream **v9** and maintained locally under the UUID `macos-dock@local`. It also merges the **macOS Genie** minimize/restore animation by **Thuong Vo (SekiroKenjii)**.
@@ -44,6 +63,16 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 - **Applications button**, running-apps display and a workspace mode setting.
 - **Trash button** that behaves like an application icon — its own previews, running dots and windows, its own minimize/restore landing point — while staying separate from the Files icon.
 - **Genie minimize/restore** — windows pour into, and stream back out of, their **real dock icon** from any dock edge, merging the macOS Genie animation.
+
+## 🧞 Genie animation
+
+Minimizing or restoring a window plays the macOS genie animation: the window is sliced into strips that pour into — and stream back out of — its **real dock icon** through a curved funnel. The funnel axis follows the dock's screen edge, so a bottom, top, left or right dock all funnel correctly. Both directions run from a single window snapshot, so the live window is parked (scale ≈ 0) for the duration and does not repaint every frame.
+
+The strip count adapts to the window's extent along the funnel axis, capped by the mesh-resolution setting (default 64), so small windows stay cheap and large ones stay smooth. When an app has no visible icon, the engine falls back through live rect → last cached rect → dock-edge centre → primary monitor's dock edge.
+
+When the dock is hidden by dodge it briefly **peeks** for the duration of the animation, so you can see where the window went (can be turned off). While a genie animation runs, magnification is suspended and the dodge poll parks itself once the pointer settles away from the dock. Tool and background windows keep the system's native animation. The genie validates the private Shell APIs it needs at startup and degrades to the native animation, with a log warning, if they are missing.
+
+If you have the standalone `macos-genie@thuongvo.dev` extension installed, **disable it** — this fork provides the same animation, and running both at once would fight over the same windows.
 
 ## 🧰 Prerequisites
 
@@ -199,39 +228,6 @@ window for those twelve, by design.
 | `genie-tail-fade` | `0.08` | Final fraction of the animation over which the last sliver fades out |
 | `genie-mesh-resolution` | `64` | Upper bound on the number of strips along the funnel; the actual count adapts to the window size (higher = smoother curves) |
 
-## 🛠️ Troubleshooting
-
-Every command below was run on this machine before being written down. The one exception is marked:
-a command that *changes* something is left for the user, because this extension's own settings and
-the running session are not things an agent should mutate unattended (see `AGENTS.md`).
-
-| Symptom | First check | Command |
-|---|---|---|
-| The dock is not there at all | Is the extension even loaded, and on which state? | `gnome-extensions info macos-dock@local` (state `ERROR` / `OUT_OF_DATE` is printed here) |
-| Extension sits in `OUT_OF_DATE`, nothing loads | `metadata.json` lists the shell majors the fork supports; the shell compares only the **major** (`50.1` matches `"50"`). A brand-new major that is not listed means the extension never loads — this is the first row of the upgrade playbook | `grep -A4 shell-version metadata.json` and `gnome-shell --version` |
-| Edited a `lib/*.js` file and nothing changed | Expected: `disable`+`enable` re-runs `enable()` on the **cached** module. Only a logout reloads the code | run `npm run test:live` — it refuses to certify a shell older than the tree (`stale_code`) |
-| Dock appears very slowly after login, or icons flicker | Both are startup-chain questions with their own log lines: `enable() total Xms`, `reload: N icons in Xms`, `startup grace ended early at Xms`, `[dodge] grace released at Xms` | `journalctl --user -b -o cat _PID=$(bash -c 'source test/common.sh; shell_pid') \| grep -a '[macos-dock-local]'` |
-| The dock hides when it should not, or never hides | `dodge-enabled`, `dodge-only-focused`, `hide-in-fullscreen`, and whether the overview is the thing fighting it (the known signature is an `overview -> show` that a hide contradicts within 600 ms with no overview entry in between) | `npm run test:live` reports `overview-flicker` as a count; a healthy boot is 0 |
-| The dock does not dodge correctly on a **second monitor** | Edge and poll thresholds are measured against the monitor the dock is on (D-052), and this box has one panel, so it can only be proven in the fabricated layout | `npm run test:headless` — `dock-monitor-geometry` |
-| Genie does not animate | Either `genie-enabled` is off, or `_validate()` rejected this shell and it is running with the native animation — that decision is logged, never silent | grep the journal for `[genie] enabled` vs `[genie] disabled — missing/changed private APIs:` |
-| Overview previews poke past the desktop, or the bottom band collapses | Both are the shell-layout concern behind `overview-patches-enabled`; a renamed shell symbol degrades to native with one warn line | `npm run test:headless` — `overview-band`, `overview-window-inset`, `overview-patches` |
-| Super+number does nothing, or the stock launcher icons broke | `keynav-enabled`, then the crash-recovery flags `keynav-stock-dirty` / `keynav-stock-backup` — a crash between grabbing and restoring those bindings is exactly what they exist to heal | read them: `GSETTINGS_SCHEMA_DIR=$PWD/schemas gsettings get org.gnome.shell.extensions.macosdock keynav-stock-dirty` |
-| Icons look soft when magnified | `icon-quality` (1/2/4 supersampling) trades memory for sharpness; `magnification-framerate` trades CPU for smoothness | see the settings reference above |
-| Something is configured wrong and you want the defaults back | **User action, not agent action.** This is a recursive reset of the extension's own keys | `dconf reset -f /org/gnome/shell/extensions/macosdock/` |
-
-Nothing on this list needs a reboot. A logout is needed only to load edited JavaScript, and it is
-always the user's to perform.
-
-## 🧞 Genie animation
-
-Minimizing or restoring a window plays the macOS genie animation: the window is sliced into strips that pour into — and stream back out of — its **real dock icon** through a curved funnel. The funnel axis follows the dock's screen edge, so a bottom, top, left or right dock all funnel correctly. Both directions run from a single window snapshot, so the live window is parked (scale ≈ 0) for the duration and does not repaint every frame.
-
-The strip count adapts to the window's extent along the funnel axis, capped by the mesh-resolution setting (default 64), so small windows stay cheap and large ones stay smooth. When an app has no visible icon, the engine falls back through live rect → last cached rect → dock-edge centre → primary monitor's dock edge.
-
-When the dock is hidden by dodge it briefly **peeks** for the duration of the animation, so you can see where the window went (can be turned off). While a genie animation runs, magnification is suspended and the dodge poll parks itself once the pointer settles away from the dock. Tool and background windows keep the system's native animation. The genie validates the private Shell APIs it needs at startup and degrades to the native animation, with a log warning, if they are missing.
-
-If you have the standalone `macos-genie@thuongvo.dev` extension installed, **disable it** — this fork provides the same animation, and running both at once would fight over the same windows.
-
 ## 🧪 Testing
 
 The two modules that carry no GNOME/GI imports are covered by unit tests that run under plain Node — no `gjs`, no dependencies, no build step:
@@ -275,6 +271,29 @@ This fork adds maintenance commits on top of the upstream v9 baseline (`a2140d0`
 - **Correctness:** the window-type check uses `Meta.WindowType` symbols; dodge watches per-window position/size/unmanaged changes and gates fullscreen on mutter's own `Monitor.inFullscreen`.
 - **Icon fade-in:** icons added by an incremental sync fade in over 180 ms; whole-table reloads keep a single container-level fade.
 - **Indicator refresh:** one window-actor walk per pass instead of one per icon (17 → 1 on a 17-icon dock).
+
+## 🛠️ Troubleshooting
+
+Every command below was run on this machine before being written down. The one exception is marked:
+a command that *changes* something is left for the user, because this extension's own settings and
+the running session are not things an agent should mutate unattended (see `AGENTS.md`).
+
+| Symptom | First check | Command |
+|---|---|---|
+| The dock is not there at all | Is the extension even loaded, and on which state? | `gnome-extensions info macos-dock@local` (state `ERROR` / `OUT_OF_DATE` is printed here) |
+| Extension sits in `OUT_OF_DATE`, nothing loads | `metadata.json` lists the shell majors the fork supports; the shell compares only the **major** (`50.1` matches `"50"`). A brand-new major that is not listed means the extension never loads — this is the first row of the upgrade playbook | `grep -A4 shell-version metadata.json` and `gnome-shell --version` |
+| Edited a `lib/*.js` file and nothing changed | Expected: `disable`+`enable` re-runs `enable()` on the **cached** module. Only a logout reloads the code | run `npm run test:live` — it refuses to certify a shell older than the tree (`stale_code`) |
+| Dock appears very slowly after login, or icons flicker | Both are startup-chain questions with their own log lines: `enable() total Xms`, `reload: N icons in Xms`, `startup grace ended early at Xms`, `[dodge] grace released at Xms` | `journalctl --user -b -o cat _PID=$(bash -c 'source test/common.sh; shell_pid') \| grep -a '[macos-dock-local]'` |
+| The dock hides when it should not, or never hides | `dodge-enabled`, `dodge-only-focused`, `hide-in-fullscreen`, and whether the overview is the thing fighting it (the known signature is an `overview -> show` that a hide contradicts within 600 ms with no overview entry in between) | `npm run test:live` reports `overview-flicker` as a count; a healthy boot is 0 |
+| The dock does not dodge correctly on a **second monitor** | Edge and poll thresholds are measured against the monitor the dock is on (D-052), and this box has one panel, so it can only be proven in the fabricated layout | `npm run test:headless` — `dock-monitor-geometry` |
+| Genie does not animate | Either `genie-enabled` is off, or `_validate()` rejected this shell and it is running with the native animation — that decision is logged, never silent | grep the journal for `[genie] enabled` vs `[genie] disabled — missing/changed private APIs:` |
+| Overview previews poke past the desktop, or the bottom band collapses | Both are the shell-layout concern behind `overview-patches-enabled`; a renamed shell symbol degrades to native with one warn line | `npm run test:headless` — `overview-band`, `overview-window-inset`, `overview-patches` |
+| Super+number does nothing, or the stock launcher icons broke | `keynav-enabled`, then the crash-recovery flags `keynav-stock-dirty` / `keynav-stock-backup` — a crash between grabbing and restoring those bindings is exactly what they exist to heal | read them: `GSETTINGS_SCHEMA_DIR=$PWD/schemas gsettings get org.gnome.shell.extensions.macosdock keynav-stock-dirty` |
+| Icons look soft when magnified | `icon-quality` (1/2/4 supersampling) trades memory for sharpness; `magnification-framerate` trades CPU for smoothness | see the settings reference above |
+| Something is configured wrong and you want the defaults back | **User action, not agent action.** This is a recursive reset of the extension's own keys | `dconf reset -f /org/gnome/shell/extensions/macosdock/` |
+
+Nothing on this list needs a reboot. A logout is needed only to load edited JavaScript, and it is
+always the user's to perform.
 
 ## 🤝 Contributing
 

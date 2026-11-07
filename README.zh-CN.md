@@ -25,6 +25,25 @@
 
 **去哪看** — 见 [AGENTS.md](AGENTS.md) 与 [MAINTENANCE.md](MAINTENANCE.md)。
 
+---
+
+## 📖 目录
+
+- [📖 项目说明](#-项目说明)
+- [✨ 功能特性](#-功能特性)
+- [🧞 Genie 动画](#-genie-动画)
+- [🧰 前置依赖](#-前置依赖)
+- [📥 安装](#-安装)
+- [🖱️ 使用](#️-使用)
+- [⚙️ 偏好设置](#️-偏好设置)
+- [📚 设置项说明](#-设置项说明)
+- [🧪 测试](#-测试)
+- [🆚 相对上游的改动（v9）](#-相对上游的改动v9)
+- [🛠️ 故障排查](#️-故障排查)
+- [🤝 参与贡献](#-参与贡献)
+- [🙏 致谢与来源说明](#-致谢与来源说明)
+- [⚖️ 许可证](#️-许可证)
+
 ## 📖 项目说明
 
 本仓库是 **vinnytherobot** 的 [**MacOSDock**](https://github.com/vinnytherobot/MacOSDock)（也在 [extensions.gnome.org](https://extensions.gnome.org/extension/10719/macos-dock/)，编号 #10719）的**个人维护分支**，冻结在上游 **v9**，以 UUID `macos-dock@local` 在本地维护。同时合并了 **Thuong Vo（SekiroKenjii）** 的 **macOS Genie** 最小化/还原动画。
@@ -44,6 +63,16 @@
 - **应用按钮**、运行中应用显示与工作区模式设置。
 - **垃圾桶按钮** —— 行为与应用图标一致：自己的预览、自己的运行指示点、自己的窗口，最小化/还原也落在它自己身上；同时与 Files 图标彼此独立。
 - **Genie 最小化/还原** —— 窗口从任意 Dock 边缘流进/流出其**真实 Dock 图标**，即合并进来的 macOS Genie 动画。
+
+## 🧞 Genie 动画
+
+最小化或还原窗口时播放 macOS Genie 动画：窗口被切成条带，经由弯曲的漏斗流进/流出其**真实 Dock 图标**。漏斗轴向跟随 Dock 所在的屏幕边缘，因此上、下、左、右四种 Dock 位置都能正确收束。两个方向都基于窗口的同一份快照运行，实时窗口在动画期间被停放（缩放 ≈ 0），不再逐帧重绘。
+
+条带数量随窗口在漏斗轴向上的尺寸自适应，以网格分辨率设置为上限（默认 64），小窗口省算力、大窗口够顺滑。应用没有可见图标时，按 实时矩形 → 上一次缓存的矩形 → Dock 边缘中心 → 主屏 Dock 边 的回退链处理。
+
+Dock 因避让而隐藏时，会在动画期间短暂**探头（peek）**，让你看清窗口飞去了哪里（可关闭）。Genie 动画进行期间暂停放大效果，避让轮询在指针远离 Dock 后自行停机。工具窗与后台窗沿用系统原生动画。Genie 启动时会校验所需的 Shell 私有 API，缺失则记录警告并退化为系统原生动画。
+
+如果你安装了独立的 `macos-genie@thuongvo.dev` 扩展，请**停用它** —— 本分支已提供相同动画，两者同时启用会争抢同一批窗口。
 
 ## 🧰 前置依赖
 
@@ -198,37 +227,6 @@ rm -rf ~/.local/share/gnome-shell/extensions/macos-dock@local
 | `genie-tail-fade` | `0.08` | 最后一片窄条淡出所占的动画比例 |
 | `genie-mesh-resolution` | `64` | 漏斗方向上的条带上限，实际数量随窗口尺寸自适应（越大曲线越顺） |
 
-## 🛠️ 故障排查
-
-下面每一条命令在写进文档之前都在这台机器上跑过。唯一例外是标注出来的"会改动东西"的那条 —— 本
-扩展自己的设置和正在运行的会话都不该由 agent 无人值守地动（见 `AGENTS.md`）。
-
-| 现象 | 先查什么 | 命令 |
-|---|---|---|
-| dock 根本没出现 | 扩展到底加载了没、处在什么状态 | `gnome-extensions info macos-dock@local`（`ERROR` / `OUT_OF_DATE` 会直接印在这里） |
-| 扩展停在 `OUT_OF_DATE`，完全不加载 | `metadata.json` 声明了支持的 shell 大版本，而 shell 只比较**大版本号**（`50.1` 匹配 `"50"`）。没列出的新大版本 = 扩展静默不加载 —— 这是升级流程的第一条 | `grep -A4 shell-version metadata.json` 和 `gnome-shell --version` |
-| 改了 `lib/*.js` 却没变化 | 这是预期：`disable`+`enable` 只在**缓存的**模块上重跑 `enable()`。只有注销会重新加载代码 | `npm run test:live` —— 它拒绝为比代码树更旧的 shell 出证明（`stale_code`） |
-| 登录后 dock 出现很慢，或图标闪 | 这两件都是启动链问题，各有自己的日志行：`enable() total Xms`、`reload: N icons in Xms`、`startup grace ended early at Xms`、`[dodge] grace released at Xms` | `journalctl --user -b -o cat _PID=$(bash -c 'source test/common.sh; shell_pid') \| grep -a '[macos-dock-local]'` |
-| dock 该隐藏时不藏、不该藏时乱藏 | `dodge-enabled`、`dodge-only-focused`、`hide-in-fullscreen`，以及是不是概览在跟它抢（已知签名是：一次 `overview -> show` 在 600 ms 内被 hide 推翻，中间没有任何概览进入） | `npm run test:live` 会把 `overview-flicker` 报成计数；健康开机是 0 |
-| dock 放在**副屏**时避让不对 | 边缘与轮询阈值是按 dock 所在显示器算的（D-052），而这台机器只有一块屏，所以只能在伪造布局里证明 | `npm run test:headless` —— `dock-monitor-geometry` |
-| genie 不动 | 要么 `genie-enabled` 关了，要么 `_validate()` 拒绝了这版 shell、正在走原生动画 —— 这个判定会打日志，不会闷声发生 | 在 journal 里找 `[genie] enabled` 与 `[genie] disabled — missing/changed private APIs:` |
-| 概览预览探出桌面，或底部预留带塌缩 | 两件都在 `overview-patches-enabled` 这个 shell 布局关注点后面；shell 符号改名会带一行 warn 降级回原生 | `npm run test:headless` —— `overview-band`、`overview-window-inset`、`overview-patches` |
-| Super+数字没反应，或原装启动器图标坏了 | 先看 `keynav-enabled`，再看崩溃恢复标志 `keynav-stock-dirty` / `keynav-stock-backup` —— 抓键位与还原之间崩掉，正是它们负责自愈的场景 | 读值：`GSETTINGS_SCHEMA_DIR=$PWD/schemas gsettings get org.gnome.shell.extensions.macosdock keynav-stock-dirty` |
-| 放大时图标发虚 | `icon-quality`（1/2/4 超采样）用内存换清晰；`magnification-framerate` 用 CPU 换顺滑 | 见上面的设置项说明 |
-| 设置被调乱了，想回到默认 | **归用户做，不归 agent 做。** 这是对本扩展自己那套键的递归重置 | `dconf reset -f /org/gnome/shell/extensions/macosdock/` |
-
-这些条目都不需要重启。只有"加载改过的 JavaScript"需要注销，而注销永远由用户自己执行。
-
-## 🧞 Genie 动画
-
-最小化或还原窗口时播放 macOS Genie 动画：窗口被切成条带，经由弯曲的漏斗流进/流出其**真实 Dock 图标**。漏斗轴向跟随 Dock 所在的屏幕边缘，因此上、下、左、右四种 Dock 位置都能正确收束。两个方向都基于窗口的同一份快照运行，实时窗口在动画期间被停放（缩放 ≈ 0），不再逐帧重绘。
-
-条带数量随窗口在漏斗轴向上的尺寸自适应，以网格分辨率设置为上限（默认 64），小窗口省算力、大窗口够顺滑。应用没有可见图标时，按 实时矩形 → 上一次缓存的矩形 → Dock 边缘中心 → 主屏 Dock 边 的回退链处理。
-
-Dock 因避让而隐藏时，会在动画期间短暂**探头（peek）**，让你看清窗口飞去了哪里（可关闭）。Genie 动画进行期间暂停放大效果，避让轮询在指针远离 Dock 后自行停机。工具窗与后台窗沿用系统原生动画。Genie 启动时会校验所需的 Shell 私有 API，缺失则记录警告并退化为系统原生动画。
-
-如果你安装了独立的 `macos-genie@thuongvo.dev` 扩展，请**停用它** —— 本分支已提供相同动画，两者同时启用会争抢同一批窗口。
-
 ## 🧪 测试
 
 两个不依赖 GNOME/GI 导入的模块配有单元测试，用纯 Node 即可运行 —— 无需 `gjs`、无依赖、无构建步骤：
@@ -272,6 +270,27 @@ npm test
 - **正确性：** 窗口类型判断改用 `Meta.WindowType` 符号；避让监听每个窗口的 position/size/unmanaged 变化，全屏判定改读 mutter 自己的 `Monitor.inFullscreen`。
 - **图标淡入：** 增量同步新增的图标在 180ms 内淡入；整表 reload 仍保留单次容器级淡入。
 - **指示点刷新：** 每轮刷新只做一次窗口 actor 走查，而非每个图标一次（17 图标的 Dock 即 17 → 1）。
+
+## 🛠️ 故障排查
+
+下面每一条命令在写进文档之前都在这台机器上跑过。唯一例外是标注出来的"会改动东西"的那条 —— 本
+扩展自己的设置和正在运行的会话都不该由 agent 无人值守地动（见 `AGENTS.md`）。
+
+| 现象 | 先查什么 | 命令 |
+|---|---|---|
+| dock 根本没出现 | 扩展到底加载了没、处在什么状态 | `gnome-extensions info macos-dock@local`（`ERROR` / `OUT_OF_DATE` 会直接印在这里） |
+| 扩展停在 `OUT_OF_DATE`，完全不加载 | `metadata.json` 声明了支持的 shell 大版本，而 shell 只比较**大版本号**（`50.1` 匹配 `"50"`）。没列出的新大版本 = 扩展静默不加载 —— 这是升级流程的第一条 | `grep -A4 shell-version metadata.json` 和 `gnome-shell --version` |
+| 改了 `lib/*.js` 却没变化 | 这是预期：`disable`+`enable` 只在**缓存的**模块上重跑 `enable()`。只有注销会重新加载代码 | `npm run test:live` —— 它拒绝为比代码树更旧的 shell 出证明（`stale_code`） |
+| 登录后 dock 出现很慢，或图标闪 | 这两件都是启动链问题，各有自己的日志行：`enable() total Xms`、`reload: N icons in Xms`、`startup grace ended early at Xms`、`[dodge] grace released at Xms` | `journalctl --user -b -o cat _PID=$(bash -c 'source test/common.sh; shell_pid') \| grep -a '[macos-dock-local]'` |
+| dock 该隐藏时不藏、不该藏时乱藏 | `dodge-enabled`、`dodge-only-focused`、`hide-in-fullscreen`，以及是不是概览在跟它抢（已知签名是：一次 `overview -> show` 在 600 ms 内被 hide 推翻，中间没有任何概览进入） | `npm run test:live` 会把 `overview-flicker` 报成计数；健康开机是 0 |
+| dock 放在**副屏**时避让不对 | 边缘与轮询阈值是按 dock 所在显示器算的（D-052），而这台机器只有一块屏，所以只能在伪造布局里证明 | `npm run test:headless` —— `dock-monitor-geometry` |
+| genie 不动 | 要么 `genie-enabled` 关了，要么 `_validate()` 拒绝了这版 shell、正在走原生动画 —— 这个判定会打日志，不会闷声发生 | 在 journal 里找 `[genie] enabled` 与 `[genie] disabled — missing/changed private APIs:` |
+| 概览预览探出桌面，或底部预留带塌缩 | 两件都在 `overview-patches-enabled` 这个 shell 布局关注点后面；shell 符号改名会带一行 warn 降级回原生 | `npm run test:headless` —— `overview-band`、`overview-window-inset`、`overview-patches` |
+| Super+数字没反应，或原装启动器图标坏了 | 先看 `keynav-enabled`，再看崩溃恢复标志 `keynav-stock-dirty` / `keynav-stock-backup` —— 抓键位与还原之间崩掉，正是它们负责自愈的场景 | 读值：`GSETTINGS_SCHEMA_DIR=$PWD/schemas gsettings get org.gnome.shell.extensions.macosdock keynav-stock-dirty` |
+| 放大时图标发虚 | `icon-quality`（1/2/4 超采样）用内存换清晰；`magnification-framerate` 用 CPU 换顺滑 | 见上面的设置项说明 |
+| 设置被调乱了，想回到默认 | **归用户做，不归 agent 做。** 这是对本扩展自己那套键的递归重置 | `dconf reset -f /org/gnome/shell/extensions/macosdock/` |
+
+这些条目都不需要重启。只有"加载改过的 JavaScript"需要注销，而注销永远由用户自己执行。
 
 ## 🤝 参与贡献
 
