@@ -13,11 +13,17 @@ A macOS-style dock for GNOME Shell with magnification, animations, dodge, keyboa
 
 **What it solves** — It keeps the upstream feature set while fixing startup flicker, resource leaks, idle power draw and the separator/visibility logic.
 
+<p align="center"><img src="docs/screenshots/overview.png" alt="The dock with the folder icon magnified under the pointer and a window open above it" width="900"></p>
+
+<p align="center"><em><b>The dock</b> — magnification under the pointer, in the layout this fork ships.</em></p>
+
+<p align="center"><img src="docs/screenshots/demo.gif" alt="The pointer magnifying dock icons, dragging one to a new slot, and a window being poured into and out of its icon" width="470"></p>
+
+<p align="center"><em><b>In the clip:</b> the pointer sweeps along the dock and every icon magnifies as it passes under it; a long press then lifts the folder icon, carries it back and forth and drops it in a slot it did not start in; a click on the calculator opens the app, a second click pours the window into that icon, and a third click streams it back out. <b>What it shows:</b> magnification that follows the pointer, a dock you reorder by dragging, and the Genie minimize/restore animation — none of it behind a settings dialog.</em></p>
+
 **How to run** — Clone into `~/.local/share/gnome-shell/extensions/macos-dock@local`, run `glib-compile-schemas schemas/`, then `gnome-extensions enable macos-dock@local` (log out and back in on Wayland).
 
 **Where to look** — See [AGENTS.md](AGENTS.md) and [MAINTENANCE.md](MAINTENANCE.md).
-
-<p align="center"><img src="docs/screenshots/overview.png" alt="The dock with the folder icon magnified under the pointer and a window open above it" width="900"></p>
 
 ## 📖 About
 
@@ -38,10 +44,6 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 - **Applications button**, running-apps display and a workspace mode setting.
 - **Trash button** that behaves like an application icon — its own previews, running dots and windows, its own minimize/restore landing point — while staying separate from the Files icon.
 - **Genie minimize/restore** — windows pour into, and stream back out of, their **real dock icon** from any dock edge, merging the macOS Genie animation.
-
-<p align="center"><img src="docs/screenshots/demo.gif" alt="The pointer magnifying dock icons, dragging one to a new slot, and a window being poured into and out of its icon" width="470"></p>
-
-<p align="center"><em><b>In the clip:</b> the pointer sweeps along the dock and every icon magnifies as it passes under it; a long press then lifts the folder icon, carries it back and forth and drops it in a slot it did not start in; a click on the calculator opens the app, a second click pours the window into that icon, and a third click streams it back out. <b>What it shows:</b> magnification that follows the pointer, a dock you reorder by dragging, and the Genie minimize/restore animation — none of it behind a settings dialog.</em></p>
 
 ## 🧰 Prerequisites
 
