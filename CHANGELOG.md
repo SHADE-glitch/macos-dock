@@ -2216,3 +2216,4 @@ Change    Added the four missing titles. The unnumbered short words stay out on 
 Evidence  `npm test` green (see the totals below), `npm run check:log` PASS.
 Cost      The snapshot cannot be read from ~/.agents at CI time, so this list is a copy by design; section 13
           of the machine-wide audit checks it and reports drift.
+Commit    f8bb995
