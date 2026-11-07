@@ -2191,3 +2191,16 @@ Evidence L2: the owner confirmed both by hand on 2026-11-06 -- the tabs "特别�
 Cost     None in code. Both surfaces remain taste: an upstream upgrade may still discard them,
          and the invariant table stays unchanged because taste entries are not invariants.
 Commit   fed3bff
+
+### D-144 · 2026-11-07 · taste
+Symptom   The README pair carried no table of contents, and it ran Troubleshooting between Testing and
+          Changes vs upstream while its three sibling forks run it before Testing — the same fork read by
+          a different map each time.
+Change    Both sides open with a table of contents under the four-part lead, and the sections take the
+          fork order: About · Features · Genie animation · Prerequisites · Installation · Usage ·
+          Preferences · Settings reference · Testing · Troubleshooting · Changes vs upstream · Contributing
+          · Credits & Attribution · License. No section text moved.
+Evidence  L0 2026-11-07 `npm test` green and `npm run check:log` PASS; `audit-layout.sh` reports this
+          repository compliant; no committed document cited a section that moved.
+Cost      Two sections change position, so two anchors move; nothing cited them.
+Commit    4bc2c64
