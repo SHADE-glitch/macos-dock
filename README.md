@@ -39,7 +39,9 @@ It is **not** affiliated with or endorsed by the upstream authors. The fork keep
 - **Trash button** that behaves like an application icon — its own previews, running dots and windows, its own minimize/restore landing point — while staying separate from the Files icon.
 - **Genie minimize/restore** — windows pour into, and stream back out of, their **real dock icon** from any dock edge, merging the macOS Genie animation.
 
-<p align="center"><img src="docs/screenshots/demo.gif" alt="Icons magnifying as the pointer moves along the dock" width="900"></p>
+<p align="center"><img src="docs/screenshots/demo.gif" alt="The pointer magnifying dock icons, then dragging one to a new slot" width="900"></p>
+
+<p align="center"><em><b>In the clip:</b> the pointer sweeps along the dock and every icon magnifies as it passes under it; then a long press on the Firefox icon picks it up and a drag to the right drops it in the fourth slot. <b>What it shows:</b> macOS-style magnification that follows the pointer, and a dock you reorder by dragging an icon — no settings dialog involved.</em></p>
 
 ## 🧰 Prerequisites
 

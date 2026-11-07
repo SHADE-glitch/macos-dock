@@ -39,7 +39,9 @@
 - **垃圾桶按钮** —— 行为与应用图标一致：自己的预览、自己的运行指示点、自己的窗口，最小化/还原也落在它自己身上；同时与 Files 图标彼此独立。
 - **Genie 最小化/还原** —— 窗口从任意 Dock 边缘流进/流出其**真实 Dock 图标**，即合并进来的 macOS Genie 动画。
 
-<p align="center"><img src="docs/screenshots/demo.gif" alt="指针沿程序坞移动时图标逐级放大" width="900"></p>
+<p align="center"><img src="docs/screenshots/demo.gif" alt="指针放大程序坞图标，再拖动其中一个换位" width="900"></p>
+
+<p align="center"><em><b>动图内容：</b>指针沿程序坞扫过，经过的图标逐个放大；随后长按 Firefox 图标把它拾起，向右拖动放到第四个位置。<b>展示的功能：</b>跟随指针的 macOS 式放大，以及直接拖动图标调整程序坞顺序——全程不用打开设置。</em></p>
 
 ## 🧰 前置依赖
 
