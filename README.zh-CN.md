@@ -17,7 +17,7 @@
 
 **去哪看** — 见 [AGENTS.md](AGENTS.md) 与 [MAINTENANCE.md](MAINTENANCE.md)。
 
-<p align="center"><img src="docs/screenshots/overview.png" alt="指针下方图标被放大的程序坞" width="900"></p>
+<p align="center"><img src="docs/screenshots/overview.png" alt="指针下文件夹图标被放大的程序坞，上方开着一个窗口" width="900"></p>
 
 ## 📖 项目说明
 
@@ -39,9 +39,9 @@
 - **垃圾桶按钮** —— 行为与应用图标一致：自己的预览、自己的运行指示点、自己的窗口，最小化/还原也落在它自己身上；同时与 Files 图标彼此独立。
 - **Genie 最小化/还原** —— 窗口从任意 Dock 边缘流进/流出其**真实 Dock 图标**，即合并进来的 macOS Genie 动画。
 
-<p align="center"><img src="docs/screenshots/demo.gif" alt="指针放大程序坞图标，再拖动其中一个换位" width="900"></p>
+<p align="center"><img src="docs/screenshots/demo.gif" alt="指针放大程序坞图标、拖动换位，窗口被吸入图标又流回" width="900"></p>
 
-<p align="center"><em><b>动图内容：</b>指针沿程序坞扫过，经过的图标逐个放大；随后长按 Firefox 图标把它拾起，向右拖动放到第四个位置。<b>展示的功能：</b>跟随指针的 macOS 式放大，以及直接拖动图标调整程序坞顺序——全程不用打开设置。</em></p>
+<p align="center"><em><b>动图内容：</b>指针沿程序坞扫过，经过的图标逐个放大；随后长按文件夹图标把它拾起，来回拖动后放进一个不是原来位置的槽位；点击计算器图标打开应用，再点一次窗口被吸进那个图标，第三次点击又流回屏幕。<b>展示的功能：</b>跟随指针的放大、拖动即可重排的程序坞，以及 Genie 最小化／还原动画——全程不用打开设置。</em></p>
 
 ## 🧰 前置依赖
 
