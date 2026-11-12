@@ -69,10 +69,16 @@ const IGNORE_ENTRIES = [
 const STANDARD_HEADINGS = [
     "Repositories governed by this standard",
     "Root files (the finalized layer)",
+    "The three dimensions",
+    "The shared common core",
+    "Where each dimension's detail lives",
+    "Unify the common core; never flatten what is a repo's own",
+    "Where a repository points",
     "Language policy",
+    "## 5. CI",
     "Process-draft location",
-    "CHANGELOG format",
     "Test entry commands",
+    "CHANGELOG format",
     "Runtime ignore list",
     "Conflict rule",
     "Remotes and pushing",
@@ -81,11 +87,6 @@ const STANDARD_HEADINGS = [
     "Retiring a repository (cross-dimension)",
     "About (the GitHub front door)",
     "Citation stability (append-only)",
-    "The three dimensions",
-    "The shared common core",
-    "Where each dimension's detail lives",
-    "Unify the common core",
-    "Where a repository points",
 ];
 
 const trackedRuntime = () =>
