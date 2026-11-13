@@ -2235,7 +2235,7 @@ Cost      The snapshot is still a copy by design (CI cannot read `~/.agents`); d
           audit section 13, which now also reports a snapshot that names CI only in prose form.
 Commit    ff988ed
 
-### D-147 · 2026-11-12 · docs
+### D-147 · 2026-11-12 · chore
 Symptom   The project-level rules pointer block in AGENTS.md used bare `@~/.agents/standards/...` imports to pull in the machine-wide standard. That only delivers the rule text to agents that expand `@` imports or read `opencode.json`; an agent that does neither holds the pointer and none of the rule text.
 Change    Replaced the two `@` imports with plain backticked absolute paths (`~/.agents/standards/STANDARD.md`, `~/.agents/standards/dimensions/<tier>.md`). The rule text is now delivered by the tool-neutral global behavior contract (GLOBAL.md) before the first edit, so the pointer works for every agent regardless of import expansion. No rule text was duplicated or changed — only the pointer form.
 Evidence  `npm test` green: 175 pass, 0 fail (exit 0). The change sits inside the pointer block and does not touch heading counts or section structure, so the machine-wide audit that reads AGENTS.md sees the same headings as before.
@@ -2255,3 +2255,4 @@ Evidence  `bash ~/.agents/scripts/audit.sh` exits 0 (every governed repository p
           this repository's own guard did not reference the file.
 Cost      No per-assistant config remains to drift, and no local guard can observe an agent that skips
           the pointer — the same blind spot the removed file had.
+Commit    7964a4a
