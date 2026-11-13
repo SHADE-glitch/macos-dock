@@ -28,3 +28,4 @@ jobs:
       # Coverage reading (not a gate): Node's built-in coverage over the pure
       # suites. It prints a table; with no threshold it cannot fail the run.
       - run: npm run test:coverage
+      - run: python3 scripts/render_standards.py --verify-lock .
