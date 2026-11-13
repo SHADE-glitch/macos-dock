@@ -144,11 +144,11 @@ describe("dimension-A checkout and test-directory invariants", () => {
             "ci.yml checks out shallow — the CI section of dimensions/a.md requires `fetch-depth: 0`");
     });
 
-    it("keeps exactly one test directory", () => {
+    it("keeps the singular test/ directory", () => {
         const has = (d) => fs.existsSync(path.join(REPO, d));
-        assert.ok(has("test") || has("tests"),
-            "no test directory — dimension A runs its suite from `npm test`");
-        assert.ok(!(has("test") && has("tests")),
-            "both test/ and tests/ exist — keep one, or half the suite stops running");
+        assert.ok(has("test"),
+            "test/ is missing — dimension A plugins run their suite from the singular `test/`");
+        assert.ok(!has("tests"),
+            "a plural sibling of test/ exists — dimension A plugins keep one suite directory");
     });
 });
