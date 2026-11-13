@@ -12,6 +12,7 @@
 //   1. the finalized root-file layer is present, and present in the right place
 //   2. AGENTS.md names its dimension in one line instead of restating the standard
 //   3. the runtime ignore list holds and no runtime state is tracked
+//   4. the CI checkout is deep, and exactly one test directory exists
 //
 // Every assertion says what is missing AND where it belongs, so a red run tells the
 // next session how to fix itself instead of only that something broke. Repo-specific
@@ -130,5 +131,24 @@ describe("dimension-A layout invariants hold", () => {
         const tracked = git("ls-files", "--", "reports", "docs/reports");
         assert.equal(tracked, "",
             `reports/ holds PROFILE / AUDIT / PLAN / VERIFY / STATE, which quote live dconf values and the on-disk layout of the plaintext clipboard store. These tracked files would be pushed:\n${tracked}`);
+    });
+});
+
+// A shallow checkout makes the log gate's anchor unreachable, and a second test
+// directory silently drops half the suite from `npm test`. Both cost nothing to assert.
+describe("dimension-A checkout and test-directory invariants", () => {
+    it("checks out full history so the log gate can reach its anchor", () => {
+        const ci = path.join(REPO, ".github", "workflows", "ci.yml");
+        assert.ok(fs.existsSync(ci), "ci.yml is missing — dimension A runs its offline layer from one workflow");
+        assert.match(fs.readFileSync(ci, "utf8"), /fetch-depth:\s*0/,
+            "ci.yml checks out shallow — the CI section of dimensions/a.md requires `fetch-depth: 0`");
+    });
+
+    it("keeps exactly one test directory", () => {
+        const has = (d) => fs.existsSync(path.join(REPO, d));
+        assert.ok(has("test") || has("tests"),
+            "no test directory — dimension A runs its suite from `npm test`");
+        assert.ok(!(has("test") && has("tests")),
+            "both test/ and tests/ exist — keep one, or half the suite stops running");
     });
 });
