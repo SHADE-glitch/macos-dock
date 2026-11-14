@@ -2269,3 +2269,25 @@ Evidence  `python3 ~/.agents/scripts/render_standards.py --check .` reports the 
 Cost      `AGENTS.md` grows by about 10.5 KB, paid on every session read; the copy can drift, so the
           drift check is the only thing keeping it honest and it exists only on this machine.
 Commit    af52981
+
+### D-150 · 2026-11-14 · taste
+
+Symptom   A left press on the Trash or the applications button produced no motion of its own. App
+          icons had a launch bounce, but that fires on a focus change after an app starts, not on
+          the press itself, so press feedback was missing for every item in the row.
+Change    Added one shared dip-and-rebound, played to completion on the left press, to app icons,
+          the Trash and the applications button alike. It writes the St.Icon translation, the one
+          transform no other animation owns: magnification and the launch bounce write the outer
+          actor, the genie squash writes the inner wrapper, and the icon scale is fixed by the
+          texture pipeline (its (0,0) pivot places the high-quality texture). Playing to completion
+          avoids release/leave bookkeeping, so a press that becomes a drag or is released elsewhere
+          cannot leave an icon stuck down. The two tail buttons stay outside bindIcon() and the drag
+          slot partition, so a long press still cannot start a reorder.
+Evidence  L1: tier 1 and tier 2 checks are green with `tick-geometry-reads` and
+          `drag-slots-are-icons-only` still passing; those cover startup and the untouched geometry
+          paths. The press animation itself has no guard and needs manual verification after a
+          logout, because the running shell keeps the pre-edit module until re-login.
+Cost      Two short easing phases (~240 ms) per left press on one icon, plus a call site in each
+          press handler. The dip distance and the durations are taste constants an upgrade may
+          discard wholesale.
+Commit    df2f8ca
