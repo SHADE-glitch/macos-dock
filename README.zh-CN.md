@@ -13,13 +13,9 @@
 
 **解决什么** — 保留上游功能集的同时，修复启动闪烁、资源泄漏、空闲功耗以及分隔线/显隐逻辑。
 
-<p align="center"><img src="docs/screenshots/overview.png" alt="指针下文件夹图标被放大的程序坞，上方开着一个窗口" width="900"></p>
+<p align="center"><img src="docs/screenshots/demo.gif" alt="指针沿程序坞扫过、图标逐个放大，Files 窗口随后被吸进图标又流回屏幕" width="800"></p>
 
-<p align="center"><em><b>程序坞</b> —— 指针下逐级放大的图标，本 fork 出厂的那套布局。</em></p>
-
-<p align="center"><img src="docs/screenshots/demo.gif" alt="指针放大程序坞图标、拖动换位，窗口被吸入图标又流回" width="470"></p>
-
-<p align="center"><em><b>动图内容：</b>指针沿程序坞扫过，经过的图标逐个放大；随后长按文件夹图标把它拾起，来回拖动后放进一个不是原来位置的槽位；点击计算器图标打开应用，再点一次窗口被吸进那个图标，第三次点击又流回屏幕。<b>展示的功能：</b>跟随指针的放大、拖动即可重排的程序坞，以及 Genie 最小化／还原动画——全程不用打开设置。</em></p>
+<p align="center"><em><b>动图内容：</b>指针沿程序坞扫过，经过的图标逐个放大，悬停的应用报出自己的名字；随后 <b>Super+1</b> 从键盘唤出 Files 窗口，再按一次把它吸进程序坞图标，第三次又流回屏幕。<b>展示的功能：</b>跟随指针的放大、图标提示、键盘启动，以及 Genie 最小化／还原动画——全程不用打开设置。</em></p>
 
 **怎么跑** — 克隆到 `~/.local/share/gnome-shell/extensions/macos-dock@local`，运行 `glib-compile-schemas schemas/`，再 `gnome-extensions enable macos-dock@local`（Wayland 下需注销重登）。
 
