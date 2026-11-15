@@ -19,7 +19,7 @@ A macOS-style dock for GNOME Shell with magnification, animations, dodge, keyboa
 
 <p align="center"><img src="docs/screenshots/demo.gif" alt="The pointer magnifying dock icons, dragging one to a new slot, and a window being poured into and out of its icon" width="470"></p>
 
-<p align="center"><em><b>In the clip:</b> the pointer sweeps along the dock and every icon magnifies as it passes under it; a long press then lifts the folder icon, carries it back and forth and drops it in a slot it did not start in; a click on the calculator opens the app, a second click pours the window into that icon, and a third click streams it back out. <b>What it shows:</b> magnification that follows the pointer, a dock you reorder by dragging, and the Genie minimize/restore animation — none of it behind a settings dialog.</em></p>
+<p align="center"><em><b>In the clip:</b> the pointer sweeps along the dock and each icon magnifies as it passes; a folder icon is picked up, carried to a new slot and dropped; a calculator window is opened, poured into its icon, then streamed back out. <b>What it shows:</b> pointer-following magnification, drag-to-reorder, and above all the Genie minimize/restore animation this fork merges — a window flowing into its real dock icon and back, none of it behind a settings dialog.</em></p>
 
 **How to run** — Clone into `~/.local/share/gnome-shell/extensions/macos-dock@local`, run `glib-compile-schemas schemas/`, then `gnome-extensions enable macos-dock@local` (log out and back in on Wayland).
 

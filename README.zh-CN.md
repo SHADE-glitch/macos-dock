@@ -19,7 +19,7 @@
 
 <p align="center"><img src="docs/screenshots/demo.gif" alt="指针放大程序坞图标、拖动换位，窗口被吸入图标又流回" width="470"></p>
 
-<p align="center"><em><b>动图内容：</b>指针沿程序坞扫过，经过的图标逐个放大；随后长按文件夹图标把它拾起，来回拖动后放进一个不是原来位置的槽位；点击计算器图标打开应用，再点一次窗口被吸进那个图标，第三次点击又流回屏幕。<b>展示的功能：</b>跟随指针的放大、拖动即可重排的程序坞，以及 Genie 最小化／还原动画——全程不用打开设置。</em></p>
+<p align="center"><em><b>动图内容：</b>指针沿程序坞扫过，经过的图标逐个放大；长按拾起文件夹图标、拖到新槽位放下；打开计算器窗口后，窗口被吸进它的图标，又从图标流回屏幕。<b>展示的功能：</b>跟随指针的放大、拖动重排，以及本 fork 合并进来的 Genie 最小化／还原动画——窗口流进真实的程序坞图标再流回，全程不用打开设置。</em></p>
 
 **怎么跑** — 克隆到 `~/.local/share/gnome-shell/extensions/macos-dock@local`，运行 `glib-compile-schemas schemas/`，再 `gnome-extensions enable macos-dock@local`（Wayland 下需注销重登）。
 
