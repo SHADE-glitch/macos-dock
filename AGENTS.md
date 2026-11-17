@@ -341,8 +341,12 @@ for shell-private-API changes.
 These end the session the agent is running in, or rewrite history the agent cannot see. Print the
 exact command and wait — never substitute a workaround that touches the session instead.
 - Log out / log in, reboot, killing or restarting `gnome-shell`.
-- `git commit`, `git push`, and anything that discards work: `git checkout` / `reset` / `stash` /
-  `clean`. The tree may hold the user's own uncommitted edits at any moment.
+- **`git commit` and `git push` are not in this list any more.** The owner has given a standing
+  decision for both: finishing a task means committing it (code first, docs second) and pushing it
+  to `origin` over SSH, and a task stops only when `git status` is clean and `git ls-remote` shows
+  the new head. No rebase and no history rewrite, ever.
+- Anything that discards work stays yours: `git checkout` / `reset` / `stash` / `clean`. The tree
+  may hold your own uncommitted edits at any moment.
 - `gsettings set` / `dconf write`. The one exception is this extension's own schema keys inside
   `test:live-trigger`, written only through `common.sh`'s `set_key` (whitelisted to `[a-z0-9-]`,
   refuses `keynav-*` and `dodge-enabled`, records whether the key was originally unset) with
