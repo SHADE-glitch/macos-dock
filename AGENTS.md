@@ -217,14 +217,42 @@ restructure upstream files.
 - The performance questions that actually matter, in order: time from login to the first visible
   icon, icon flicker after login, how closely interaction tracks the pointer, idle CPU and memory
   while the dock is untouched. Genie's animation *feel* may change; its cost may not.
-- Frozen fork, no upstream tracking, so **restructuring by function is allowed** — with evidence of
-  the pain it removes, behaviour preserved, and a check that fails against the pre-change code.
-  No architecture for its own sake: no DI container, no event bus, no extra layer for one caller.
+- Frozen fork: **the upstream is read, never merged** (see `Upstream policy`), so **restructuring by
+  function is allowed** — with evidence of the pain it removes, behaviour preserved, and a check that
+  fails against the pre-change code. No architecture for its own sake: no DI container, no event bus,
+  no extra layer for one caller.
 - **No team-process files**: no CONTRIBUTING, no PR/issue templates, no CODEOWNERS. The audience is
   one maintainer and the agent reading this file.
 - Keep both upstream copyright notices and licence headers exactly as they are (MIT dock,
   GPL-2.0-or-later for the three genie files). State the mixed licensing as fact and draw no legal
   conclusion; `LICENSES.md` plus the tier-1 licence guard are the mechanical half.
+
+## Upstream policy — radar, never merge
+
+This fork is frozen at upstream **v9** (`a2140d0`), with macOS Genie merged from a **second**
+upstream (`SekiroKenjii/macos-genie`), and is **not** a tracking branch. The policy is **read
+upstream, never merge it**: keep the frozen baseline, and use upstream as an early-warning system
+for shell-private-API changes.
+
+- **Never** `git merge`, `git rebase`, `git cherry-pick` or `git pull` from `upstream`. The
+  magnification clock, the dodge polling, the incremental icon sync and the genie engine are this
+  tree's own; a three-way merge moves the baseline without re-proving any of it.
+- **Run the radar quarterly and before every GNOME major upgrade** (the `upstream` remote exists for
+  exactly this — it is not a merge source):
+  ```sh
+  git fetch --unshallow upstream
+  git log --oneline upstream/main --since=2026-09-22
+  git diff --stat HEAD upstream/main -- extension.js prefs.js lib schemas metadata.json
+  ```
+- **Take by hand, one hunk at a time:** a compatibility fix for a shell-private API this fork also
+  touches (`IconManager`, `overviewControls`, `Main.wm`), or an upstream fix for a bug reproduced on
+  this machine. Each one is re-proven at tier 1, at tier 2 when it touches layout or the icon table,
+  and earns a `D-###` entry.
+- **Do not take:** upstream features, refactors and scaffolding, anything that would change the UUID
+  or the settings schema id, anything this fork has carried further than upstream did, and any genie
+  change taken from the second upstream without its own tier-1/2 proof.
+- **Record** each pass (date, upstream head, what was screened out and why) in
+  `docs/reports/STATE.md`; only a change actually taken gets a `CHANGELOG.md` entry.
 
 ## Scope
 - This extension is a **dock**, but it also carries non-dock concerns: overview layout patches, the genie window animation, global hotkeys, and the Show Apps button fix. They are kept, but must stay **isolated in place** — never entangled with the dock.

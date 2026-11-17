@@ -2291,3 +2291,30 @@ Cost      Two short easing phases (~240 ms) per left press on one icon, plus a c
           press handler. The dip distance and the durations are taste constants an upgrade may
           discard wholesale.
 Commit    df2f8ca
+
+### D-151 · 2026-11-17 · fix
+
+Symptom   Leaving an icon called scheduleHide() only when isVisible() was already true, but that
+          flag is set in the fade-in's onComplete. A pointer that merely passed over an icon
+          therefore opened a preview with nothing about to close it.
+Change    scheduleHide() is scheduled unconditionally on hover-out. The popup keeps its own pin
+          rule (a click-opened preview outlives the pointer) and cancels an existing timer. Taken
+          by hand from upstream (4e8dd3a).
+Evidence  tier 1 9/9 (177 assertions / 46 suites), tier 2 33/33 including no-boot-hide and the
+          teardown check. The hover path itself still needs a re-login and a real pointer.
+Cost      One timer per hover-out even when no preview is open; the next show or stop() removes it.
+Commit    c46edf3
+
+### D-152 · 2026-11-17 · fix
+
+Symptom   Two leftovers in the popup. _animateOut() returned without clearing _visible when no
+          popup was left, so a hide racing the popup's destruction left isVisible() true for good.
+          And thumbnails matched window actors through the `meta_window` field alone, which GNOME
+          49+ no longer guarantees, so a tile could be built with no picture.
+Change    The empty animate-out clears the flag before completing, and the match reads
+          get_meta_window() when the binding exposes it, falling back to the field. Both are the
+          upstream shapes (c4b8305).
+Evidence  tier 1 9/9, tier 2 33/33. No tier opens a preview, so the thumbnail half rests on the
+          API shape rather than on a run, and the popup half needs the same re-login.
+Cost      One capability check per window actor each time a thumbnail list is built.
+Commit    f03a5c8
