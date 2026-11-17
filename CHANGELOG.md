@@ -2318,3 +2318,25 @@ Evidence  tier 1 9/9, tier 2 33/33. No tier opens a preview, so the thumbnail ha
           API shape rather than on a run, and the popup half needs the same re-login.
 Cost      One capability check per window actor each time a thumbnail list is built.
 Commit    f03a5c8
+
+### D-153 · 2026-11-17 · fix
+
+Symptom   Icon textures were sized from `icon-quality` alone, and nothing re-requested them when
+          the resource scale changed. On a 2x output the dock magnified a texture one quality step
+          wide, and adding a monitor or switching an output's scale left the icons at the old
+          resolution until a re-login.
+Change    The texture multiplier is now `icon-quality × the container's resource scale`, read
+          through one helper that also accepts the older `[ok, scale]` return shape, and
+          `refreshResourceScale()` re-applies every icon's texture when that scale changes.
+          `dockManager` connects `Meta.MonitorManager`'s `monitors-changed` on
+          `global.backend.get_monitor_manager()` -- never on `global.display`, which has no such
+          signal on 50.1 -- and both events also re-run `_updatePosition()`. Hand-picked from
+          upstream (`1c793dc`); upstream's `create_icon_texture` pipeline is not adopted, this fork
+          keeps its own `_applyIconTexture` scaling.
+Evidence  tier 1 9/9 (177 assertions / 46 suites) and tier 2 33/33, including
+          `tick-geometry-reads`, `dock-extent-tracks-row`, `chrome-untracked` and the teardown
+          check. No tier re-requests a texture, so what is proven is that the new path is wired and
+          inert while the scale does not change; the hotplug itself needs a real monitor.
+Cost      One `get_resource_scale()` call per icon texture update and one more signal connection.
+          Icons now ask for `quality × scale` pixels, i.e. more texture memory on a 2x output.
+Commit    be3885e

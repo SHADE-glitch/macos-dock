@@ -372,6 +372,15 @@ Everything that a GNOME update can take away:
   `actor._dockRemovalPending`, `wrapper._dockFixDestroyId`) is our own bookkeeping attached
   to foreign objects, and cannot break on upgrade.
 
+- `global.backend.get_monitor_manager()` with `Meta.MonitorManager`'s `monitors-changed`, and
+  `Clutter.Actor.get_resource_scale()` behind it (D-153). The signal **must** be connected to the
+  monitor manager: `global.display` has no `monitors-changed`, and connecting it there throws
+  `No signal 'monitors-changed'` inside `enable()` on 50.1, which leaves the dock in ERROR. The
+  scale getter is public, but its shape is not stable across versions ([ok, scale] on 3.36/3.38),
+  so it is read through one helper. A rename or removal degrades to "the handler never fires and
+  the icons keep the scale they were built with" — no crash, and tier 2 cannot see it because a
+  headless session never changes a monitor.
+
 ## 9. Log-line oracle map
 
 | Line (`file:line`) | Proves | Does not prove | Tier |
