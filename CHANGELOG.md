@@ -2361,3 +2361,23 @@ Evidence  tier 1 177/177 (46 suites), tier 2 33/33. A one-off headless probe dro
 Cost      Two more actors per tick (8 geometry reads instead of 6). The tail tiles keep their hover
           background, which now scales with them.
 Commit    f9f455b
+
+### D-155 · 2026-11-21 · taste
+
+Symptom   D-154 could only assert the wiring: the hover path needs a real pointer, and no tier
+          drives one. Nothing recorded whether the tail tiles behave across the states a user
+          actually reaches, and `MAINTENANCE.md` §11 still described the tick as walking app icons
+          only.
+Change   No code change. Verified the effect after the owner's re-login, and corrected §11 in
+          both languages to the tile contract: the tick walks the app icons plus the two tail
+          tiles, while the separator and the drag gap stay out.
+Evidence  L2, owner by hand on the running session after a re-login. Live: tier 3 group A 9/9
+          with `stale-code` green and no error-bearing tag lines. A headless probe drove the tick
+          in four states — bottom row: Trash 1.400 / applications 1.138 / neighbour app 1.056,
+          then 1.400 on the applications tile with Trash 1.132, then Trash 1.060 with the pointer
+          on the last app icon; magnification off: both 1.000; Trash switched off: the tile is
+          gone and applications still reads 1.400; left-edge dock: pivot (0.0, 0.5), Trash 1.400,
+          applications 1.115; parked away from the dock: 1.001 / 1.001. This records the round; it
+          does not rewrite D-154's assertion as of its own commit.
+Cost      None in code. The magnification stays taste, so the invariant table is unchanged.
+Commit    f9f455b

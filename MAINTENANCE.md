@@ -527,10 +527,10 @@ Each of these was tested directly and failed. Do not spend time retrying them.
   licence.
 - The magnification tick is single-pass by measurement, not by taste: 12 position reads per frame
   for 6 icons before D-063, 6 after (`tick-geometry-reads`). Anyone re-splitting that loop is
-  re-introducing the thing the check counts. The tick walks **icon actors only** —
-  the separator, the Trash, the applications button and the drag gap are children but not tiles —
-  so the count now equals the icon count by construction, and a rise above it means the filter
-  went back to `get_children()`.
+  re-introducing the thing the check counts. The tick walks **tiles**: the app icons plus the two
+  tail tiles, which opt in with `_dockMagnifyTarget` because they have no app behind them (D-154).
+  The separator and the drag gap are children but not tiles, so the count equals the tile count by
+  construction, and a rise above it means the filter went back to `get_children()`.
 - On a dense boot the dock deliberately does **not** dodge for up to ~6 s. That is the chosen
   cap, not a bug. The knob is `STARTUP_GRACE_CAP_MS` alone.
 
