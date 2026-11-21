@@ -2340,3 +2340,24 @@ Evidence  tier 1 9/9 (177 assertions / 46 suites) and tier 2 33/33, including
 Cost      One `get_resource_scale()` call per icon texture update and one more signal connection.
           Icons now ask for `quality × scale` pixels, i.e. more texture memory on a 2x output.
 Commit    be3885e
+
+### D-154 · 2026-11-21 · taste
+
+Symptom   The two fixed tiles at the row's right end — the Trash and the applications button —
+          never magnified: the tick collected only `_appData` actors, so they stayed at rest while
+          the app icons waved, and they neither led nor followed their neighbours.
+Change    Magnification collects a tile marked `_dockMagnifyTarget` as well. The Trash and the
+          applications button set that marker when they are built, so they scale on the same
+          distance curve, with the same pivot and smoothing, and still cannot be dragged or
+          unbound: drag binds app icons only, and nothing on their click paths changed. The tier-2
+          `tick-geometry-reads` probe counts tiles by the same predicate; what it asserts — one
+          geometry read per tile, none for the separator or the drag gap — is unchanged.
+Evidence  tier 1 177/177 (46 suites), tier 2 33/33. A one-off headless probe drove the tick with a
+          shadowed `global.get_pointer()`: pointer on the Trash → trash 1.400 (= max scale),
+          applications 1.138, neighbour app 1.056; on the applications button → 1.400 / trash
+          1.132; on the last app icon → trash 1.060. Parked far away → 1.001 / 1.000, the
+          separator stayed 1.000, and both pivots read (0.5, 1.0). A real pointer on the running
+          session still needs a re-login.
+Cost      Two more actors per tick (8 geometry reads instead of 6). The tail tiles keep their hover
+          background, which now scales with them.
+Commit    f9f455b
