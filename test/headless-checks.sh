@@ -597,13 +597,14 @@ cat > "$T2/e10.js" <<'JS'
         }
         const children = cont.get_children();
         out.n = children.length;
-        // The tick magnifies app tiles only: the separator, the Trash, the
-        // applications button and the drag gap are children but not tiles, and
-        // scaling them is an artefact (and a fight with the gap's own
-        // animation). So the contract is one read per ICON, and none for the
-        // rest -- counting all children here would call the correct behaviour a
-        // regression.
-        const icons = children.filter((k) => k._appData);
+        // The tick magnifies tiles: the app icons plus the two tail tiles
+        // (Trash and applications button), which opt in with their own marker
+        // because they have no app behind them. The separator and the drag gap
+        // are children but not tiles, and scaling them is an artefact (and a
+        // fight with the gap's own animation). So the contract is one read per
+        // TILE, and none for the rest -- counting all children here would call
+        // the correct behaviour a regression.
+        const icons = children.filter((k) => k._appData || k._dockMagnifyTarget);
         out.nIcons = icons.length;
         let posCalls = 0;
         const saved = [];
@@ -642,9 +643,9 @@ elif [ "$(jq -r '.precondition' "$T2/tick.json")" != true ]; then
 elif [ "$(jq -r '.tooFew' "$T2/tick.json")" = true ]; then
     report $T tick-geometry-reads ENV "tick ran but never reached the geometry pass: $tick_json"
 elif [ "$(jq -r '.ok' "$T2/tick.json")" = true ]; then
-    report $T tick-geometry-reads PASS "one geometry read per icon per frame ($(jq -r '.posCalls' "$T2/tick.json") for $(jq -r '.nIcons' "$T2/tick.json") icons of $(jq -r '.n' "$T2/tick.json") children)"
+    report $T tick-geometry-reads PASS "one geometry read per tile per frame ($(jq -r '.posCalls' "$T2/tick.json") for $(jq -r '.nIcons' "$T2/tick.json") tiles of $(jq -r '.n' "$T2/tick.json") children)"
 else
-    report $T tick-geometry-reads FAIL "$(jq -r '.posCalls' "$T2/tick.json") position reads for $(jq -r '.n' "$T2/tick.json") icons in one tick — the tick passes over the icons more than once: $tick_json"
+    report $T tick-geometry-reads FAIL "$(jq -r '.posCalls' "$T2/tick.json") position reads for $(jq -r '.nIcons' "$T2/tick.json") tiles in one tick — the tick passes over the tiles more than once: $tick_json"
 fi
 
 # H20 ------------------------------------------------------------------------
