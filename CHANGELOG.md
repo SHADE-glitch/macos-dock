@@ -2381,3 +2381,20 @@ Evidence  L2, owner by hand on the running session after a re-login. Live: tier 
           does not rewrite D-154's assertion as of its own commit.
 Cost      None in code. The magnification stays taste, so the invariant table is unchanged.
 Commit    f9f455b
+
+### D-156 · 2026-11-21 · fix
+
+Symptom   The tier-3 separator round-trip check could never pass: toggling `show-running-apps`
+          goes through `_reload()`, which destroys the row and nulls `_separator` without
+          logging, so the oracle's `-separator` count stayed at 0 and the check reported ENV on
+          every run — with a message that blamed what happened to be running.
+Change    `_reload()` logs the separator's removal when it is dropped because running apps are
+          hidden: the line the incremental path already writes, written only in the state that
+          explains it, so an ordinary reload gains nothing.
+Evidence  A headless probe flipped `show-running-apps` off and on in the throwaway shell —
+          separator present → absent → present, and the log gained exactly one
+          `-separator (running-apps-hidden reason=show-running-apps)`. Tier 1 9/9, tier 2 33/33.
+          The live check cannot be re-read until the next re-login, because the running shell
+          predates this edit.
+Cost      At most one extra log line per switch-off. No behaviour change.
+Commit    579170c
