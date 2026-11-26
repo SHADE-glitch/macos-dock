@@ -658,13 +658,15 @@ dock 容器的每个子元素只属于下面四类之一，行顺序固定为：
 | 固定 | `org.gnome.shell favorite-apps`，由 shell 持久化 | 能；拖放写这个 key | 按下只记录，松开才执行（`iconManager.js:1110`） |
 | 运行中·未固定 | 本会话记住的顺序：首次出现时追加，图标离开行时剔除该应用（`lib/runningOrder.js`，在 `iconManager.js:698` 的 `_enforceOrder` 里排序） | 不能；拖进固定区等于固定该应用（`dockDnd.js:53`） | 同"固定" |
 | 垃圾桶 | 固定在尾部 | 不能 | 按下只记录，松开时指针仍在该图块上才执行，移开即取消（`iconManager.js:2204`） |
-| 收 APPS | 由 `applyShowAppsPin` 固定在最后（`iconFix.js:171`） | 不能 | 按下只记录，松开时指针仍在该图块上才执行（`iconManager.js:2306`） |
+| 收 APPS | 由 `applyShowAppsPin` 固定在最后（`iconFix.js:171`） | 不能 | 按下只记录并下沉，松开时指针仍在该图块上才执行；真正接管这个图块的是伴随模块（`overviewApps.js:170`、`:184`），因为它会先摘掉 IconManager 的 handler |
 
 ### 车主需求（记录于 2026-11-26，已实现）
 
 车主点名了上面四类，并提出两条行为要求。两条都在 `bb58a57` 落地（D-157、D-158）；D-159 按车主
-第二轮要求把剔除规则改成"关闭即关闭"。真机还需要重新登录才能验，因为当前运行的 shell 早于这次
-改动。
+第二轮要求把剔除规则改成"关闭即关闭"。D-160 把收 APPS 那一半补到了真正拥有该图块的模块：
+`apps-button-fix-enabled` 是开着的，而 `lib/overviewApps.js` 会先摘掉 IconManager 在这个图块上的
+所有 handler 再装自己的，所以 D-158 那对 handler 从来没跑过。真机还需要重新登录才能验，因为当前
+运行的 shell 早于这次改动。
 
 1. **未固定图标在锁屏/解锁、挂起/唤醒后保持原顺序。** 以前这一行没有任何顺序状态：`_addIcon()`
    直接追加，整表 `_reload()` 按 `global.get_window_actors()`（堆叠序）重建，`_enforceOrder()` 只把
@@ -675,7 +677,8 @@ dock 容器的每个子元素只属于下面四类之一，行顺序固定为：
 2. **收 APPS 的点击行为要和垃圾桶一致。** 它以前在 `button-press-event` 里直接调用
    `Main.overview.showApps()`，按下后想移开也取消不了。现在按下只记录并播放按压反馈，松开时只有
    "这次按下仍然有效且指针还在图块上"才切换 overview。和垃圾桶一样只认左键；中键和右键不再切换
-   应用网格。
+   应用网格。这对 handler 住在 `lib/overviewApps.js`（D-160），不在 `iconManager.js`：只要
+   `apps-button-fix-enabled` 开着，这个模块就拥有该图块，并会先丢掉 IconManager 的 handler。
 
 ### 选方案 A（内存），不选方案 B（持久化）
 

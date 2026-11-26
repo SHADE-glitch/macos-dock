@@ -2444,3 +2444,20 @@ Evidence  L1: `npm test` 191 assertions in 49 suites, 4 new `forgetRunning` case
 Cost      None. A closed app appends when reopened; the lock/suspend rebuild is unaffected for apps
           that still have windows.
 Commit    3f007f7
+
+### D-160 · 2026-11-26 · fix
+
+Symptom   After a re-login the Show Apps tile still opened the grid on press, so a press that was
+          being dragged off the tile had already committed. D-158's press/release pair was in the
+          build and had no effect.
+Cause     `apps-button-fix-enabled` is on, and `lib/overviewApps.js` owns this tile: `patchLiveButton`
+          disconnects every IconManager handler on it (`im._signals.disconnect(btn)`) and connects a
+          single `_toggleHandler` to `button-press-event`, which runs the three-stage grid toggle
+          immediately. Two owners for one tile, and the companion ran last.
+Change    The companion now installs the same pair D-158 gave IconManager: press records the tile and
+          plays the dip, release runs the toggle only while that press is current and the pointer is
+          still on the tile. `revert()` detaches both handlers.
+Evidence  L1: `npm test` 191 assertions in 49 suites; tier 1 9/9. The gesture needs a real pointer
+          (MAINTENANCE §10), so the live pass is a re-login plus one press-and-move-away.
+Cost      None. The grid toggle's three-stage logic is unchanged; only the event that triggers it is.
+Commit    7ef8c2a

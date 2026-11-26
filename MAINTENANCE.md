@@ -801,13 +801,16 @@ this order:
 | pinned | `org.gnome.shell favorite-apps`, persisted by the shell | yes; a drop writes that key | press records, release acts (`iconManager.js:1110`) |
 | running, unpinned | the session's remembered order: first sight appends, and an app is forgotten when its icon leaves the row (`lib/runningOrder.js`, sorted in `_enforceOrder` at `iconManager.js:698`) | no; a drop into the pinned range pins the app (`dockDnd.js:53`) | same as pinned |
 | Trash | fixed tail tile | no | press records, release acts only while the pointer is still on it, so moving away cancels (`iconManager.js:2204`) |
-| Show Apps | pinned last by `applyShowAppsPin` (`iconFix.js:171`) | no | press records, release acts only while the pointer is still on it (`iconManager.js:2306`) |
+| Show Apps | pinned last by `applyShowAppsPin` (`iconFix.js:171`) | no | press records and dips, release acts only while the pointer is still on it; the live pair is the companion's (`overviewApps.js:170`, `:184`), because it replaces IconManager's handlers on this tile |
 
 ### Owner requirements, recorded 2026-11-26 (implemented)
 
 The owner named the four classes above and asked for two behaviours. Both landed in `bb58a57`
-(D-157, D-158); D-159 changed the pruning rule to closed-is-closed on the owner's second pass. A live
-pass still needs a re-login, because the running shell predates the edit.
+(D-157, D-158); D-159 changed the pruning rule to closed-is-closed on the owner's second pass. D-160
+re-landed the Show Apps half where the tile is actually owned: `apps-button-fix-enabled` is on, and
+`lib/overviewApps.js` disconnects every IconManager handler on the tile before installing its own, so
+D-158's pair never ran. A live pass still needs a re-login, because the running shell predates the
+edit.
 
 1. **Unpinned icons keep their order across lock/unlock and suspend/resume.** The row used to carry no
    order state: `_addIcon()` appended, a full `_reload()` rebuilt from `global.get_window_actors()`
@@ -820,7 +823,9 @@ pass still needs a re-login, because the running shell predates the edit.
    inside `button-press-event`, so a press followed by moving away could not cancel. It now records
    the press, plays the dip, and toggles the overview on release only if that press is still current
    and the pointer is still on the tile. Left button only, like the Trash; middle and right no longer
-   toggle the grid.
+   toggle the grid. The pair lives in `lib/overviewApps.js` (D-160), not in `iconManager.js`: that
+   module owns the tile whenever `apps-button-fix-enabled` is on, and it discards IconManager's
+   handlers before connecting its own.
 
 ### Why plan A (in memory) rather than plan B (persisted)
 
