@@ -788,3 +788,47 @@ cursor: pointer injection is unavailable (`/dev/uinput` is `0600 root:root`, XTE
 reach the compositor cursor, no EI/Ember portal), and screenshots are `AccessDenied`. For those
 the tick *counts* are the honest proxy — `tick-geometry-reads` proves the per-frame work shrank —
 and the perceptual question stays with the user (§10).
+
+## 17. Dock row model and the four tile classes
+
+Every child of the dock container belongs to exactly one of four classes, and the row is always in
+this order:
+
+`[pinned] | separator | [running, unpinned] | [Trash] | [Show Apps]`
+
+| class | where its order comes from | draggable | activation |
+|---|---|---|---|
+| pinned | `org.gnome.shell favorite-apps`, persisted by the shell | yes; a drop writes that key | press records, release acts (`iconManager.js:1110`) |
+| running, unpinned | the session's remembered order: first sight appends, a returning app keeps its slot (`lib/runningOrder.js`, sorted in `_enforceOrder` at `iconManager.js:698`) | no; a drop into the pinned range pins the app (`dockDnd.js:53`) | same as pinned |
+| Trash | fixed tail tile | no | press records, release acts only while the pointer is still on it, so moving away cancels (`iconManager.js:2204`) |
+| Show Apps | pinned last by `applyShowAppsPin` (`iconFix.js:171`) | no | press records, release acts only while the pointer is still on it (`iconManager.js:2306`) |
+
+### Owner requirements, recorded 2026-11-26 (implemented)
+
+The owner named the four classes above and asked for two behaviours. Both landed in `bb58a57`,
+recorded as D-157 and D-158. A live pass still needs a re-login, because the running shell predates
+the edit.
+
+1. **Unpinned icons keep their order across lock/unlock and suspend/resume.** The row used to carry no
+   order state: `_addIcon()` appended, a full `_reload()` rebuilt from `global.get_window_actors()`
+   (stacking order), and `_enforceOrder()` only lifted pinned icons, so any icon that was dropped and
+   re-added landed at the end. `_runningOrder` now records the first-seen order for the session, is
+   consulted before the first paint of a rebuild, and is the sort key of the unpinned segment. Ids are
+   never pruned, which is what makes a transient disappearance harmless; an app that quits and comes
+   back keeps its old slot instead of appending.
+2. **Show Apps answers a click the way the Trash does.** It used to call `Main.overview.showApps()`
+   inside `button-press-event`, so a press followed by moving away could not cancel. It now records
+   the press, plays the dip, and toggles the overview on release only if that press is still current
+   and the pointer is still on the tile. Left button only, like the Trash; middle and right no longer
+   toggle the grid.
+
+### Why plan A (in memory) rather than plan B (persisted)
+
+- **A** keeps the order on the IconManager instance. It survives lock/unlock and suspend/resume
+  because the shell process keeps running; it is lost on logout, shell restart or an extension reload.
+- **B** would additionally write the order to a `running-app-order` GSettings key and read it back on
+  load, so it survives a shell restart. It **launches nothing**: the key is inert display state, and
+  ids would be pruned at load. Its only advantage over A is surviving a shell restart or an extension
+  reload.
+- Decision 2026-11-26: **A**, implemented. B remains a small follow-up (the same array, one key) if
+  order drift after a restart ever matters.

@@ -2398,3 +2398,34 @@ Evidence  A headless probe flipped `show-running-apps` off and on in the throwaw
           predates this edit.
 Cost      At most one extra log line per switch-off. No behaviour change.
 Commit    579170c
+
+### D-157 · 2026-11-26 · fix
+
+Symptom   After a lock/suspend, running-but-unpinned icons came back in an order nobody chose: the
+          row had no order state, so a rebuild or a re-add read the window stack
+          (`global.get_window_actors()`) and put the icons back in stacking order.
+Change    One remembered order per session (`lib/runningOrder.js`): an app takes the next slot when
+          `_addIcon` first builds it, `_reload` sorts the running segment before the first paint, and
+          `_enforceOrder` sorts by the same list. `_doWindowChange` enforces at its end and reports
+          whether it moved anything, so the `reorder:` oracle stays truthful. Ids are never pruned,
+          so an app that quits and returns keeps its slot.
+Evidence  L1: `npm test` 187 assertions in 48 suites, 10 of them new in
+          `test/runningOrder.test.js`; tier 1 9/9. The live pass needs a re-login — the running shell
+          predates this commit.
+Cost      One string array per session, bounded by the apps seen in it; steady state allocates
+          nothing (`rememberRunning` returns the same array).
+Commit    bb58a57
+
+### D-158 · 2026-11-26 · fix
+
+Symptom   A press on the Show Apps tile opened the grid immediately, so pressing and then moving off
+          the tile could not cancel — unlike the Trash and every app icon, which act on release.
+Change    The tile now follows the Trash rule: `button-press-event` records the press and plays the
+          dip, `button-release-event` toggles the overview only when that press is still current and
+          the pointer is still on the tile. Left button only; middle and right no longer toggle.
+Evidence  L1: tier 1 9/9 and the unit suites. The gesture itself needs a real pointer, which
+          MAINTENANCE §10 records as unavailable to automation; the owner's click after a re-login is
+          the live pass.
+Cost      None in code. Middle/right click on the tile stops toggling the grid — the same narrowing the
+          Trash already has.
+Commit    bb58a57
