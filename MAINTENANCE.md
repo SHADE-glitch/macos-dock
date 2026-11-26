@@ -799,23 +799,23 @@ this order:
 | class | where its order comes from | draggable | activation |
 |---|---|---|---|
 | pinned | `org.gnome.shell favorite-apps`, persisted by the shell | yes; a drop writes that key | press records, release acts (`iconManager.js:1110`) |
-| running, unpinned | the session's remembered order: first sight appends, a returning app keeps its slot (`lib/runningOrder.js`, sorted in `_enforceOrder` at `iconManager.js:698`) | no; a drop into the pinned range pins the app (`dockDnd.js:53`) | same as pinned |
+| running, unpinned | the session's remembered order: first sight appends, and an app is forgotten when its icon leaves the row (`lib/runningOrder.js`, sorted in `_enforceOrder` at `iconManager.js:698`) | no; a drop into the pinned range pins the app (`dockDnd.js:53`) | same as pinned |
 | Trash | fixed tail tile | no | press records, release acts only while the pointer is still on it, so moving away cancels (`iconManager.js:2204`) |
 | Show Apps | pinned last by `applyShowAppsPin` (`iconFix.js:171`) | no | press records, release acts only while the pointer is still on it (`iconManager.js:2306`) |
 
 ### Owner requirements, recorded 2026-11-26 (implemented)
 
-The owner named the four classes above and asked for two behaviours. Both landed in `bb58a57`,
-recorded as D-157 and D-158. A live pass still needs a re-login, because the running shell predates
-the edit.
+The owner named the four classes above and asked for two behaviours. Both landed in `bb58a57`
+(D-157, D-158); D-159 changed the pruning rule to closed-is-closed on the owner's second pass. A live
+pass still needs a re-login, because the running shell predates the edit.
 
 1. **Unpinned icons keep their order across lock/unlock and suspend/resume.** The row used to carry no
    order state: `_addIcon()` appended, a full `_reload()` rebuilt from `global.get_window_actors()`
    (stacking order), and `_enforceOrder()` only lifted pinned icons, so any icon that was dropped and
    re-added landed at the end. `_runningOrder` now records the first-seen order for the session, is
-   consulted before the first paint of a rebuild, and is the sort key of the unpinned segment. Ids are
-   never pruned, which is what makes a transient disappearance harmless; an app that quits and comes
-   back keeps its old slot instead of appending.
+   consulted before the first paint of a rebuild, and is the sort key of the unpinned segment. An id
+   is forgotten when its icon leaves the row (D-159), so a reopened app appends at the end; the 200ms
+   fade is the only grace, and a lock/suspend rebuild keeps the slots of apps that still have windows.
 2. **Show Apps answers a click the way the Trash does.** It used to call `Main.overview.showApps()`
    inside `button-press-event`, so a press followed by moving away could not cancel. It now records
    the press, plays the dip, and toggles the overview on release only if that press is still current

@@ -2429,3 +2429,18 @@ Evidence  L1: tier 1 9/9 and the unit suites. The gesture itself needs a real po
 Cost      None in code. Middle/right click on the tile stops toggling the grid — the same narrowing the
           Trash already has.
 Commit    bb58a57
+
+### D-159 · 2026-11-26 · fix
+
+Symptom   D-157 kept every id for the session, so an app that was closed and later reopened came back
+          to the slot it used to hold. The owner's rule is closed-is-closed: reopening belongs at the
+          end of the row.
+Change    `_runningOrder` now forgets an id when its icon leaves the row — at the fade-out's
+          completion, and on a rebuild that destroyed an icon before its fade completed (an id with no
+          windows left is dropped; an app filtered out by workspace mode still has windows and keeps
+          its slot). The 200ms fade is the only grace, because a cancelled removal never forgets.
+Evidence  L1: `npm test` 191 assertions in 49 suites, 4 new `forgetRunning` cases in
+          `test/runningOrder.test.js`; tier 1 9/9. The live pass still needs a re-login.
+Cost      None. A closed app appends when reopened; the lock/suspend rebuild is unaffected for apps
+          that still have windows.
+Commit    3f007f7
