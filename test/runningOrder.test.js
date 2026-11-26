@@ -9,7 +9,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { rememberRunning, sortByRunningOrder } from "../lib/runningOrder.js";
+import { forgetRunning, rememberRunning, sortByRunningOrder } from "../lib/runningOrder.js";
 
 const id = (app) => app.id;
 const apps = (...ids) => ids.map((appId) => ({ id: appId }));
@@ -36,6 +36,28 @@ describe("rememberRunning", () => {
         const order = ["a"];
         rememberRunning(order, "b");
         assert.deepEqual(order, ["a"]);
+    });
+});
+
+describe("forgetRunning", () => {
+    it("removes the id and keeps the rest in order", () => {
+        assert.deepEqual(forgetRunning(["a", "b", "c"], "b"), ["a", "c"]);
+    });
+
+    it("returns the same array when the id is not there", () => {
+        const order = ["a"];
+        assert.equal(forgetRunning(order, "b"), order);
+    });
+
+    it("ignores a missing id", () => {
+        const order = ["a"];
+        assert.equal(forgetRunning(order, null), order);
+    });
+
+    it("does not mutate its input", () => {
+        const order = ["a", "b"];
+        forgetRunning(order, "a");
+        assert.deepEqual(order, ["a", "b"]);
     });
 });
 
