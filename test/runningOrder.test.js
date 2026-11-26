@@ -3,13 +3,14 @@
 //
 // The owner's report: after a lock/suspend the unpinned icons came back in an
 // order nobody chose, because the row was re-derived from the window stack.
-// These two rules are what replaces that source — append on first sight, sort
-// by the remembered rank, unknown ids last and stable.
+// These rules are what replaces that source — append on first sight, sort by
+// the remembered rank, unknown ids last and stable — plus the settle clock that
+// keeps a tray helper's one-frame window out of the row.
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { forgetRunning, rememberRunning, sortByRunningOrder } from "../lib/runningOrder.js";
+import { forgetRunning, holdNewId, rememberRunning, sortByRunningOrder } from "../lib/runningOrder.js";
 
 const id = (app) => app.id;
 const apps = (...ids) => ids.map((appId) => ({ id: appId }));
@@ -84,5 +85,40 @@ describe("sortByRunningOrder", () => {
         const list = apps("b", "a");
         sortByRunningOrder(list, ["a", "b"], id);
         assert.deepEqual(list, apps("b", "a"));
+    });
+});
+
+describe("holdNewId", () => {
+    it("holds a first sight and records its clock", () => {
+        const pending = new Map();
+        assert.equal(holdNewId(pending, "a", 1000, 400), true);
+        assert.equal(pending.get("a"), 1000);
+    });
+
+    it("keeps holding before the settle window ends", () => {
+        const pending = new Map([["a", 1000]]);
+        assert.equal(holdNewId(pending, "a", 1399, 400), true);
+        assert.equal(pending.get("a"), 1000);
+    });
+
+    it("releases at the deadline and drops the entry", () => {
+        const pending = new Map([["a", 1000]]);
+        assert.equal(holdNewId(pending, "a", 1400, 400), false);
+        assert.equal(pending.has("a"), false);
+    });
+
+    it("starts a new clock when the app is seen again after a release", () => {
+        const pending = new Map();
+        holdNewId(pending, "a", 1000, 400);
+        assert.equal(holdNewId(pending, "a", 1400, 400), false);
+        assert.equal(holdNewId(pending, "a", 2000, 400), true);
+        assert.equal(pending.get("a"), 2000);
+    });
+
+    it("leaves other pending ids alone", () => {
+        const pending = new Map([["a", 1000]]);
+        holdNewId(pending, "b", 1100, 400);
+        assert.deepEqual([...pending.keys()], ["a", "b"]);
+        assert.equal(pending.get("a"), 1000);
     });
 });
