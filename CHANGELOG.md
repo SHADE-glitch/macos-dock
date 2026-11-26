@@ -2461,3 +2461,33 @@ Evidence  L1: `npm test` 191 assertions in 49 suites; tier 1 9/9. The gesture ne
           (MAINTENANCE §10), so the live pass is a re-login plus one press-and-move-away.
 Cost      None. The grid toggle's three-stage logic is unchanged; only the event that triggers it is.
 Commit    7ef8c2a
+
+### D-161 · 2026-11-26 · fix
+
+Symptom   After a lock/unlock the unpinned icons sometimes came back in a different order, and once
+          they moved they stayed that way. Manual suspend was clean; the lock step was what did it.
+Cause     `_getRunningApps()` answers from `global.get_window_actors()`. Locking makes that set
+          flicker — tray helpers map and unmap — and every disappearance went through the close
+          path, which forgets the slot (D-159). A forgotten slot is an app that must append.
+Change    `IconManager` now tracks `Main.sessionMode.isLocked`. While locked, neither the fade-out
+          completion nor the rebuild prune forgets a slot. On unlock, only ids whose app is missing
+          or `Shell.AppState.STOPPED` are dropped, and one window pass runs so the returning windows
+          land back in their remembered slots.
+Evidence  L1: `npm test` 196 assertions in 50 suites; tier 1 9/9. The live pass is a lock/unlock
+          with three unpinned apps and a journal read of the `session` and `running-set` lines.
+Cost      A slot can outlive an app that quits while the screen is locked, until the unlock
+          reconcile removes it — the same moment the user could notice.
+Commit    3a81b24
+
+### D-162 · 2026-11-26 · fix
+
+Symptom   After unlocking, icons for tray apps appeared in the dock for a moment and faded out.
+Cause     A window that maps for a moment counted as a running app, so a tile was built on first
+          sight and removed 200ms later.
+Change    A new unpinned app is held for `SETTLE_NEW_ICON_MS` (400ms) before a tile is built; an id
+          that leaves the running set while held is dropped without ever drawing. One timer is armed
+          for the earliest deadline, never one per app. The rule is `holdNewId()` in
+          `lib/runningOrder.js`, pinned under plain Node.
+Evidence  L1: 196 assertions in 50 suites, 5 new `holdNewId` cases; tier 1 9/9.
+Cost      A genuinely new app's dock icon appears 400ms after its window does.
+Commit    3a81b24

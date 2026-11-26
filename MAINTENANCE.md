@@ -799,7 +799,7 @@ this order:
 | class | where its order comes from | draggable | activation |
 |---|---|---|---|
 | pinned | `org.gnome.shell favorite-apps`, persisted by the shell | yes; a drop writes that key | press records, release acts (`iconManager.js:1110`) |
-| running, unpinned | the session's remembered order: first sight appends, and an app is forgotten when its icon leaves the row (`lib/runningOrder.js`, sorted in `_enforceOrder` at `iconManager.js:698`) | no; a drop into the pinned range pins the app (`dockDnd.js:53`) | same as pinned |
+| running, unpinned | the session's remembered order: first sight appends, and an app is forgotten when its icon leaves the row — except while the screen is locked, where the window set is not a close signal (`lib/runningOrder.js`, sorted in `_enforceOrder` at `iconManager.js:698`) | no; a drop into the pinned range pins the app (`dockDnd.js:53`) | same as pinned |
 | Trash | fixed tail tile | no | press records, release acts only while the pointer is still on it, so moving away cancels (`iconManager.js:2204`) |
 | Show Apps | pinned last by `applyShowAppsPin` (`iconFix.js:171`) | no | press records and dips, release acts only while the pointer is still on it; the live pair is the companion's (`overviewApps.js:170`, `:184`), because it replaces IconManager's handlers on this tile |
 
@@ -809,8 +809,9 @@ The owner named the four classes above and asked for two behaviours. Both landed
 (D-157, D-158); D-159 changed the pruning rule to closed-is-closed on the owner's second pass. D-160
 re-landed the Show Apps half where the tile is actually owned: `apps-button-fix-enabled` is on, and
 `lib/overviewApps.js` disconnects every IconManager handler on the tile before installing its own, so
-D-158's pair never ran. A live pass still needs a re-login, because the running shell predates the
-edit.
+D-158's pair never ran. A third pass after a real lock/unlock added D-161 (slots survive the lock) and
+D-162 (a new tile is held for 400ms before it is drawn). A live pass still needs a re-login, because
+the running shell predates the edit.
 
 1. **Unpinned icons keep their order across lock/unlock and suspend/resume.** The row used to carry no
    order state: `_addIcon()` appended, a full `_reload()` rebuilt from `global.get_window_actors()`
@@ -818,7 +819,9 @@ edit.
    re-added landed at the end. `_runningOrder` now records the first-seen order for the session, is
    consulted before the first paint of a rebuild, and is the sort key of the unpinned segment. An id
    is forgotten when its icon leaves the row (D-159), so a reopened app appends at the end; the 200ms
-   fade is the only grace, and a lock/suspend rebuild keeps the slots of apps that still have windows.
+   fade is the only grace. While the screen is locked nothing is forgotten at all: locking makes the
+   window set flicker, so the slots are frozen and only apps that are gone or `Shell.AppState.STOPPED`
+   are dropped when the screen unlocks (D-161).
 2. **Show Apps answers a click the way the Trash does.** It used to call `Main.overview.showApps()`
    inside `button-press-event`, so a press followed by moving away could not cancel. It now records
    the press, plays the dip, and toggles the overview on release only if that press is still current
@@ -826,6 +829,10 @@ edit.
    toggle the grid. The pair lives in `lib/overviewApps.js` (D-160), not in `iconManager.js`: that
    module owns the tile whenever `apps-button-fix-enabled` is on, and it discards IconManager's
    handlers before connecting its own.
+3. **A transient window must not flash a tile.** Unlocking used to draw tiles for tray apps for a
+   moment and fade them out 200ms later. A new unpinned app is now held for `SETTLE_NEW_ICON_MS`
+   (400ms) before its tile is built; if it leaves the running set while held, nothing is ever drawn
+   (D-162). The cost is that a genuinely new app's tile appears 400ms after its window does.
 
 ### Why plan A (in memory) rather than plan B (persisted)
 
