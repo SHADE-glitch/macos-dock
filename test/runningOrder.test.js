@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// © SHADE-glitch — suites for lib/runningOrder.js. Pure Node: no gjs, no shell.
+//
+// The owner's report: after a lock/suspend the unpinned icons came back in an
+// order nobody chose, because the row was re-derived from the window stack.
+// These two rules are what replaces that source — append on first sight, sort
+// by the remembered rank, unknown ids last and stable.
+
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+
+import { rememberRunning, sortByRunningOrder } from "../lib/runningOrder.js";
+
+const id = (app) => app.id;
+const apps = (...ids) => ids.map((appId) => ({ id: appId }));
+
+describe("rememberRunning", () => {
+    it("appends an id it has not seen", () => {
+        assert.deepEqual(rememberRunning(["a"], "b"), ["a", "b"]);
+    });
+
+    it("keeps the first slot when the id is already known", () => {
+        assert.deepEqual(rememberRunning(["a", "b"], "a"), ["a", "b"]);
+    });
+
+    it("ignores a missing id", () => {
+        assert.deepEqual(rememberRunning(["a"], null), ["a"]);
+    });
+
+    it("returns the same array when nothing changes", () => {
+        const order = ["a"];
+        assert.equal(rememberRunning(order, "a"), order);
+    });
+
+    it("does not mutate its input", () => {
+        const order = ["a"];
+        rememberRunning(order, "b");
+        assert.deepEqual(order, ["a"]);
+    });
+});
+
+describe("sortByRunningOrder", () => {
+    it("sorts known ids by their remembered rank", () => {
+        assert.deepEqual(sortByRunningOrder(apps("c", "a", "b"), ["b", "c", "a"], id),
+            apps("b", "c", "a"));
+    });
+
+    it("puts unknown ids after every known rank, in input order", () => {
+        assert.deepEqual(sortByRunningOrder(apps("x", "b", "y", "a"), ["a", "b"], id),
+            apps("a", "b", "x", "y"));
+    });
+
+    it("is the identity when nothing is remembered", () => {
+        assert.deepEqual(sortByRunningOrder(apps("c", "a", "b"), [], id), apps("c", "a", "b"));
+    });
+
+    it("keeps input order when every rank is unknown", () => {
+        assert.deepEqual(sortByRunningOrder(apps("x", "y"), ["a"], id), apps("x", "y"));
+    });
+
+    it("does not mutate its input", () => {
+        const list = apps("b", "a");
+        sortByRunningOrder(list, ["a", "b"], id);
+        assert.deepEqual(list, apps("b", "a"));
+    });
+});
